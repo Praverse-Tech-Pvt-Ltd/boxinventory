@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getAllUsers, deleteUser as deleteUserAPI, updateUser as updateUserAPI } from "../../services/userService";
 import { toast } from "react-hot-toast";
-import { FiTrash2 } from "react-icons/fi";
+import { FiTrash2, FiCheck } from "react-icons/fi";
 import { FaRegEdit } from "react-icons/fa";
 import { motion } from "framer-motion";
 
@@ -71,43 +71,40 @@ const Users = () => {
   const skeletonRows = Array(3).fill(0);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#fef6f9] via-[#f4f7fe] to-[#f3fbf4] p-6 text-gray-700">
-      <motion.h1
-        className="text-4xl font-bold text-blue-600 mb-6 tracking-tight flex items-center gap-2"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        🧑‍🤝‍🧑 Admin – User Management
-      </motion.h1>
-
+    <div className="w-full">
       <motion.div
-        className="overflow-x-auto bg-white rounded-xl shadow-xl p-6 border border-gray-100"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <table className="min-w-full text-sm text-gray-700">
+        {/* Gold shimmer overlay on card */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent rounded-t-3xl" />
+        <div className="overflow-x-auto">
+        <table className="min-w-full text-sm poppins">
           <thead>
-            <tr className="bg-gradient-to-r from-blue-50 to-purple-50 text-left rounded">
-              <th className="px-4 py-3">🧍 Name</th>
-              <th className="px-4 py-3">📧 Email</th>
-              <th className="px-4 py-3">🔑 Role</th>
-              <th className="px-4 py-3 text-center">⚙️ Actions</th>
+            <tr className="bg-gradient-to-r from-[#C1272D]/10 via-[#D4AF37]/10 to-[#C1272D]/10 text-left rounded-t-xl border-b-2 border-[#D4AF37]/30">
+              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Name</th>
+              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Email</th>
+              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Role</th>
+              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               skeletonRows.map((_, idx) => (
-                <tr key={idx} className="animate-pulse">
-                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-3/4"></div></td>
-                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-5/6"></div></td>
-                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-1/2"></div></td>
-                  <td className="px-4 py-3 text-center"><div className="h-4 bg-gray-200 rounded w-12 mx-auto"></div></td>
+                <tr key={idx} className="animate-pulse border-b border-[#E8DCC6]/50">
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4"></div></td>
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-5/6"></div></td>
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2"></div></td>
+                  <td className="px-4 py-4 text-center"><div className="h-4 bg-[#E8DCC6]/50 rounded w-12 mx-auto"></div></td>
                 </tr>
               ))
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan="4" className="text-center py-6 text-gray-500">No users found on this path.</td>
+                <td colSpan="4" className="text-center py-12 text-[#5D3A00]/60 poppins">
+                  No users found.
+                </td>
               </tr>
             ) : (
               users.map((u, index) => {
@@ -115,77 +112,99 @@ const Users = () => {
                 return (
                   <motion.tr
                     key={u._id}
-                    className="border-t hover:bg-blue-50"
+                    className="border-b border-[#E8DCC6]/50 hover:bg-[#F4E4BC]/20 transition-colors duration-200"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
                   >
-                    <td className="p-3">
+                    <td className="p-4">
                       <input
                         name="name"
                         value={isEditing ? formState.name : u.name}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-md text-sm ${isEditing ? "border border-gray-300 bg-white focus:ring focus:ring-blue-200" : "bg-transparent border-none"}`}
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                          isEditing
+                            ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                            : "bg-transparent border-none"
+                        }`}
                       />
                     </td>
-                    <td className="p-3">
+                    <td className="p-4">
                       <input
                         name="email"
                         value={isEditing ? formState.email : u.email}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-md text-sm ${isEditing ? "border border-gray-300 bg-white focus:ring focus:ring-blue-200" : "bg-transparent border-none"}`}
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                          isEditing
+                            ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                            : "bg-transparent border-none"
+                        }`}
                       />
                     </td>
-                    <td className="p-3">
+                    <td className="p-4">
                       <select
                         name="role"
                         value={isEditing ? formState.role : u.role}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-md text-sm ${isEditing ? "border border-gray-300 bg-white focus:ring focus:ring-blue-200" : "bg-transparent border-none"}`}
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                          isEditing
+                            ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
+                            : "bg-transparent border-none"
+                        }`}
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                       </select>
                     </td>
-                    <td className="p-3 flex justify-center gap-3 text-lg">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={() => saveEdit(u._id)}
-                            className="text-green-600 hover:text-green-800 transition"
-                            title="Save"
-                          >
-                            💾
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="text-gray-500 hover:text-gray-800 transition"
-                            title="Cancel"
-                          >
-                            ✖️
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => startEdit(u)}
-                            className="text-blue-600 hover:text-blue-800 transition"
-                            title="Edit User"
-                          >
-                            <FaRegEdit size={18} />
-                          </button>
-                          <button
-                            onClick={() => deleteUser(u._id)}
-                            className="text-red-600 hover:text-red-800 transition"
-                            title="Delete User"
-                          >
-                            <FiTrash2 size={18} />
-                          </button>
-                        </>
-                      )}
+                    <td className="p-4">
+                      <div className="flex justify-center gap-3">
+                        {isEditing ? (
+                          <>
+                            <motion.button
+                              onClick={() => saveEdit(u._id)}
+                              className="text-[#D4AF37] hover:text-[#C1272D] transition-colors duration-200"
+                              title="Save"
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <FiCheck size={20} />
+                            </motion.button>
+                            <motion.button
+                              onClick={cancelEdit}
+                              className="text-[#5D3A00]/60 hover:text-[#C1272D] transition-colors duration-200"
+                              title="Cancel"
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              ✖️
+                            </motion.button>
+                          </>
+                        ) : (
+                          <>
+                            <motion.button
+                              onClick={() => startEdit(u)}
+                              className="text-[#D4AF37] hover:text-[#C1272D] transition-colors duration-200"
+                              title="Edit User"
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <FaRegEdit size={20} />
+                            </motion.button>
+                            <motion.button
+                              onClick={() => deleteUser(u._id)}
+                              className="text-[#C1272D] hover:text-[#A01F24] transition-colors duration-200"
+                              title="Delete User"
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.9 }}
+                            >
+                              <FiTrash2 size={20} />
+                            </motion.button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 );
@@ -193,6 +212,7 @@ const Users = () => {
             )}
           </tbody>
         </table>
+        </div>
       </motion.div>
     </div>
   );
