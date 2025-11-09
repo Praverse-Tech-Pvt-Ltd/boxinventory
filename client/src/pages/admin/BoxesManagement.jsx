@@ -87,20 +87,22 @@ const BoxesManagement = () => {
     }
   };
 
+  const getInitialFormData = () => ({
+    image: null,
+    imagePreview: "",
+    title: "",
+    code: "",
+    price: "",
+    bagSize: "",
+    boxInnerSize: "",
+    boxOuterSize: "",
+    moq: "",
+    assemblyCharge: "",
+    additionalShippingCharges: true,
+  });
+
   const resetForm = () => {
-    setFormData({
-      image: null,
-      imagePreview: "",
-      title: "",
-      code: "",
-      price: "",
-      bagSize: "",
-      boxInnerSize: "",
-      boxOuterSize: "",
-      moq: "",
-      assemblyCharge: "",
-      additionalShippingCharges: true,
-    });
+    setFormData(getInitialFormData());
     setEditingId(null);
     setShowForm(false);
   };
@@ -215,12 +217,16 @@ const BoxesManagement = () => {
         <motion.button
           onClick={() => {
             if (showForm && !editingId) {
+              // Form is open and not editing - close it
+              resetForm();
+            } else if (editingId) {
+              // Currently editing - cancel edit
               resetForm();
             } else {
-              setShowForm(!showForm);
-              if (!showForm) {
-                resetForm();
-              }
+              // Form is closed - open it for new box
+              setEditingId(null);
+              setFormData(getInitialFormData());
+              setShowForm(true);
             }
           }}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"

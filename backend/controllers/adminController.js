@@ -24,23 +24,32 @@ export const getUserById = async (req, res) => {
 // Update user
 export const updateUser = async (req, res) => {
   try {
-    const { name, email, isAdmin } = req.body;
+    const { name, email, role, isAdmin } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.name = name || user.name;
-    user.email = email || user.email;
-    if (typeof isAdmin === "boolean") user.isAdmin = isAdmin;
+    // Update name and email if provided
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email;
+    
+    // Handle role update - support both 'role' and 'isAdmin' for backwards compatibility
+    if (role && (role === "user" || role === "admin")) {
+      user.role = role;
+    } else if (typeof isAdmin === "boolean") {
+      // Convert isAdmin boolean to role string
+      user.role = isAdmin ? "admin" : "user";
+    }
 
     const updatedUser = await user.save();
     res.status(200).json({
       _id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
-      isAdmin: updatedUser.isAdmin,
+      role: updatedUser.role,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error updating user:", error);
+    res.status(500).json({ message: error.message || "Server error" });
   }
 };
 

@@ -47,13 +47,15 @@ const Users = () => {
       const updated = await updateUserAPI(id, {
         name: formState.name,
         email: formState.email,
-        isAdmin: formState.role === "admin",
+        role: formState.role,
       });
-      setUsers((prev) => prev.map((u) => (u._id === id ? updated : u)));
+      // Ensure the updated user has all required fields
+      setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, ...updated } : u)));
       toast.success("🧘 User info updated");
       cancelEdit();
     } catch (error) {
-      toast.error("❌ Update failed");
+      console.error("Update error:", error);
+      toast.error(error.response?.data?.message || "❌ Update failed");
     }
   };
 
