@@ -108,13 +108,13 @@ const Home = () => {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-gradient-to-br from-[#F5F1E8]/95 via-white/95 to-[#F4E4BC]/95 backdrop-blur-xl border-b-2 border-[#D4AF37]/30 shadow-lg">
+      <div className="relative z-10 bg-white border-b-2 border-[#D4AF37]/30 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-            <h1 className="text-3xl md:text-4xl font-bold playfair text-[#F5F1E8] bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold playfair text-[#C1272D]">
               Boxes
             </h1>
-            <p className="text-sm text-[#5D3A00]/70 poppins mt-1">Browse and subtract box quantities</p>
+            <p className="text-sm text-[#2D1B0E] poppins mt-1 font-medium">Browse and subtract box quantities</p>
           </motion.div>
 
           <motion.button
@@ -142,19 +142,19 @@ const Home = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-6">
         {/* Search Bar */}
         <div className="relative">
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5D3A00]/50" size={20} />
+          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
           <input
             type="text"
             placeholder="Search by name, code, or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
           />
         </div>
 
         {/* Boxes Grid */}
         <motion.div
-          className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
+          className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -163,16 +163,16 @@ const Home = () => {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
-              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-white/60">
-                <div className="h-40 w-full bg-[#E8DCC6]/50 rounded-xl mb-4"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-2/3"></div>
+              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-[#F9F7F4]">
+                <div className="h-40 w-full bg-[#E8DCC6] rounded-xl mb-4"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-2/3"></div>
               </div>
             ))}
           </div>
         ) : currentBoxes.length === 0 ? (
-          <div className="text-center py-12 text-[#5D3A00]/60 poppins">
+          <div className="text-center py-12 text-[#2D1B0E] poppins font-medium">
             {searchQuery ? "No boxes found matching your search." : "No boxes found."}
           </div>
         ) : (
@@ -180,7 +180,7 @@ const Home = () => {
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white/70 overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
+                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
@@ -235,11 +235,11 @@ const Home = () => {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h4 className="text-lg font-semibold playfair text-[#C1272D]">{box.title}</h4>
-                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#5D3A00]">
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#2D1B0E]">
                       {box.category || "uncategorized"}
                     </span>
                   </div>
-                  <div className="mt-2 space-y-1 text-sm text-[#5D3A00] poppins">
+                  <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{Number(box.price).toFixed(2)}</div>
                     <div><span className="font-semibold">Available:</span> {box.quantity || 0}</div>
@@ -258,7 +258,7 @@ const Home = () => {
                       placeholder="Qty"
                       value={qtyInputs[box._id] ?? ""}
                       onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                      className="w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white/90 poppins text-[#5D3A00]"
+                      className="w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
                     />
                     <motion.button
                       onClick={() => submitSubtract(box)}
@@ -278,8 +278,8 @@ const Home = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]/50">
-            <div className="text-sm text-[#5D3A00]/70 poppins">
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
+            <div className="text-sm text-[#2D1B0E] poppins font-medium">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
@@ -287,7 +287,7 @@ const Home = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#5D3A00] rounded-lg font-semibold poppins disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
                 whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
               >
@@ -299,14 +299,14 @@ const Home = () => {
                   .map((page, idx, arr) => (
                     <React.Fragment key={page}>
                       {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span className="text-[#5D3A00]/50">...</span>
+                        <span className="text-[#6B5B4F]">...</span>
                       )}
                       <motion.button
                         onClick={() => setCurrentPage(page)}
                         className={`px-4 py-2 rounded-lg font-semibold poppins transition-all duration-300 ${
                           currentPage === page
                             ? "bg-[#C1272D] text-white"
-                            : "border-2 border-[#D4AF37] text-[#5D3A00] hover:bg-[#D4AF37] hover:text-white"
+                            : "border-2 border-[#D4AF37] text-[#2D1B0E] hover:bg-[#D4AF37] hover:text-white"
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -319,7 +319,7 @@ const Home = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#5D3A00] rounded-lg font-semibold poppins disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
                 whileHover={{ scale: currentPage === totalPages ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === totalPages ? 1 : 0.95 }}
               >

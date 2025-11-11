@@ -281,7 +281,7 @@ const BoxesManagement = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
+            className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
             <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">
@@ -292,7 +292,7 @@ const BoxesManagement = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Image Upload */}
                 <div className="md:col-span-2">
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Product Image {!editingId && "*"}
                   </label>
                   <div className="flex items-center gap-4">
@@ -300,7 +300,7 @@ const BoxesManagement = () => {
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="block w-full text-sm text-[#5D3A00] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-[#5D3A00] hover:file:bg-[#C1272D] hover:file:text-white cursor-pointer"
+                      className="block w-full text-sm text-[#2D1B0E] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-[#2D1B0E] hover:file:bg-[#C1272D] hover:file:text-white cursor-pointer"
                     />
                     {formData.imagePreview && (
                       <img
@@ -314,7 +314,7 @@ const BoxesManagement = () => {
 
                 {/* Title */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Title *
                   </label>
                   <input
@@ -323,14 +323,14 @@ const BoxesManagement = () => {
                     value={formData.title}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="Luxury Gift Box"
                   />
                 </div>
 
                 {/* Code */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Code *
                   </label>
                   <input
@@ -339,14 +339,14 @@ const BoxesManagement = () => {
                     value={formData.code}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300 uppercase"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300 uppercase"
                     placeholder="BOX001"
                   />
                 </div>
 
                 {/* Category */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Category *
                   </label>
                   <input
@@ -355,14 +355,14 @@ const BoxesManagement = () => {
                     value={formData.category}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="lotus-pink series"
                   />
                 </div>
 
                 {/* Price */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Price *
                   </label>
                   <input
@@ -373,14 +373,14 @@ const BoxesManagement = () => {
                     required
                     step="0.01"
                     min="0"
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="100.00"
                   />
                 </div>
 
                 {/* Quantity */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Quantity *
                   </label>
                   <input
@@ -390,14 +390,14 @@ const BoxesManagement = () => {
                     onChange={handleChange}
                     required
                     min="0"
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="100"
                   />
                 </div>
 
                 {/* Bag Size */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Bag Size *
                   </label>
                   <input
@@ -406,14 +406,14 @@ const BoxesManagement = () => {
                     value={formData.bagSize}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="6 x 5 x 1.75 inch"
                   />
                 </div>
 
                 {/* Box Inner Size */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Box Inner Size *
                   </label>
                   <input
@@ -422,14 +422,14 @@ const BoxesManagement = () => {
                     value={formData.boxInnerSize}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4 x 4 x 1.5 inch"
                   />
                 </div>
 
                 {/* Box Outer Size */}
                 <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Box Outer Size *
                   </label>
                   <input
@@ -438,14 +438,14 @@ const BoxesManagement = () => {
                     value={formData.boxOuterSize}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4.74 x 4.75 x 1.5 inch"
                   />
                 </div>
 
                 {/* Colours */}
                 <div className="md:col-span-2">
-                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
                     Colours * (comma-separated)
                   </label>
                   <input
@@ -454,10 +454,10 @@ const BoxesManagement = () => {
                     value={formData.colours}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="Red, Gold, Pink, Blue"
                   />
-                  <p className="mt-1 text-xs text-[#5D3A00]/60 poppins">
+                  <p className="mt-1 text-xs text-[#2D1B0E]/60 poppins">
                     Enter colours separated by commas (e.g., Red, Gold, Pink)
                   </p>
                 </div>
@@ -500,19 +500,19 @@ const BoxesManagement = () => {
 
       {/* Search Bar */}
       <div className="relative">
-        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5D3A00]/50" size={20} />
+        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
         <input
           type="text"
           placeholder="Search by name or code..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+          className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
         />
       </div>
 
       {/* Boxes Grid */}
       <motion.div
-        className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -521,16 +521,16 @@ const BoxesManagement = () => {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
-              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-white/60">
-                <div className="h-40 w-full bg-[#E8DCC6]/50 rounded-xl mb-4"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6]/50 rounded w-2/3"></div>
+              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-[#F9F7F4]">
+                <div className="h-40 w-full bg-[#E8DCC6] rounded-xl mb-4"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6] rounded w-2/3"></div>
               </div>
             ))}
           </div>
         ) : currentBoxes.length === 0 ? (
-          <div className="text-center py-12 text-[#5D3A00]/60 poppins">
+          <div className="text-center py-12 text-[#2D1B0E] poppins font-medium">
             {searchQuery ? "No boxes found matching your search." : "No boxes found."}
           </div>
         ) : (
@@ -538,7 +538,7 @@ const BoxesManagement = () => {
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white/70 overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
+                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
@@ -594,11 +594,11 @@ const BoxesManagement = () => {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h4 className="text-lg font-semibold playfair text-[#C1272D]">{box.title}</h4>
-                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#5D3A00]">
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#2D1B0E]">
                       {box.category || "uncategorized"}
                     </span>
                   </div>
-                  <div className="mt-2 space-y-1 text-sm text-[#5D3A00] poppins">
+                  <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
                     <div><span className="font-semibold">Quantity:</span> {box.quantity || 0}</div>
@@ -612,7 +612,7 @@ const BoxesManagement = () => {
                   <div className="mt-4 flex justify-end gap-3">
                     <motion.button
                       onClick={() => startEdit(box)}
-                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#5D3A00] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors"
+                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#2D1B0E] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -635,8 +635,8 @@ const BoxesManagement = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]/50">
-            <div className="text-sm text-[#5D3A00]/70 poppins">
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
+            <div className="text-sm text-[#2D1B0E] poppins font-medium">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
@@ -644,7 +644,7 @@ const BoxesManagement = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#5D3A00] rounded-lg font-semibold poppins disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
                 whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
               >
@@ -661,14 +661,14 @@ const BoxesManagement = () => {
                   .map((page, idx, arr) => (
                     <React.Fragment key={page}>
                       {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span className="text-[#5D3A00]/50">...</span>
+                        <span className="text-[#6B5B4F]">...</span>
                       )}
                       <motion.button
                         onClick={() => setCurrentPage(page)}
                         className={`px-4 py-2 rounded-lg font-semibold poppins transition-all duration-300 ${
                           currentPage === page
                             ? "bg-[#C1272D] text-white"
-                            : "border-2 border-[#D4AF37] text-[#5D3A00] hover:bg-[#D4AF37] hover:text-white"
+                            : "border-2 border-[#D4AF37] text-[#2D1B0E] hover:bg-[#D4AF37] hover:text-white"
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -681,7 +681,7 @@ const BoxesManagement = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#5D3A00] rounded-lg font-semibold poppins disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
                 whileHover={{ scale: currentPage === totalPages ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === totalPages ? 1 : 0.95 }}
               >
