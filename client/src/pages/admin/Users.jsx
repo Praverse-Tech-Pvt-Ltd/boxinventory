@@ -75,7 +75,7 @@ const Users = () => {
   return (
     <div className="w-full">
       <motion.div
-        className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative"
+        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -85,26 +85,26 @@ const Users = () => {
         <div className="overflow-x-auto">
         <table className="min-w-full text-sm poppins">
           <thead>
-            <tr className="bg-gradient-to-r from-[#C1272D]/10 via-[#D4AF37]/10 to-[#C1272D]/10 text-left rounded-t-xl border-b-2 border-[#D4AF37]/30">
-              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Name</th>
-              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Email</th>
-              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Role</th>
-              <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins text-center">Actions</th>
+            <tr className="bg-[#F4E4BC] text-left rounded-t-xl border-b-2 border-[#D4AF37]/30">
+              <th className="px-4 py-4 font-semibold text-[#2D1B0E] poppins">Name</th>
+              <th className="px-4 py-4 font-semibold text-[#2D1B0E] poppins">Email</th>
+              <th className="px-4 py-4 font-semibold text-[#2D1B0E] poppins">Role</th>
+              <th className="px-4 py-4 font-semibold text-[#2D1B0E] poppins text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               skeletonRows.map((_, idx) => (
-                <tr key={idx} className="animate-pulse border-b border-[#E8DCC6]/50">
-                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4"></div></td>
-                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-5/6"></div></td>
-                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2"></div></td>
-                  <td className="px-4 py-4 text-center"><div className="h-4 bg-[#E8DCC6]/50 rounded w-12 mx-auto"></div></td>
+                <tr key={idx} className="animate-pulse border-b border-[#E8DCC6]">
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6] rounded w-3/4"></div></td>
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6] rounded w-5/6"></div></td>
+                  <td className="px-4 py-4"><div className="h-4 bg-[#E8DCC6] rounded w-1/2"></div></td>
+                  <td className="px-4 py-4 text-center"><div className="h-4 bg-[#E8DCC6] rounded w-12 mx-auto"></div></td>
                 </tr>
               ))
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan="4" className="text-center py-12 text-[#5D3A00]/60 poppins">
+                <td colSpan="4" className="text-center py-12 text-[#2D1B0E] poppins font-medium">
                   No users found.
                 </td>
               </tr>
@@ -114,7 +114,7 @@ const Users = () => {
                 return (
                   <motion.tr
                     key={u._id}
-                    className="border-b border-[#E8DCC6]/50 hover:bg-[#F4E4BC]/20 transition-colors duration-200"
+                    className="border-b border-[#E8DCC6] hover:bg-[#F9F7F4] transition-colors duration-200"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
@@ -125,7 +125,7 @@ const Users = () => {
                         value={isEditing ? formState.name : u.name}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#2D1B0E] ${
                           isEditing
                             ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
                             : "bg-transparent border-none"
@@ -138,7 +138,7 @@ const Users = () => {
                         value={isEditing ? formState.email : u.email}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#2D1B0E] ${
                           isEditing
                             ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
                             : "bg-transparent border-none"
@@ -151,7 +151,7 @@ const Users = () => {
                         value={isEditing ? formState.role : u.role}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#5D3A00] ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-[#2D1B0E] ${
                           isEditing
                             ? "border-2 border-[#D4AF37]/50 bg-white focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37]"
                             : "bg-transparent border-none"
@@ -176,7 +176,7 @@ const Users = () => {
                             </motion.button>
                             <motion.button
                               onClick={cancelEdit}
-                              className="text-[#5D3A00]/60 hover:text-[#C1272D] transition-colors duration-200"
+                              className="text-[#6B5B4F] hover:text-[#C1272D] transition-colors duration-200"
                               title="Cancel"
                               whileHover={{ scale: 1.2 }}
                               whileTap={{ scale: 0.9 }}

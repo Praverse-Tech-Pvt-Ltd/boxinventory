@@ -113,26 +113,26 @@ const ChallanGeneration = () => {
 
   return (
     <div className="w-full space-y-6">
-      <div className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">Challan Generation</h3>
 
         {/* Search */}
         <div className="relative mb-4">
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5D3A00]/50" size={20} />
+          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
           <input
             type="text"
             placeholder="Search by user, box name, code, category, or quantity..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
           />
         </div>
 
         {/* Candidates table */}
         <div className="overflow-x-auto">
           <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden">
-            <thead className="bg-[#F4E4BC] text-[#5D3A00]">
+            <thead className="bg-[#F4E4BC] text-[#2D1B0E]">
               <tr>
                 <th className="px-4 py-3 text-sm font-semibold w-12">
                   <button onClick={toggleAll} className="text-[#C1272D]">
@@ -147,14 +147,14 @@ const ChallanGeneration = () => {
                 <th className="px-4 py-3 text-sm font-semibold">Quantity</th>
               </tr>
             </thead>
-            <tbody className="bg-white/80">
+            <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-[#5D3A00]/60 poppins" colSpan={7}>Loading candidates...</td>
+                  <td className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium" colSpan={7}>Loading candidates...</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-[#5D3A00]/60 poppins" colSpan={7}>No candidates available</td>
+                  <td className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium" colSpan={7}>No candidates available</td>
                 </tr>
               ) : (
                 filtered.map((a) => (
@@ -164,12 +164,12 @@ const ChallanGeneration = () => {
                         {selected[a._id] ? <FiCheckSquare /> : <FiSquare />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{new Date(a.createdAt).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{a.user?.name || a.user?.email}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{a.box?.title}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{a.box?.category}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00] font-mono">{a.box?.code}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00] font-semibold">{a.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{new Date(a.createdAt).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{a.user?.name || a.user?.email}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{a.box?.title}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{a.box?.category}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E] font-mono">{a.box?.code}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E] font-semibold">{a.quantity}</td>
                   </tr>
                 ))
               )}
@@ -184,7 +184,7 @@ const ChallanGeneration = () => {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes for this challan"
-            className="flex-1 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00]"
+            className="flex-1 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
           />
           <motion.button
             onClick={handleGenerate}
@@ -205,12 +205,12 @@ const ChallanGeneration = () => {
       </div>
 
       {/* Recent challans */}
-      <div className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-4">Recent Challans</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden">
-            <thead className="bg-[#F4E4BC] text-[#5D3A00]">
+            <thead className="bg-[#F4E4BC] text-[#2D1B0E]">
               <tr>
                 <th className="px-4 py-3 text-sm font-semibold">Number</th>
                 <th className="px-4 py-3 text-sm font-semibold">Created</th>
@@ -218,17 +218,17 @@ const ChallanGeneration = () => {
                 <th className="px-4 py-3 text-sm font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white/80">
+            <tbody className="bg-white">
               {loadingChallans ? (
-                <tr><td className="px-4 py-6 text-center text-[#5D3A00]/60 poppins" colSpan={4}>Loading...</td></tr>
+                <tr><td className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium" colSpan={4}>Loading...</td></tr>
               ) : recentChallans.length === 0 ? (
-                <tr><td className="px-4 py-6 text-center text-[#5D3A00]/60 poppins" colSpan={4}>No challans yet</td></tr>
+                <tr><td className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium" colSpan={4}>No challans yet</td></tr>
               ) : (
                 recentChallans.map(c => (
                   <tr key={c._id} className="border-t border-[#E8DCC6]">
-                    <td className="px-4 py-3 text-sm text-[#5D3A00] font-mono">{c.number}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{new Date(c.createdAt).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm text-[#5D3A00]">{c.items?.length || 0}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E] font-mono">{c.number}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{new Date(c.createdAt).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">{c.items?.length || 0}</td>
                     <td className="px-4 py-3 text-sm">
                       <button
                         onClick={() => downloadCsv(c._id, c.number)}

@@ -66,7 +66,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-gradient-to-br from-[#F5F1E8]/95 via-white/95 to-[#F4E4BC]/95 backdrop-blur-xl border-b-2 border-[#D4AF37]/30 shadow-lg">
+      <div className="relative z-10 bg-white border-b-2 border-[#D4AF37]/30 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -76,7 +76,7 @@ const AdminDashboard = () => {
             <h1 className="text-3xl md:text-4xl font-bold playfair text-[#C1272D]">
               Admin Dashboard
             </h1>
-            <p className="text-sm text-[#5D3A00]/70 poppins mt-1">
+            <p className="text-sm text-[#2D1B0E] poppins mt-1 font-medium">
               Xclusive Folding Boxes Management
             </p>
           </motion.div>
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-6 bg-white">
         <div className="flex gap-4 border-b-2 border-[#D4AF37]/30">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -115,7 +115,7 @@ const AdminDashboard = () => {
                 className={`relative px-6 py-4 font-semibold poppins transition-all duration-300 flex items-center gap-2 ${
                   isActive
                     ? "text-[#C1272D]"
-                    : "text-[#5D3A00]/60 hover:text-[#C1272D]"
+                    : "text-[#2D1B0E] hover:text-[#C1272D]"
                 }`}
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.95 }}

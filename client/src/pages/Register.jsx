@@ -92,7 +92,7 @@ const Register = () => {
 
       {/* Registration Card */}
       <motion.div
-        className="w-full max-w-md bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 relative overflow-hidden"
+        className="w-full max-w-md bg-white p-8 md:p-10 rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 relative overflow-hidden"
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -124,7 +124,7 @@ const Register = () => {
         </motion.div>
 
         <motion.p
-          className="text-center text-sm md:text-base mb-8 text-[#5D3A00]/80 poppins"
+          className="text-center text-sm md:text-base mb-8 text-[#2D1B0E] poppins font-medium"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -142,7 +142,7 @@ const Register = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.35 }}
           >
-            <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+            <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
               Full Name
             </label>
             <input
@@ -150,7 +150,7 @@ const Register = () => {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
               placeholder="Your Name"
               required
             />
@@ -161,7 +161,7 @@ const Register = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.45 }}
           >
-            <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+            <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
               Email Address
             </label>
             <input
@@ -169,7 +169,7 @@ const Register = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
               placeholder="you@example.com"
               required
             />
@@ -180,7 +180,7 @@ const Register = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.55 }}
           >
-            <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+            <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
               Password
             </label>
             <div className="relative">
@@ -189,7 +189,7 @@ const Register = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 pr-12 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                className="w-full px-4 py-3 pr-12 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                 placeholder="••••••••"
                 required
               />
@@ -231,7 +231,7 @@ const Register = () => {
         </form>
 
         <motion.p
-          className="mt-6 text-center text-sm poppins text-[#5D3A00]/70"
+          className="mt-6 text-center text-sm poppins text-[#2D1B0E] font-medium"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
@@ -246,7 +246,7 @@ const Register = () => {
         </motion.p>
 
         <motion.p
-          className="mt-8 text-center italic text-sm text-[#5D3A00]/60 poppins"
+          className="mt-8 text-center italic text-sm text-[#6B5B4F] poppins"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
