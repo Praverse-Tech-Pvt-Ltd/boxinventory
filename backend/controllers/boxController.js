@@ -32,9 +32,9 @@ export const createBox = async (req, res) => {
       bagSize,
       boxInnerSize,
       boxOuterSize,
-      moq,
-      assemblyCharge,
-      additionalShippingCharges,
+      category,
+      quantity,
+      colours,
     } = req.body;
 
     // Get image URL from uploaded file or from body
@@ -54,20 +54,36 @@ export const createBox = async (req, res) => {
       return res.status(400).json({ message: "Box with this code already exists" });
     }
 
+    // Convert comma-separated colours string to array
+    let coloursArray = [];
+    if (colours) {
+      if (typeof colours === 'string') {
+        coloursArray = colours.split(',').map(c => c.trim()).filter(c => c.length > 0);
+      } else if (Array.isArray(colours)) {
+        coloursArray = colours;
+      }
+    }
+
+    // Validate that colours array is not empty
+    if (coloursArray.length === 0) {
+      // If image was uploaded but validation fails, delete it
+      if (req.file?.public_id) {
+        await cloudinary.uploader.destroy(req.file.public_id);
+      }
+      return res.status(400).json({ message: "At least one colour is required" });
+    }
+
     const box = await Box.create({
       image,
       title,
       code: code?.toUpperCase(),
-      price,
+      price: parseFloat(price),
       bagSize,
       boxInnerSize,
       boxOuterSize,
-      moq,
-      assemblyCharge,
-      additionalShippingCharges:
-        additionalShippingCharges !== undefined
-          ? additionalShippingCharges
-          : true,
+      category: category?.toLowerCase(),
+      quantity: quantity ? parseInt(quantity) : 0,
+      colours: coloursArray,
     });
 
     res.status(201).json(box);
@@ -86,8 +102,14 @@ export const createBox = async (req, res) => {
       return res.status(400).json({ message: "Box with this code already exists" });
     }
     if (error.name === "ValidationError") {
-      return res.status(400).json({ message: "Validation error", error: error.message });
+      console.error("Validation error:", error);
+      return res.status(400).json({ 
+        message: "Validation error", 
+        error: error.message,
+        details: error.errors 
+      });
     }
+    console.error("Error creating box:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -102,9 +124,9 @@ export const updateBox = async (req, res) => {
       bagSize,
       boxInnerSize,
       boxOuterSize,
-      moq,
-      assemblyCharge,
-      additionalShippingCharges,
+      category,
+      quantity,
+      colours,
     } = req.body;
 
     const box = await Box.findById(req.params.id);
@@ -155,10 +177,17 @@ export const updateBox = async (req, res) => {
     if (bagSize !== undefined) box.bagSize = bagSize;
     if (boxInnerSize !== undefined) box.boxInnerSize = boxInnerSize;
     if (boxOuterSize !== undefined) box.boxOuterSize = boxOuterSize;
-    if (moq !== undefined) box.moq = moq;
-    if (assemblyCharge !== undefined) box.assemblyCharge = assemblyCharge;
-    if (additionalShippingCharges !== undefined)
-      box.additionalShippingCharges = additionalShippingCharges;
+    if (category !== undefined) box.category = category.toLowerCase();
+    if (quantity !== undefined) box.quantity = parseInt(quantity);
+    
+    // Handle colours - convert comma-separated string to array
+    if (colours !== undefined) {
+      if (typeof colours === 'string') {
+        box.colours = colours.split(',').map(c => c.trim()).filter(c => c.length > 0);
+      } else if (Array.isArray(colours)) {
+        box.colours = colours;
+      }
+    }
 
     const updatedBox = await box.save();
     res.status(200).json(updatedBox);
