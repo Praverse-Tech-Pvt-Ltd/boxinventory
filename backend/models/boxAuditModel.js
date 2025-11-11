@@ -21,6 +21,17 @@ const boxAuditSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    used: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    challan: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Challan",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
