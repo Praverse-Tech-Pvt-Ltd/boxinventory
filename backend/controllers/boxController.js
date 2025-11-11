@@ -1,11 +1,25 @@
 import Box from "../models/boxModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
+import BoxAudit from "../models/boxAuditModel.js";
 
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
   try {
     const boxes = await Box.find().sort({ createdAt: -1 });
     res.status(200).json(boxes);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Admin: get all audits (global list)
+export const getAllAudits = async (req, res) => {
+  try {
+    const audits = await BoxAudit.find({})
+      .populate("user", "name email role")
+      .populate("box", "title code category")
+      .sort({ createdAt: -1 });
+    res.status(200).json(audits);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -207,6 +221,55 @@ export const updateBox = async (req, res) => {
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: "Validation error", error: error.message });
     }
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Subtract quantity from a box (user action) and create audit
+export const subtractBoxQuantity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity, note } = req.body;
+
+    const parsedQty = parseInt(quantity, 10);
+    if (!Number.isInteger(parsedQty) || parsedQty <= 0) {
+      return res.status(400).json({ message: "Quantity must be a positive integer" });
+    }
+
+    const box = await Box.findById(id);
+    if (!box) {
+      return res.status(404).json({ message: "Box not found" });
+    }
+
+    if (box.quantity < parsedQty) {
+      return res.status(400).json({ message: "Insufficient stock to subtract requested quantity" });
+    }
+
+    box.quantity = box.quantity - parsedQty;
+    await box.save();
+
+    const audit = await BoxAudit.create({
+      box: box._id,
+      user: req.user._id,
+      quantity: parsedQty,
+      note: note || undefined,
+    });
+
+    res.status(200).json({ message: "Quantity subtracted", box, audit });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Admin: get audits for a specific box
+export const getBoxAudits = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const audits = await BoxAudit.find({ box: id })
+      .populate("user", "name email role")
+      .sort({ createdAt: -1 });
+    res.status(200).json(audits);
+  } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

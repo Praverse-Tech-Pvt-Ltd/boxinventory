@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import { FiTrash2, FiCheck, FiPlus, FiX, FiSearch } from "react-icons/fi";
 import { FaRegEdit } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -20,6 +21,7 @@ const BoxesManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
 
   const [formData, setFormData] = useState({
     image: null,
@@ -34,6 +36,10 @@ const BoxesManagement = () => {
     quantity: "",
     colours: "",
   });
+
+  // Delete confirmation dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // { id, title }
 
   useEffect(() => {
     loadBoxes();
@@ -185,18 +191,22 @@ const BoxesManagement = () => {
   };
 
   const handleDelete = async (id, title) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete "${title}"? This action cannot be undone.`
-      )
-    ) {
-      try {
-        await deleteBox(id);
-        toast.success("Box deleted successfully");
-        loadBoxes();
-      } catch (error) {
-        toast.error("Failed to delete box");
-      }
+    setPendingDelete({ id, title });
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteBox(pendingDelete.id);
+      toast.success("Box deleted successfully");
+      setConfirmOpen(false);
+      setPendingDelete(null);
+      loadBoxes();
+    } catch (error) {
+      toast.error("Failed to delete box");
+      setConfirmOpen(false);
+      setPendingDelete(null);
     }
   };
 
@@ -528,7 +538,7 @@ const BoxesManagement = () => {
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white/70 overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white/70 overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
@@ -541,13 +551,44 @@ const BoxesManagement = () => {
                     className="w-full h-44 object-cover"
                   />
                   <button
-                    onClick={() => window.open(box.image, '_blank')}
+                    onClick={() => setExpandedId((prev) => (prev === box._id ? null : box._id))}
                     className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Open full image"
+                    title={expandedId === box._id ? "Minimize" : "Expand"}
                   >
-                    Expand
+                    {expandedId === box._id ? "Minimize" : "Expand"}
                   </button>
                 </div>
+
+                {/* Expanded overlay inside card */}
+                <AnimatePresence>
+                  {expandedId === box._id && (
+                    <motion.div
+                      key="expanded"
+                      className="absolute inset-0 z-20"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <img
+                        src={box.image}
+                        alt={box.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* gradient for readability of controls */}
+                      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                      <button
+                        onClick={() => setExpandedId(null)}
+                        className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 text-white text-xs font-semibold shadow-md"
+                        title="Minimize image"
+                        aria-label="Minimize image"
+                      >
+                        Minimize
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Details */}
                 <div className="p-4">
@@ -650,6 +691,20 @@ const BoxesManagement = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete this box?"
+        description={pendingDelete ? `Are you sure you want to delete "${pendingDelete.title}"? This action cannot be undone.` : ""}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 };

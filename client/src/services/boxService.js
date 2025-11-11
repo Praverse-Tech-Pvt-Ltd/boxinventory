@@ -75,3 +75,22 @@ export const deleteBox = async (boxId) => {
   return res.data;
 };
 
+// Subtract quantity from a box (authenticated users)
+export const subtractBoxQuantity = async (boxId, payload) => {
+  // payload: { quantity: number, note?: string }
+  const res = await axiosInstance.post(`/api/boxes/${boxId}/subtract`, payload);
+  return res.data;
+};
+
+// Admin: get audits for a specific box
+export const getBoxAudits = async (boxId) => {
+  const res = await axiosInstance.get(`/api/boxes/${boxId}/audits`);
+  return res.data;
+};
+
+// Admin: get all audits
+export const getAllAudits = async () => {
+  const res = await axiosInstance.get(`/api/boxes/audits`);
+  return res.data;
+};
+
