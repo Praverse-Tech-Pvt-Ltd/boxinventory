@@ -34,17 +34,21 @@ const boxSchema = new mongoose.Schema(
       type: String,
       required: true, // e.g. "4.74 x 4.75 x 1.5 inch"
     },
-    moq: {
+    category: {
       type: String,
-      required: true, // e.g. "30 - 150PC (10pc single colour packing)"
+      required: true,
+      trim: true,
+      lowercase: true,
     },
-    assemblyCharge: {
+    quantity: {
       type: Number,
-      required: true, // per box charge
+      required: true,
+      min: 0,
     },
-    additionalShippingCharges: {
-      type: Boolean,
-      default: true, // whether shipping charges apply
+    colours: {
+      type: [String],
+      required: true,
+      default: [],
     },
   },
   { timestamps: true }

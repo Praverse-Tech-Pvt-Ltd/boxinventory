@@ -4,9 +4,10 @@ import { useDispatch } from "react-redux";
 import { logout } from "../../redux/authSlice";
 import { logoutUser } from "../../services/authService";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiLogOut, FiUsers, FiBox } from "react-icons/fi";
+import { FiLogOut, FiUsers, FiBox, FiFileText } from "react-icons/fi";
 import Users from "./Users";
 import BoxesManagement from "./BoxesManagement";
+import AuditHistory from "./AuditHistory";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const AdminDashboard = () => {
   const tabs = [
     { id: "users", label: "Users Management", icon: FiUsers },
     { id: "boxes", label: "Boxes Management", icon: FiBox },
+    { id: "audits", label: "Audit History", icon: FiFileText },
   ];
 
   return (
@@ -155,6 +157,18 @@ const AdminDashboard = () => {
               transition={{ duration: 0.3 }}
             >
               <BoxesManagement />
+            </motion.div>
+          )}
+
+          {activeTab === "audits" && (
+            <motion.div
+              key="audits"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AuditHistory />
             </motion.div>
           )}
         </AnimatePresence>

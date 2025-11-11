@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import { FiTrash2, FiCheck, FiPlus, FiX, FiSearch } from "react-icons/fi";
 import { FaRegEdit } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -20,20 +21,25 @@ const BoxesManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
 
   const [formData, setFormData] = useState({
     image: null,
     imagePreview: "",
     title: "",
     code: "",
+    category: "",
     price: "",
     bagSize: "",
     boxInnerSize: "",
     boxOuterSize: "",
-    moq: "",
-    assemblyCharge: "",
-    additionalShippingCharges: true,
+    quantity: "",
+    colours: "",
   });
+
+  // Delete confirmation dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null); // { id, title }
 
   useEffect(() => {
     loadBoxes();
@@ -48,7 +54,8 @@ const BoxesManagement = () => {
       const filtered = boxes.filter(
         (box) =>
           box.title.toLowerCase().includes(query) ||
-          box.code.toLowerCase().includes(query)
+          box.code.toLowerCase().includes(query) ||
+          (box.category || "").toLowerCase().includes(query)
       );
       setFilteredBoxes(filtered);
     }
@@ -92,13 +99,13 @@ const BoxesManagement = () => {
     imagePreview: "",
     title: "",
     code: "",
+    category: "",
     price: "",
     bagSize: "",
     boxInnerSize: "",
     boxOuterSize: "",
-    moq: "",
-    assemblyCharge: "",
-    additionalShippingCharges: true,
+    quantity: "",
+    colours: "",
   });
 
   const resetForm = () => {
@@ -114,13 +121,13 @@ const BoxesManagement = () => {
       imagePreview: box.image || "",
       title: box.title || "",
       code: box.code || "",
+      category: box.category || "",
       price: box.price?.toString() || "",
       bagSize: box.bagSize || "",
       boxInnerSize: box.boxInnerSize || "",
       boxOuterSize: box.boxOuterSize || "",
-      moq: box.moq || "",
-      assemblyCharge: box.assemblyCharge?.toString() || "",
-      additionalShippingCharges: box.additionalShippingCharges ?? true,
+      quantity: box.quantity?.toString() || "",
+      colours: Array.isArray(box.colours) ? box.colours.join(", ") : (box.colours || ""),
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -140,16 +147,13 @@ const BoxesManagement = () => {
 
       formDataToSend.append("title", formData.title);
       formDataToSend.append("code", formData.code);
+      formDataToSend.append("category", formData.category);
       formDataToSend.append("price", formData.price);
       formDataToSend.append("bagSize", formData.bagSize);
       formDataToSend.append("boxInnerSize", formData.boxInnerSize);
       formDataToSend.append("boxOuterSize", formData.boxOuterSize);
-      formDataToSend.append("moq", formData.moq);
-      formDataToSend.append("assemblyCharge", formData.assemblyCharge);
-      formDataToSend.append(
-        "additionalShippingCharges",
-        formData.additionalShippingCharges.toString()
-      );
+      formDataToSend.append("quantity", formData.quantity);
+      formDataToSend.append("colours", formData.colours);
 
       if (editingId) {
         // Update existing box
@@ -160,13 +164,13 @@ const BoxesManagement = () => {
           const jsonData = {
             title: formData.title,
             code: formData.code,
+            category: formData.category,
             price: parseFloat(formData.price),
             bagSize: formData.bagSize,
             boxInnerSize: formData.boxInnerSize,
             boxOuterSize: formData.boxOuterSize,
-            moq: formData.moq,
-            assemblyCharge: parseFloat(formData.assemblyCharge),
-            additionalShippingCharges: formData.additionalShippingCharges,
+            quantity: parseInt(formData.quantity),
+            colours: formData.colours,
           };
           await updateBox(editingId, jsonData);
         }
@@ -187,18 +191,22 @@ const BoxesManagement = () => {
   };
 
   const handleDelete = async (id, title) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete "${title}"? This action cannot be undone.`
-      )
-    ) {
-      try {
-        await deleteBox(id);
-        toast.success("Box deleted successfully");
-        loadBoxes();
-      } catch (error) {
-        toast.error("Failed to delete box");
-      }
+    setPendingDelete({ id, title });
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteBox(pendingDelete.id);
+      toast.success("Box deleted successfully");
+      setConfirmOpen(false);
+      setPendingDelete(null);
+      loadBoxes();
+    } catch (error) {
+      toast.error("Failed to delete box");
+      setConfirmOpen(false);
+      setPendingDelete(null);
     }
   };
 
@@ -269,9 +277,10 @@ const BoxesManagement = () => {
       <AnimatePresence>
         {showForm && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
             className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
@@ -335,6 +344,22 @@ const BoxesManagement = () => {
                   />
                 </div>
 
+                {/* Category */}
+                <div>
+                  <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
+                    Category *
+                  </label>
+                  <input
+                    type="text"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
+                    placeholder="lotus-pink series"
+                  />
+                </div>
+
                 {/* Price */}
                 <div>
                   <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
@@ -353,21 +378,20 @@ const BoxesManagement = () => {
                   />
                 </div>
 
-                {/* Assembly Charge */}
+                {/* Quantity */}
                 <div>
                   <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
-                    Assembly Charge *
+                    Quantity *
                   </label>
                   <input
                     type="number"
-                    name="assemblyCharge"
-                    value={formData.assemblyCharge}
+                    name="quantity"
+                    value={formData.quantity}
                     onChange={handleChange}
                     required
-                    step="0.01"
                     min="0"
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
-                    placeholder="5.00"
+                    placeholder="100"
                   />
                 </div>
 
@@ -419,38 +443,23 @@ const BoxesManagement = () => {
                   />
                 </div>
 
-                {/* MOQ */}
+                {/* Colours */}
                 <div className="md:col-span-2">
                   <label className="block mb-2 text-sm font-semibold text-[#5D3A00] poppins">
-                    MOQ (Minimum Order Quantity) *
+                    Colours * (comma-separated)
                   </label>
                   <input
                     type="text"
-                    name="moq"
-                    value={formData.moq}
+                    name="colours"
+                    value={formData.colours}
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white/80 poppins text-[#5D3A00] placeholder:text-[#A0826D]/50 transition-all duration-300"
-                    placeholder="30 - 150PC (10pc single colour packing)"
+                    placeholder="Red, Gold, Pink, Blue"
                   />
-                </div>
-
-                {/* Additional Shipping Charges */}
-                <div className="md:col-span-2 flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="additionalShippingCharges"
-                    id="additionalShippingCharges"
-                    checked={formData.additionalShippingCharges}
-                    onChange={handleChange}
-                    className="w-5 h-5 text-[#D4AF37] border-2 border-[#E8DCC6] rounded focus:ring-2 focus:ring-[#D4AF37]/50 cursor-pointer"
-                  />
-                  <label
-                    htmlFor="additionalShippingCharges"
-                    className="text-sm font-semibold text-[#5D3A00] poppins cursor-pointer"
-                  >
-                    Additional Shipping Charges Apply
-                  </label>
+                  <p className="mt-1 text-xs text-[#5D3A00]/60 poppins">
+                    Enter colours separated by commas (e.g., Red, Gold, Pink)
+                  </p>
                 </div>
               </div>
 
@@ -501,7 +510,7 @@ const BoxesManagement = () => {
         />
       </div>
 
-      {/* Boxes Table */}
+      {/* Boxes Grid */}
       <motion.div
         className="bg-gradient-to-br from-[#F5F1E8] via-white to-[#F4E4BC]/30 backdrop-blur-xl rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
@@ -509,96 +518,120 @@ const BoxesManagement = () => {
         transition={{ delay: 0.2 }}
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm poppins">
-            <thead>
-              <tr className="bg-gradient-to-r from-[#C1272D]/10 via-[#D4AF37]/10 to-[#C1272D]/10 text-left rounded-t-xl border-b-2 border-[#D4AF37]/30">
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Image</th>
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Title</th>
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Code</th>
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">Price</th>
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins">MOQ</th>
-                <th className="px-4 py-4 font-semibold text-[#5D3A00] poppins text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                skeletonRows.map((_, idx) => (
-                  <tr key={idx} className="animate-pulse border-b border-[#E8DCC6]/50">
-                    <td className="px-4 py-4">
-                      <div className="h-12 w-12 bg-[#E8DCC6]/50 rounded"></div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4"></div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2"></div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="h-4 bg-[#E8DCC6]/50 rounded w-1/3"></div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="h-4 bg-[#E8DCC6]/50 rounded w-2/3"></div>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="h-4 bg-[#E8DCC6]/50 rounded w-16 mx-auto"></div>
-                    </td>
-                  </tr>
-                ))
-              ) : currentBoxes.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-[#5D3A00]/60 poppins">
-                    {searchQuery ? "No boxes found matching your search." : "No boxes found."}
-                  </td>
-                </tr>
-              ) : (
-                currentBoxes.map((box, index) => (
-                  <motion.tr
-                    key={box._id}
-                    className="border-b border-[#E8DCC6]/50 hover:bg-[#F4E4BC]/20 transition-colors duration-200"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {skeletonRows.map((_, idx) => (
+              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-white/60">
+                <div className="h-40 w-full bg-[#E8DCC6]/50 rounded-xl mb-4"></div>
+                <div className="h-4 bg-[#E8DCC6]/50 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6]/50 rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-[#E8DCC6]/50 rounded w-2/3"></div>
+              </div>
+            ))}
+          </div>
+        ) : currentBoxes.length === 0 ? (
+          <div className="text-center py-12 text-[#5D3A00]/60 poppins">
+            {searchQuery ? "No boxes found matching your search." : "No boxes found."}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {currentBoxes.map((box, index) => (
+              <motion.div
+                key={box._id}
+                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white/70 overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+              >
+                {/* Image */}
+                <div className="relative group">
+                  <img
+                    src={box.image}
+                    alt={box.title}
+                    className="w-full h-44 object-cover"
+                  />
+                  <button
+                    onClick={() => setExpandedId((prev) => (prev === box._id ? null : box._id))}
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    title={expandedId === box._id ? "Minimize" : "Expand"}
                   >
-                    <td className="p-4">
+                    {expandedId === box._id ? "Minimize" : "Expand"}
+                  </button>
+                </div>
+
+                {/* Expanded overlay inside card */}
+                <AnimatePresence>
+                  {expandedId === box._id && (
+                    <motion.div
+                      key="expanded"
+                      className="absolute inset-0 z-20"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.25 }}
+                    >
                       <img
                         src={box.image}
                         alt={box.title}
-                        className="w-12 h-12 object-cover rounded-lg border-2 border-[#D4AF37]/30"
+                        className="w-full h-full object-cover"
                       />
-                    </td>
-                    <td className="p-4 text-[#5D3A00] font-medium">{box.title}</td>
-                    <td className="p-4 text-[#5D3A00] font-mono">{box.code}</td>
-                    <td className="p-4 text-[#5D3A00]">₹{box.price?.toFixed(2)}</td>
-                    <td className="p-4 text-[#5D3A00] text-sm">{box.moq}</td>
-                    <td className="p-4">
-                      <div className="flex justify-center gap-3">
-                        <motion.button
-                          onClick={() => startEdit(box)}
-                          className="text-[#D4AF37] hover:text-[#C1272D] transition-colors duration-200"
-                          title="Edit Box"
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <FaRegEdit size={20} />
-                        </motion.button>
-                        <motion.button
-                          onClick={() => handleDelete(box._id, box.title)}
-                          className="text-[#C1272D] hover:text-[#A01F24] transition-colors duration-200"
-                          title="Delete Box"
-                          whileHover={{ scale: 1.2 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          <FiTrash2 size={20} />
-                        </motion.button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      {/* gradient for readability of controls */}
+                      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                      <button
+                        onClick={() => setExpandedId(null)}
+                        className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 text-white text-xs font-semibold shadow-md"
+                        title="Minimize image"
+                        aria-label="Minimize image"
+                      >
+                        Minimize
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Details */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="text-lg font-semibold playfair text-[#C1272D]">{box.title}</h4>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#5D3A00]">
+                      {box.category || "uncategorized"}
+                    </span>
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-[#5D3A00] poppins">
+                    <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
+                    <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
+                    <div><span className="font-semibold">Quantity:</span> {box.quantity || 0}</div>
+                    <div><span className="font-semibold">Bag Size:</span> {box.bagSize}</div>
+                    <div><span className="font-semibold">Inner Size:</span> {box.boxInnerSize}</div>
+                    <div><span className="font-semibold">Outer Size:</span> {box.boxOuterSize}</div>
+                    <div><span className="font-semibold">Colours:</span> {Array.isArray(box.colours) && box.colours.length ? box.colours.join(", ") : "N/A"}</div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 flex justify-end gap-3">
+                    <motion.button
+                      onClick={() => startEdit(box)}
+                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#5D3A00] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Edit
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleDelete(box._id, box.title)}
+                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Delete
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
@@ -658,6 +691,20 @@ const BoxesManagement = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete this box?"
+        description={pendingDelete ? `Are you sure you want to delete "${pendingDelete.title}"? This action cannot be undone.` : ""}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 };
