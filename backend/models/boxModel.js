@@ -14,7 +14,6 @@ const boxSchema = new mongoose.Schema(
     code: {
       type: String,
       required: true,
-      unique: true,
       uppercase: true,
       trim: true,
     },
@@ -53,6 +52,8 @@ const boxSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+boxSchema.index({ code: 1 });
 
 const Box = mongoose.model("Box", boxSchema);
 export default Box;

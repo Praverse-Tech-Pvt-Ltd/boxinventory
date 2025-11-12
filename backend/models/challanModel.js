@@ -8,8 +8,14 @@ const challanItemSchema = new mongoose.Schema(
       title: String,
       code: String,
       category: String,
+      colours: [String],
     },
+    cavity: { type: String, default: "" },
     quantity: { type: Number, required: true, min: 1 },
+    rate: { type: Number, default: 0 },
+    assemblyCharge: { type: Number, default: 0 },
+    packagingCharge: { type: Number, default: 0 },
+    colours: { type: [String], default: [] },
     user: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
       name: String,
@@ -25,6 +31,7 @@ const challanSchema = new mongoose.Schema(
     number: { type: String, required: true, unique: true }, // human readable id
     items: { type: [challanItemSchema], default: [] },
     notes: { type: String, trim: true },
+    includeGST: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

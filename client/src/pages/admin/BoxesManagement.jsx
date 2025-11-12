@@ -41,6 +41,32 @@ const BoxesManagement = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null); // { id, title }
 
+  const formatDimensionValue = (input) => {
+    if (!input) return "";
+  
+    // Convert to string and clean whitespace
+    let value = String(input).trim();
+    if (!value) return "";
+  
+    // Replace x, X, * with ' X ' and normalize spaces
+    value = value.replace(/[xX*]/g, " X ").replace(/\s+/g, " ").trim();
+  
+    // Ensure consistent ' inch' suffix (no duplicates)
+    if (/inch$/i.test(value)) {
+      return value.replace(/\s*inch$/i, " inch"); // normalize spacing before inch
+    }
+  
+    return `${value} inch`;
+  };
+  
+  const handleDimensionBlur = (field) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: formatDimensionValue(prev[field]),
+    }));
+  };
+  
+
   useEffect(() => {
     loadBoxes();
   }, []);
@@ -123,9 +149,9 @@ const BoxesManagement = () => {
       code: box.code || "",
       category: box.category || "",
       price: box.price?.toString() || "",
-      bagSize: box.bagSize || "",
-      boxInnerSize: box.boxInnerSize || "",
-      boxOuterSize: box.boxOuterSize || "",
+      bagSize: formatDimensionValue(box.bagSize || ""),
+      boxInnerSize: formatDimensionValue(box.boxInnerSize || ""),
+      boxOuterSize: formatDimensionValue(box.boxOuterSize || ""),
       quantity: box.quantity?.toString() || "",
       colours: Array.isArray(box.colours) ? box.colours.join(", ") : (box.colours || ""),
     });
@@ -137,6 +163,9 @@ const BoxesManagement = () => {
     e.preventDefault();
     try {
       const formDataToSend = new FormData();
+      const formattedBagSize = formatDimensionValue(formData.bagSize);
+      const formattedBoxInnerSize = formatDimensionValue(formData.boxInnerSize);
+      const formattedBoxOuterSize = formatDimensionValue(formData.boxOuterSize);
       
       if (formData.image) {
         formDataToSend.append("image", formData.image);
@@ -149,9 +178,9 @@ const BoxesManagement = () => {
       formDataToSend.append("code", formData.code);
       formDataToSend.append("category", formData.category);
       formDataToSend.append("price", formData.price);
-      formDataToSend.append("bagSize", formData.bagSize);
-      formDataToSend.append("boxInnerSize", formData.boxInnerSize);
-      formDataToSend.append("boxOuterSize", formData.boxOuterSize);
+      formDataToSend.append("bagSize", formattedBagSize);
+      formDataToSend.append("boxInnerSize", formattedBoxInnerSize);
+      formDataToSend.append("boxOuterSize", formattedBoxOuterSize);
       formDataToSend.append("quantity", formData.quantity);
       formDataToSend.append("colours", formData.colours);
 
@@ -166,9 +195,9 @@ const BoxesManagement = () => {
             code: formData.code,
             category: formData.category,
             price: parseFloat(formData.price),
-            bagSize: formData.bagSize,
-            boxInnerSize: formData.boxInnerSize,
-            boxOuterSize: formData.boxOuterSize,
+            bagSize: formattedBagSize,
+            boxInnerSize: formattedBoxInnerSize,
+            boxOuterSize: formattedBoxOuterSize,
             quantity: parseInt(formData.quantity),
             colours: formData.colours,
           };
@@ -405,6 +434,7 @@ const BoxesManagement = () => {
                     name="bagSize"
                     value={formData.bagSize}
                     onChange={handleChange}
+                    onBlur={() => handleDimensionBlur("bagSize")}
                     required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="6 x 5 x 1.75 inch"
@@ -421,6 +451,7 @@ const BoxesManagement = () => {
                     name="boxInnerSize"
                     value={formData.boxInnerSize}
                     onChange={handleChange}
+                    onBlur={() => handleDimensionBlur("boxInnerSize")}
                     required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4 x 4 x 1.5 inch"
@@ -437,6 +468,7 @@ const BoxesManagement = () => {
                     name="boxOuterSize"
                     value={formData.boxOuterSize}
                     onChange={handleChange}
+                    onBlur={() => handleDimensionBlur("boxOuterSize")}
                     required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4.74 x 4.75 x 1.5 inch"

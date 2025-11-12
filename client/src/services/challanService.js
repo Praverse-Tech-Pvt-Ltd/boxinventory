@@ -5,8 +5,16 @@ export const getChallanCandidates = async () => {
   return res.data;
 };
 
-export const createChallan = async ({ auditIds, notes }) => {
-  const res = await axiosInstance.post('/api/challans', { auditIds, notes });
+export const createChallan = async ({ auditIds, notes, lineItems, includeGST = true }) => {
+  const payload = {
+    auditIds,
+    notes,
+    includeGST,
+  };
+  if (Array.isArray(lineItems)) {
+    payload.lineItems = lineItems;
+  }
+  const res = await axiosInstance.post('/api/challans', payload);
   return res.data;
 };
 
@@ -20,10 +28,10 @@ export const getChallanById = async (id) => {
   return res.data;
 };
 
-export const downloadChallanCsv = async (id) => {
-  // Returns a Blob for download
+export const downloadChallanPdf = async (id, includeGST = true) => {
   const res = await axiosInstance.get(`/api/challans/${id}/download`, {
-    responseType: 'blob',
+    params: { includeGST },
+    responseType: "blob",
   });
   return res.data;
 };

@@ -58,16 +58,6 @@ export const createBox = async (req, res) => {
       return res.status(400).json({ message: "Image is required" });
     }
 
-    // Check if box with same code already exists
-    const existingBox = await Box.findOne({ code: code?.toUpperCase() });
-    if (existingBox) {
-      // If image was uploaded but box creation fails, delete the uploaded image
-      if (req.file?.public_id) {
-        await cloudinary.uploader.destroy(req.file.public_id);
-      }
-      return res.status(400).json({ message: "Box with this code already exists" });
-    }
-
     // Convert comma-separated colours string to array
     let coloursArray = [];
     if (colours) {
@@ -111,10 +101,6 @@ export const createBox = async (req, res) => {
       }
     }
 
-    if (error.code === 11000) {
-      // Duplicate key error
-      return res.status(400).json({ message: "Box with this code already exists" });
-    }
     if (error.name === "ValidationError") {
       console.error("Validation error:", error);
       return res.status(400).json({ 
@@ -145,18 +131,6 @@ export const updateBox = async (req, res) => {
 
     const box = await Box.findById(req.params.id);
     if (!box) return res.status(404).json({ message: "Box not found" });
-
-    // If code is being updated, check for duplicates
-    if (code && code.toUpperCase() !== box.code) {
-      const existingBox = await Box.findOne({ code: code.toUpperCase() });
-      if (existingBox) {
-        // If new image was uploaded but update fails, delete it
-        if (req.file?.public_id) {
-          await cloudinary.uploader.destroy(req.file.public_id);
-        }
-        return res.status(400).json({ message: "Box with this code already exists" });
-      }
-    }
 
     // Handle image update - if new image is uploaded, delete old one from Cloudinary
     if (req.file?.path) {
@@ -215,9 +189,6 @@ export const updateBox = async (req, res) => {
       }
     }
 
-    if (error.code === 11000) {
-      return res.status(400).json({ message: "Box with this code already exists" });
-    }
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: "Validation error", error: error.message });
     }
