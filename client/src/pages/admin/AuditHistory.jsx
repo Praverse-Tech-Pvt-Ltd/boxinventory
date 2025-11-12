@@ -42,7 +42,7 @@ const AuditHistory = () => {
 
   return (
     <div className="w-full space-y-6">
-      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">Audit History</h3>
 
@@ -64,30 +64,30 @@ const AuditHistory = () => {
             <div className="text-center py-10 text-[#2D1B0E] poppins font-medium">No audits found.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden">
-                <thead className="bg-[#F4E4BC] text-[#2D1B0E]">
+              <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden text-xs sm:text-sm">
+                <thead className="bg-[#F4E4BC] text-[#2D1B0E] uppercase tracking-wide">
                   <tr>
-                    <th className="px-4 py-3 text-sm font-semibold">Date</th>
-                    <th className="px-4 py-3 text-sm font-semibold">User</th>
-                    <th className="px-4 py-3 text-sm font-semibold">Quantity Subtracted</th>
-                    <th className="px-4 py-3 text-sm font-semibold">Box</th>
-                    <th className="px-4 py-3 text-sm font-semibold">Category</th>
-                    <th className="px-4 py-3 text-sm font-semibold">Code</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
                   {filteredAudits.map((a) => (
                     <tr key={a._id} className="border-t border-[#E8DCC6]">
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E]">
+                      <td className="px-4 py-3 text-[#2D1B0E] whitespace-nowrap">
                         {new Date(a.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E]">
+                      <td className="px-4 py-3 text-[#2D1B0E] whitespace-nowrap">
                         {a.user?.name || a.user?.email || "Unknown"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E] font-semibold">{a.quantity}</td>
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E]">{a.box?.title || "-"}</td>
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E]">{a.box?.category || "-"}</td>
-                      <td className="px-4 py-3 text-sm text-[#2D1B0E] font-mono">{a.box?.code || "-"}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E] font-semibold">{a.quantity}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title || "-"}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category || "-"}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

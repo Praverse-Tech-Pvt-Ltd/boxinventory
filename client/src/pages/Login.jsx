@@ -30,7 +30,7 @@ const Login = () => {
   };
 
   return (
-    <section className="min-h-screen w-full bg-gradient-to-br from-[#C1272D] via-[#A01F24] to-[#8B1A1F] flex items-center justify-center px-4 py-10 poppins relative overflow-hidden">
+    <section className="min-h-screen w-full bg-linear-to-br from-[#C1272D] via-[#A01F24] to-[#8B1A1F] flex items-center justify-center px-4 py-10 poppins relative overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -58,8 +58,8 @@ const Login = () => {
           }}
         />
         {/* Gold accent lines */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-30" />
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-30" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent opacity-30" />
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent opacity-30" />
       </div>
 
       {/* Back Button
@@ -93,7 +93,7 @@ const Login = () => {
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
         {/* Gold shimmer overlay on card */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
         
         {/* Decorative corner accents */}
         <div className="absolute top-4 right-4 w-16 h-16 border-t-2 border-r-2 border-[#D4AF37]/40 rounded-tr-2xl" />
@@ -115,7 +115,7 @@ const Login = () => {
           <h2 className="text-4xl md:text-5xl font-bold playfair text-[#C1272D] mb-2">
             Welcome Back
           </h2>
-          <div className="w-24 h-1 bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC] mx-auto rounded-full" />
+          <div className="w-24 h-1 bg-linear-to-r from-[#D4AF37] to-[#F4E4BC] mx-auto rounded-full" />
         </motion.div>
 
         <motion.p
@@ -182,14 +182,14 @@ const Login = () => {
 
           <motion.button
             type="submit"
-            className="w-full bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white py-3.5 rounded-xl font-semibold poppins shadow-lg hover:shadow-xl relative overflow-hidden group transition-all duration-300"
+            className="w-full bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white py-3.5 rounded-xl font-semibold poppins shadow-lg hover:shadow-xl relative overflow-hidden group transition-all duration-300"
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
             {/* Gold shimmer effect on hover */}
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+              className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
               initial={{ x: "-100%" }}
               whileHover={{ x: "100%" }}
               transition={{ duration: 0.6 }}

@@ -109,8 +109,13 @@ const Home = () => {
 
       {/* Header */}
       <div className="relative z-10 bg-white border-b-2 border-[#D4AF37]/30 shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center sm:text-left"
+          >
             <h1 className="text-3xl md:text-4xl font-bold playfair text-[#C1272D]">
               Boxes
             </h1>
@@ -119,7 +124,7 @@ const Home = () => {
 
           <motion.button
             onClick={async () => { try { await logoutUser(); dispatch(logout()); navigate("/login", { replace: true }); } catch (e) {} }}
-            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, x: 20 }}
@@ -139,7 +144,7 @@ const Home = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Search Bar */}
         <div className="relative">
           <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
@@ -161,7 +166,7 @@ const Home = () => {
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
               <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-[#F9F7F4]">
                 <div className="h-40 w-full bg-[#E8DCC6] rounded-xl mb-4"></div>
@@ -176,7 +181,7 @@ const Home = () => {
             {searchQuery ? "No boxes found matching your search." : "No boxes found."}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
@@ -250,7 +255,7 @@ const Home = () => {
                   </div>
 
                   {/* Subtract Quantity */}
-                  <div className="mt-4 flex items-center gap-3">
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
                     <input
                       type="number"
                       inputMode="numeric"
@@ -258,12 +263,12 @@ const Home = () => {
                       placeholder="Qty"
                       value={qtyInputs[box._id] ?? ""}
                       onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                      className="w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      className="w-full sm:w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
                     />
                     <motion.button
                       onClick={() => submitSubtract(box)}
                       disabled={submittingId === box._id}
-                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-center"
                       whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
                       whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
                     >
@@ -278,12 +283,12 @@ const Home = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
-            <div className="text-sm text-[#2D1B0E] poppins font-medium">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
+            <div className="text-sm text-[#2D1B0E] poppins font-medium text-center lg:text-left">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}

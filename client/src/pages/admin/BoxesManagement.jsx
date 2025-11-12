@@ -250,7 +250,7 @@ const BoxesManagement = () => {
   return (
     <div className="w-full space-y-6">
       {/* Add Box Button */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <motion.button
           onClick={() => {
             if (showForm && !editingId) {
@@ -266,12 +266,12 @@ const BoxesManagement = () => {
               setShowForm(true);
             }
           }}
-          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
           whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+            className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
             initial={{ x: "-100%" }}
             whileHover={{ x: "100%" }}
             transition={{ duration: 0.6 }}
@@ -312,7 +312,7 @@ const BoxesManagement = () => {
             transition={{ duration: 0.3 }}
             className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
             <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">
               {editingId ? "Edit Box" : "Add New Box"}
             </h3>
@@ -496,15 +496,15 @@ const BoxesManagement = () => {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex gap-4 pt-4">
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <motion.button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white py-3 rounded-xl font-semibold poppins shadow-lg hover:shadow-xl relative overflow-hidden group transition-all duration-300"
+                    className="flex-1 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white py-3 rounded-xl font-semibold poppins shadow-lg hover:shadow-xl relative overflow-hidden group transition-all duration-300 w-full"
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+                    className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
                     initial={{ x: "-100%" }}
                     whileHover={{ x: "100%" }}
                     transition={{ duration: 0.6 }}
@@ -517,7 +517,7 @@ const BoxesManagement = () => {
                   <motion.button
                     type="button"
                     onClick={resetForm}
-                    className="px-6 py-3 border-2 border-[#C1272D] text-[#C1272D] rounded-xl font-semibold poppins hover:bg-[#C1272D] hover:text-white transition-all duration-300"
+                    className="px-6 py-3 border-2 border-[#C1272D] text-[#C1272D] rounded-xl font-semibold poppins hover:bg-[#C1272D] hover:text-white transition-all duration-300 w-full sm:w-auto"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -544,12 +544,12 @@ const BoxesManagement = () => {
 
       {/* Boxes Grid */}
       <motion.div
-        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-5 sm:p-6 md:p-8 relative overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
@@ -566,7 +566,7 @@ const BoxesManagement = () => {
             {searchQuery ? "No boxes found matching your search." : "No boxes found."}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
@@ -608,8 +608,8 @@ const BoxesManagement = () => {
                         className="w-full h-full object-cover"
                       />
                       {/* gradient for readability of controls */}
-                      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
-                      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-black/40 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/40 to-transparent pointer-events-none" />
                       <button
                         onClick={() => setExpandedId(null)}
                         className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 text-white text-xs font-semibold shadow-md"
@@ -641,10 +641,10 @@ const BoxesManagement = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="mt-4 flex justify-end gap-3">
+                  <div className="mt-4 flex flex-col sm:flex-row sm:justify-end gap-3">
                     <motion.button
                       onClick={() => startEdit(box)}
-                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#2D1B0E] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors"
+                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#2D1B0E] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors text-center"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -652,7 +652,7 @@ const BoxesManagement = () => {
                     </motion.button>
                     <motion.button
                       onClick={() => handleDelete(box._id, box.title)}
-                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors"
+                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors text-center"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -667,12 +667,12 @@ const BoxesManagement = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
-            <div className="text-sm text-[#2D1B0E] poppins font-medium">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
+            <div className="text-sm text-[#2D1B0E] poppins font-medium text-center lg:text-left">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
