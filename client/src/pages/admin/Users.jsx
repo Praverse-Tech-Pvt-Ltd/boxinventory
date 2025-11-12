@@ -75,15 +75,15 @@ const Users = () => {
   return (
     <div className="w-full">
       <motion.div
-        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative"
+        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
         {/* Gold shimmer overlay on card */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent rounded-t-3xl" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent rounded-t-3xl" />
         <div className="overflow-x-auto">
-        <table className="min-w-full text-sm poppins">
+        <table className="min-w-full text-xs sm:text-sm poppins">
           <thead>
             <tr className="bg-[#F4E4BC] text-left rounded-t-xl border-b-2 border-[#D4AF37]/30">
               <th className="px-4 py-4 font-semibold text-[#2D1B0E] poppins">Name</th>
@@ -162,7 +162,7 @@ const Users = () => {
                       </select>
                     </td>
                     <td className="p-4">
-                      <div className="flex justify-center gap-3">
+                      <div className="flex justify-center gap-3 flex-wrap">
                         {isEditing ? (
                           <>
                             <motion.button

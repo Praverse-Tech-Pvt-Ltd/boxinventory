@@ -67,11 +67,12 @@ const AdminDashboard = () => {
 
       {/* Header */}
       <div className="relative z-10 bg-white border-b-2 border-[#D4AF37]/30 shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
+            className="text-center sm:text-left"
           >
             <h1 className="text-3xl md:text-4xl font-bold playfair text-[#C1272D]">
               Admin Dashboard
@@ -83,7 +84,7 @@ const AdminDashboard = () => {
 
           <motion.button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, x: 20 }}
@@ -103,8 +104,8 @@ const AdminDashboard = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pt-6 bg-white">
-        <div className="flex gap-4 border-b-2 border-[#D4AF37]/30">
+      <div className="relative z-10 max-w-7xl mx-auto px-0 sm:px-6 pt-6 bg-white">
+        <div className="flex gap-2 sm:gap-4 border-b-2 border-[#D4AF37]/30 overflow-x-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/50 scrollbar-track-transparent px-4 sm:px-0 pb-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -112,7 +113,7 @@ const AdminDashboard = () => {
               <motion.button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-6 py-4 font-semibold poppins transition-all duration-300 flex items-center gap-2 ${
+                className={`relative whitespace-nowrap px-4 sm:px-6 py-3 sm:py-4 font-semibold poppins transition-all duration-300 flex items-center gap-2 ${
                   isActive
                     ? "text-[#C1272D]"
                     : "text-[#2D1B0E] hover:text-[#C1272D]"
@@ -121,7 +122,7 @@ const AdminDashboard = () => {
                 whileTap={{ scale: 0.95 }}
               >
                 <Icon size={20} />
-                <span>{tab.label}</span>
+                <span className="text-sm sm:text-base">{tab.label}</span>
                 {isActive && (
                   <motion.div
                     className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC] rounded-t-full"
@@ -136,7 +137,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <AnimatePresence mode="wait">
           {activeTab === "users" && (
             <motion.div
