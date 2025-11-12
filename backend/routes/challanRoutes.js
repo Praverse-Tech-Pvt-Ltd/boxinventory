@@ -6,7 +6,7 @@ import {
   createChallan,
   listChallans,
   getChallanById,
-  downloadChallanCsv,
+  downloadChallanPdf,
 } from "../controllers/challanController.js";
 
 const router = express.Router();
@@ -27,7 +27,7 @@ router.get("/", listChallans);
 router.get("/:id", getChallanById);
 
 // Download challan CSV
-router.get("/:id/download", downloadChallanCsv);
+router.get("/:id/download", downloadChallanPdf);
 
 export default router;
 
