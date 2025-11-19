@@ -33,8 +33,8 @@ const BoxesManagement = () => {
     bagSize: "",
     boxInnerSize: "",
     boxOuterSize: "",
-    quantity: "",
     colours: "",
+    quantityByColor: {}, // { color: quantity }
   });
 
   // Delete confirmation dialog state
@@ -130,8 +130,8 @@ const BoxesManagement = () => {
     bagSize: "",
     boxInnerSize: "",
     boxOuterSize: "",
-    quantity: "",
     colours: "",
+    quantityByColor: { "": 0 }, // Start with one empty pair
   });
 
   const resetForm = () => {
@@ -141,6 +141,25 @@ const BoxesManagement = () => {
   };
 
   const startEdit = (box) => {
+    // Convert quantityByColor Map to object if needed
+    let quantityByColorObj = {};
+    if (box.quantityByColor) {
+      if (box.quantityByColor instanceof Map) {
+        box.quantityByColor.forEach((value, key) => {
+          quantityByColorObj[key] = value;
+        });
+      } else if (typeof box.quantityByColor === 'object') {
+        quantityByColorObj = { ...box.quantityByColor };
+      }
+    }
+    
+    // If no quantityByColor exists but colours do, initialize with 0 quantities
+    if (Object.keys(quantityByColorObj).length === 0 && Array.isArray(box.colours) && box.colours.length > 0) {
+      box.colours.forEach(color => {
+        quantityByColorObj[color] = 0;
+      });
+    }
+    
     setEditingId(box._id);
     setFormData({
       image: null,
@@ -152,8 +171,8 @@ const BoxesManagement = () => {
       bagSize: formatDimensionValue(box.bagSize || ""),
       boxInnerSize: formatDimensionValue(box.boxInnerSize || ""),
       boxOuterSize: formatDimensionValue(box.boxOuterSize || ""),
-      quantity: box.quantity?.toString() || "",
-      colours: Array.isArray(box.colours) ? box.colours.join(", ") : (box.colours || ""),
+      colours: Object.keys(quantityByColorObj).join(", "),
+      quantityByColor: quantityByColorObj,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -181,8 +200,10 @@ const BoxesManagement = () => {
       formDataToSend.append("bagSize", formattedBagSize);
       formDataToSend.append("boxInnerSize", formattedBoxInnerSize);
       formDataToSend.append("boxOuterSize", formattedBoxOuterSize);
-      formDataToSend.append("quantity", formData.quantity);
-      formDataToSend.append("colours", formData.colours);
+      // Extract colours from quantityByColor keys
+      const coloursArray = Object.keys(formData.quantityByColor).filter(c => c.trim().length > 0);
+      formDataToSend.append("colours", coloursArray.join(", "));
+      formDataToSend.append("quantityByColor", JSON.stringify(formData.quantityByColor));
 
       if (editingId) {
         // Update existing box
@@ -190,6 +211,8 @@ const BoxesManagement = () => {
           await updateBox(editingId, formDataToSend);
         } else {
           // Update without image - send as JSON
+          // Extract colours from quantityByColor keys
+          const coloursArray = Object.keys(formData.quantityByColor).filter(c => c.trim().length > 0);
           const jsonData = {
             title: formData.title,
             code: formData.code,
@@ -198,8 +221,8 @@ const BoxesManagement = () => {
             bagSize: formattedBagSize,
             boxInnerSize: formattedBoxInnerSize,
             boxOuterSize: formattedBoxOuterSize,
-            quantity: parseInt(formData.quantity),
-            colours: formData.colours,
+            colours: coloursArray.join(", "),
+            quantityByColor: formData.quantityByColor,
           };
           await updateBox(editingId, jsonData);
         }
@@ -407,22 +430,7 @@ const BoxesManagement = () => {
                   />
                 </div>
 
-                {/* Quantity */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
-                    Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    required
-                    min="0"
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-                    placeholder="100"
-                  />
-                </div>
+                {/* Quantity by Color - will be shown after colours are entered */}
 
                 {/* Bag Size */}
                 <div>
@@ -475,22 +483,92 @@ const BoxesManagement = () => {
                   />
                 </div>
 
-                {/* Colours */}
+                {/* Color-Quantity Pairs */}
                 <div className="md:col-span-2">
                   <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
-                    Colours * (comma-separated)
+                    Color-Quantity Pairs *
                   </label>
-                  <input
-                    type="text"
-                    name="colours"
-                    value={formData.colours}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-                    placeholder="Red, Gold, Pink, Blue"
-                  />
-                  <p className="mt-1 text-xs text-[#2D1B0E]/60 poppins">
-                    Enter colours separated by commas (e.g., Red, Gold, Pink)
+                  <div className="space-y-3">
+                    {Object.entries(formData.quantityByColor).map(([color, qty], index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <input
+                          type="text"
+                          value={color}
+                          onChange={(e) => {
+                            const newColor = e.target.value.trim();
+                            const updatedQtyByColor = { ...formData.quantityByColor };
+                            // Remove old color entry
+                            delete updatedQtyByColor[color];
+                            // Add new color entry with same quantity
+                            if (newColor) {
+                              updatedQtyByColor[newColor] = qty;
+                            }
+                            setFormData(prev => ({
+                              ...prev,
+                              quantityByColor: updatedQtyByColor,
+                              colours: Object.keys(updatedQtyByColor).join(", ")
+                            }));
+                          }}
+                          placeholder="Color name"
+                          className="w-40 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={qty}
+                          onChange={(e) => {
+                            const newQty = parseInt(e.target.value, 10) || 0;
+                            setFormData(prev => ({
+                              ...prev,
+                              quantityByColor: {
+                                ...prev.quantityByColor,
+                                [color]: newQty
+                              }
+                            }));
+                          }}
+                          placeholder="Quantity"
+                          className="flex-1 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                        />
+                        <motion.button
+                          type="button"
+                          onClick={() => {
+                            const updatedQtyByColor = { ...formData.quantityByColor };
+                            delete updatedQtyByColor[color];
+                            setFormData(prev => ({
+                              ...prev,
+                              quantityByColor: updatedQtyByColor,
+                              colours: Object.keys(updatedQtyByColor).join(", ")
+                            }));
+                          }}
+                          className="px-4 py-3 rounded-xl bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          Remove
+                        </motion.button>
+                      </div>
+                    ))}
+                    <motion.button
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          quantityByColor: {
+                            ...prev.quantityByColor,
+                            "": 0
+                          }
+                        }));
+                      }}
+                      className="w-full px-4 py-3 border-2 border-dashed border-[#D4AF37] rounded-xl text-[#C1272D] font-semibold hover:bg-[#FDF9EE] transition-colors flex items-center justify-center gap-2"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <FiPlus size={20} />
+                      Add Color-Quantity Pair
+                    </motion.button>
+                  </div>
+                  <p className="mt-2 text-xs text-[#2D1B0E]/60 poppins">
+                    Add color-quantity pairs. At least one pair with quantity &gt; 0 is required.
                   </p>
                 </div>
               </div>
@@ -633,7 +711,22 @@ const BoxesManagement = () => {
                   <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
-                    <div><span className="font-semibold">Quantity:</span> {box.quantity || 0}</div>
+                    <div><span className="font-semibold">Quantity by Color:</span>
+                      <div className="ml-2 mt-1 space-y-1">
+                        {Array.isArray(box.colours) && box.colours.length > 0 ? (
+                          box.colours.map(color => {
+                            const qty = box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0
+                            return (
+                              <div key={color} className="text-xs">
+                                <span className="font-mono">{color}:</span> <span className="font-semibold">{qty}</span>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <span className="text-xs text-gray-500">No colors available</span>
+                        )}
+                      </div>
+                    </div>
                     <div><span className="font-semibold">Bag Size:</span> {box.bagSize}</div>
                     <div><span className="font-semibold">Inner Size:</span> {box.boxInnerSize}</div>
                     <div><span className="font-semibold">Outer Size:</span> {box.boxOuterSize}</div>

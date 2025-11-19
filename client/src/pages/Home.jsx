@@ -20,6 +20,7 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedId, setExpandedId] = useState(null)
   const [qtyInputs, setQtyInputs] = useState({}) // boxId -> string/number
+  const [colorInputs, setColorInputs] = useState({}) // boxId -> color string
   const [submittingId, setSubmittingId] = useState(null)
 
   useEffect(() => {
@@ -63,23 +64,41 @@ const Home = () => {
     setQtyInputs(prev => ({ ...prev, [boxId]: value }))
   }
 
+  const handleColorChange = (boxId, value) => {
+    setColorInputs(prev => ({ ...prev, [boxId]: value }))
+  }
+
   const submitSubtract = async (box) => {
     const val = parseInt(qtyInputs[box._id], 10)
+    const selectedColor = colorInputs[box._id]?.trim()
+    
     if (!Number.isInteger(val) || val <= 0) {
       toast.error("Enter a valid positive quantity")
       return
     }
-    if (val > box.quantity) {
-      toast.error("Requested quantity exceeds available stock")
+    
+    if (!selectedColor) {
+      toast.error("Please select a color")
       return
     }
+
+    // Get quantity for the selected color
+    const quantityByColor = box.quantityByColor || {}
+    const availableQty = quantityByColor[selectedColor] || 0
+    
+    if (val > availableQty) {
+      toast.error(`Requested quantity exceeds available stock for ${selectedColor}. Available: ${availableQty}`)
+      return
+    }
+    
     try {
       setSubmittingId(box._id)
-      const res = await subtractBoxQuantity(box._id, { quantity: val })
+      const res = await subtractBoxQuantity(box._id, { quantity: val, color: selectedColor })
       // Update box quantity locally
-      setBoxes(prev => prev.map(b => b._id === box._id ? { ...b, quantity: res.box.quantity } : b))
+      setBoxes(prev => prev.map(b => b._id === box._id ? { ...b, quantityByColor: res.box.quantityByColor } : b))
       toast.success("Quantity subtracted")
       setQtyInputs(prev => ({ ...prev, [box._id]: "" }))
+      setColorInputs(prev => ({ ...prev, [box._id]: "" }))
     } catch (e) {
       toast.error(e.response?.data?.message || "Failed to subtract quantity")
     } finally {
@@ -247,7 +266,22 @@ const Home = () => {
                   <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{Number(box.price).toFixed(2)}</div>
-                    <div><span className="font-semibold">Available:</span> {box.quantity || 0}</div>
+                    <div><span className="font-semibold">Available by Color:</span>
+                      <div className="ml-2 mt-1 space-y-1">
+                        {Array.isArray(box.colours) && box.colours.length > 0 ? (
+                          box.colours.map(color => {
+                            const qty = box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0
+                            return (
+                              <div key={color} className="text-xs">
+                                <span className="font-mono">{color}:</span> <span className="font-semibold">{qty}</span>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <span className="text-xs text-gray-500">No colors available</span>
+                        )}
+                      </div>
+                    </div>
                     <div><span className="font-semibold">Bag Size:</span> {box.bagSize}</div>
                     <div><span className="font-semibold">Inner Size:</span> {box.boxInnerSize}</div>
                     <div><span className="font-semibold">Outer Size:</span> {box.boxOuterSize}</div>
@@ -255,25 +289,39 @@ const Home = () => {
                   </div>
 
                   {/* Subtract Quantity */}
-                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      placeholder="Qty"
-                      value={qtyInputs[box._id] ?? ""}
-                      onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                      className="w-full sm:w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
-                    />
-                    <motion.button
-                      onClick={() => submitSubtract(box)}
-                      disabled={submittingId === box._id}
-                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-center"
-                      whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
-                      whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
-                    >
-                      {submittingId === box._id ? "Updating..." : "Subtract"}
-                    </motion.button>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <select
+                        value={colorInputs[box._id] ?? ""}
+                        onChange={(e) => handleColorChange(box._id, e.target.value)}
+                        className="w-full sm:w-32 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      >
+                        <option value="">Select Color</option>
+                        {Array.isArray(box.colours) && box.colours.map(color => (
+                          <option key={color} value={color}>
+                            {color} ({(box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0)})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        placeholder="Qty"
+                        value={qtyInputs[box._id] ?? ""}
+                        onChange={(e) => handleQtyChange(box._id, e.target.value)}
+                        className="w-full sm:w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      />
+                      <motion.button
+                        onClick={() => submitSubtract(box)}
+                        disabled={submittingId === box._id}
+                        className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-center"
+                        whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
+                        whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
+                      >
+                        {submittingId === box._id ? "Updating..." : "Subtract"}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

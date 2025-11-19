@@ -95,9 +95,12 @@ export const createChallan = async (req, res) => {
       rate: Number(lineItemMap.get(String(a._id))?.rate || 0),
       assemblyCharge: Number(lineItemMap.get(String(a._id))?.assemblyCharge || 0),
       packagingCharge: Number(lineItemMap.get(String(a._id))?.packagingCharge || 0),
+      color: lineItemMap.get(String(a._id))?.color || a.color || "",
       colours: (() => {
         const lineColours = lineItemMap.get(String(a._id))?.colours;
         if (Array.isArray(lineColours) && lineColours.length > 0) return lineColours;
+        const auditColor = lineItemMap.get(String(a._id))?.color || a.color;
+        if (auditColor) return [auditColor];
         if (Array.isArray(a.box.colours)) return a.box.colours;
         return [];
       })(),
@@ -163,9 +166,12 @@ export const downloadChallanPdf = async (req, res) => {
           item: item.item || item.box?.title || "",
           cavity: item.cavity || "",
           code: item.code || item.box?.code || "",
+          color: item.color || "",
           colours:
             item.colours && item.colours.length
               ? item.colours
+              : item.color
+              ? [item.color]
               : item.box?.colours || [],
           quantity: item.quantity || 0,
           rate: item.rate || 0,

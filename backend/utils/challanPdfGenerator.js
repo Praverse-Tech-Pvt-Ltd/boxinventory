@@ -116,29 +116,76 @@ const addTable = (doc, items, startY) => {
 
   doc.font("Helvetica").fontSize(10);
 
-  const rowsData = items.map((item, index) => {
+  // Expand items into rows - one row per color-quantity pair
+  const expandedRows = [];
+  let srNoCounter = 1;
+
+  items.forEach((item, itemIndex) => {
     const rate = Number(item.rate || 0);
     const assembly = Number(item.assemblyCharge || 0);
     const packaging = Number(item.packagingCharge || 0);
-    const qty = Number(item.quantity || 0);
-    const lineTotal = (rate + assembly + packaging) * qty;
-    const itemLines = [
-      item.item || item.box?.title || "",
-      `Assembly: ₹${formatCurrency(assembly)}`,
-      `Packaging: ₹${formatCurrency(packaging)}`,
-    ].filter(Boolean);
-    return {
-      srNo: index + 1,
-      item: itemLines.join("\n"),
-      cavity: item.cavity || "",
-      code: item.code || item.box?.code || "",
-      colours: Array.isArray(item.colours) ? item.colours.join(", ") : item.colours || "",
-      quantity: qty,
-      rate: (rate + assembly + packaging).toFixed(2),
-      total: lineTotal.toFixed(2),
-      rawTotal: lineTotal,
-    };
+    const baseItemName = item.item || item.box?.title || "";
+    
+    // Get colors - prioritize item.color, then item.colours array
+    let colorsToShow = [];
+    if (item.color) {
+      colorsToShow = [item.color];
+    } else if (Array.isArray(item.colours) && item.colours.length > 0) {
+      colorsToShow = item.colours;
+    } else if (Array.isArray(item.box?.colours) && item.box.colours.length > 0) {
+      colorsToShow = item.box.colours;
+    } else {
+      colorsToShow = [""]; // No color specified
+    }
+
+    // If only one color, show it as a single row
+    if (colorsToShow.length === 1) {
+      const qty = Number(item.quantity || 0);
+      const lineTotal = (rate + assembly + packaging) * qty;
+      const itemLines = [
+        baseItemName,
+        `Assembly: ₹${formatCurrency(assembly)}`,
+        `Packaging: ₹${formatCurrency(packaging)}`,
+      ].filter(Boolean);
+      expandedRows.push({
+        srNo: srNoCounter++,
+        item: itemLines.join("\n"),
+        cavity: item.cavity || "",
+        code: item.code || item.box?.code || "",
+        colours: colorsToShow[0] || "",
+        quantity: qty,
+        rate: (rate + assembly + packaging).toFixed(2),
+        total: lineTotal.toFixed(2),
+        rawTotal: lineTotal,
+      });
+    } else {
+      // Multiple colors - create separate rows for each color
+      // Distribute quantity evenly or show same quantity for each (based on requirement)
+      // For now, we'll show the same quantity for each color
+      const qtyPerColor = Number(item.quantity || 0);
+      colorsToShow.forEach((color, colorIndex) => {
+        const lineTotal = (rate + assembly + packaging) * qtyPerColor;
+        const itemLines = [
+          colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
+          colorIndex === 0 ? `Assembly: ₹${formatCurrency(assembly)}` : "",
+          colorIndex === 0 ? `Packaging: ₹${formatCurrency(packaging)}` : "",
+        ].filter(Boolean);
+        expandedRows.push({
+          srNo: colorIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
+          item: itemLines.join("\n"),
+          cavity: colorIndex === 0 ? (item.cavity || "") : "",
+          code: colorIndex === 0 ? (item.code || item.box?.code || "") : "",
+          colours: color || "",
+          quantity: qtyPerColor,
+          rate: (rate + assembly + packaging).toFixed(2),
+          total: lineTotal.toFixed(2),
+          rawTotal: lineTotal,
+        });
+      });
+    }
   });
+
+  const rowsData = expandedRows;
 
   const rowHeights = [];
 

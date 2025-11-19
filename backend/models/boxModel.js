@@ -39,10 +39,11 @@ const boxSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-    quantity: {
-      type: Number,
+    quantityByColor: {
+      type: Map,
+      of: Number,
       required: true,
-      min: 0,
+      default: {},
     },
     colours: {
       type: [String],
@@ -54,6 +55,26 @@ const boxSchema = new mongoose.Schema(
 );
 
 boxSchema.index({ code: 1 });
+
+// Transform quantityByColor Map to object in JSON responses
+boxSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    // Convert Map to plain object
+    if (ret.quantityByColor instanceof Map) {
+      const obj = {};
+      ret.quantityByColor.forEach((value, key) => {
+        obj[key] = value;
+      });
+      ret.quantityByColor = obj;
+    } else if (ret.quantityByColor && typeof ret.quantityByColor === 'object') {
+      // Already an object, keep as is
+      ret.quantityByColor = ret.quantityByColor;
+    } else {
+      ret.quantityByColor = {};
+    }
+    return ret;
+  }
+});
 
 const Box = mongoose.model("Box", boxSchema);
 export default Box;

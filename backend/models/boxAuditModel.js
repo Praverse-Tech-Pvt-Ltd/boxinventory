@@ -17,6 +17,11 @@ const boxAuditSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    color: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     note: {
       type: String,
       trim: true,
