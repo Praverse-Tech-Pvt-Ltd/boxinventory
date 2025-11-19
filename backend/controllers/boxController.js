@@ -77,6 +77,37 @@ export const createBox = async (req, res) => {
       return res.status(400).json({ message: "At least one colour is required" });
     }
 
+    // Handle quantityByColor - can be an object, Map, or JSON string
+    let quantityByColorMap = new Map();
+    let quantityByColorData = req.body.quantityByColor;
+    
+    // Parse JSON string if it's a string
+    if (typeof quantityByColorData === 'string') {
+      try {
+        quantityByColorData = JSON.parse(quantityByColorData);
+      } catch (e) {
+        // If parsing fails, treat as empty
+        quantityByColorData = null;
+      }
+    }
+    
+    if (quantityByColorData) {
+      if (typeof quantityByColorData === 'object' && !Array.isArray(quantityByColorData)) {
+        Object.entries(quantityByColorData).forEach(([color, qty]) => {
+          const parsedQty = parseInt(qty, 10);
+          if (color && !isNaN(parsedQty) && parsedQty >= 0) {
+            quantityByColorMap.set(color, parsedQty);
+          }
+        });
+      }
+    } else if (quantity) {
+      // Legacy support: if quantity is provided but not quantityByColor, distribute evenly or set first color
+      const defaultQty = parseInt(quantity, 10) || 0;
+      if (coloursArray.length > 0 && defaultQty > 0) {
+        quantityByColorMap.set(coloursArray[0], defaultQty);
+      }
+    }
+
     const box = await Box.create({
       image,
       title,
@@ -86,7 +117,7 @@ export const createBox = async (req, res) => {
       boxInnerSize,
       boxOuterSize,
       category: category?.toLowerCase(),
-      quantity: quantity ? parseInt(quantity) : 0,
+      quantityByColor: quantityByColorMap,
       colours: coloursArray,
     });
 
@@ -166,7 +197,40 @@ export const updateBox = async (req, res) => {
     if (boxInnerSize !== undefined) box.boxInnerSize = boxInnerSize;
     if (boxOuterSize !== undefined) box.boxOuterSize = boxOuterSize;
     if (category !== undefined) box.category = category.toLowerCase();
-    if (quantity !== undefined) box.quantity = parseInt(quantity);
+    
+    // Handle quantityByColor - can be an object, Map, or JSON string
+    if (req.body.quantityByColor !== undefined) {
+      const quantityByColorMap = new Map();
+      let quantityByColorData = req.body.quantityByColor;
+      
+      // Parse JSON string if it's a string
+      if (typeof quantityByColorData === 'string') {
+        try {
+          quantityByColorData = JSON.parse(quantityByColorData);
+        } catch (e) {
+          // If parsing fails, treat as empty
+          quantityByColorData = null;
+        }
+      }
+      
+      if (quantityByColorData && typeof quantityByColorData === 'object' && !Array.isArray(quantityByColorData)) {
+        Object.entries(quantityByColorData).forEach(([color, qty]) => {
+          const parsedQty = parseInt(qty, 10);
+          if (color && !isNaN(parsedQty) && parsedQty >= 0) {
+            quantityByColorMap.set(color, parsedQty);
+          }
+        });
+      }
+      box.quantityByColor = quantityByColorMap;
+    } else if (quantity !== undefined) {
+      // Legacy support: if quantity is provided but not quantityByColor, update first color or distribute
+      const parsedQty = parseInt(quantity, 10);
+      if (box.colours && box.colours.length > 0) {
+        const currentMap = box.quantityByColor || new Map();
+        currentMap.set(box.colours[0], parsedQty);
+        box.quantityByColor = currentMap;
+      }
+    }
     
     // Handle colours - convert comma-separated string to array
     if (colours !== undefined) {
@@ -200,11 +264,15 @@ export const updateBox = async (req, res) => {
 export const subtractBoxQuantity = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity, note } = req.body;
+    const { quantity, color, note } = req.body;
 
     const parsedQty = parseInt(quantity, 10);
     if (!Number.isInteger(parsedQty) || parsedQty <= 0) {
       return res.status(400).json({ message: "Quantity must be a positive integer" });
+    }
+
+    if (!color || typeof color !== 'string' || color.trim().length === 0) {
+      return res.status(400).json({ message: "Color is required" });
     }
 
     const box = await Box.findById(id);
@@ -212,17 +280,27 @@ export const subtractBoxQuantity = async (req, res) => {
       return res.status(404).json({ message: "Box not found" });
     }
 
-    if (box.quantity < parsedQty) {
-      return res.status(400).json({ message: "Insufficient stock to subtract requested quantity" });
+    // Get current quantity by color map
+    const quantityByColor = box.quantityByColor || new Map();
+    const colorKey = color.trim();
+    const currentQty = quantityByColor.get(colorKey) || 0;
+
+    if (currentQty < parsedQty) {
+      return res.status(400).json({ 
+        message: `Insufficient stock for color "${colorKey}". Available: ${currentQty}, Requested: ${parsedQty}` 
+      });
     }
 
-    box.quantity = box.quantity - parsedQty;
+    // Update quantity for the specific color
+    quantityByColor.set(colorKey, currentQty - parsedQty);
+    box.quantityByColor = quantityByColor;
     await box.save();
 
     const audit = await BoxAudit.create({
       box: box._id,
       user: req.user._id,
       quantity: parsedQty,
+      color: colorKey,
       note: note || undefined,
     });
 

@@ -15,6 +15,7 @@ const challanItemSchema = new mongoose.Schema(
     rate: { type: Number, default: 0 },
     assemblyCharge: { type: Number, default: 0 },
     packagingCharge: { type: Number, default: 0 },
+    color: { type: String, default: "" },
     colours: { type: [String], default: [] },
     user: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

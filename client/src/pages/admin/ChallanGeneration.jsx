@@ -60,7 +60,8 @@ const ChallanGeneration = () => {
              rate: Number(audit.box?.price || 0),
              assemblyCharge: 0,
              packagingCharge: 0,
-             colours: Array.isArray(audit.box?.colours) ? [...audit.box.colours] : [],
+             color: audit.color || "",
+             colours: audit.color ? [audit.color] : (Array.isArray(audit.box?.colours) ? [...audit.box.colours] : []),
            };
          }
        }
@@ -91,14 +92,15 @@ const ChallanGeneration = () => {
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return candidates;
-    const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase();
     return candidates.filter((a) => {
       const user = (a.user?.name || a.user?.email || "").toLowerCase();
       const title = (a.box?.title || "").toLowerCase();
       const code = (a.box?.code || "").toLowerCase();
       const category = (a.box?.category || "").toLowerCase();
+      const color = (a.color || "").toLowerCase();
       const qty = String(a.quantity || "").toLowerCase();
-      return user.includes(q) || title.includes(q) || code.includes(q) || category.includes(q) || qty.includes(q);
+      return user.includes(q) || title.includes(q) || code.includes(q) || category.includes(q) || color.includes(q) || qty.includes(q);
     });
   }, [candidates, searchQuery]);
 
@@ -164,6 +166,7 @@ const ChallanGeneration = () => {
       setSubmitting(true);
       const lineItems = auditIds.map((id) => {
         const r = editRows[id] || {};
+        const audit = candidates.find(c => c._id === id);
         return {
           auditId: id,
           cavity: r.cavity || "",
@@ -171,6 +174,7 @@ const ChallanGeneration = () => {
           rate: Number(r.rate || 0),
           assemblyCharge: Number(r.assemblyCharge || 0),
           packagingCharge: Number(r.packagingCharge || 0),
+          color: r.color || audit?.color || "",
           colours: Array.isArray(r.colours) ? r.colours : [],
         };
       });
@@ -216,7 +220,7 @@ const ChallanGeneration = () => {
           <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
           <input
             type="text"
-            placeholder="Search by user, box name, code, category, or quantity..."
+            placeholder="Search by user, box name, code, category, color, or quantity..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
@@ -306,38 +310,35 @@ const ChallanGeneration = () => {
                          </td>
                     <td className="px-4 py-4 text-sm font-mono text-[#2D1B0E]">{audit.box?.code}</td>
                     <td className="px-4 py-4 text-sm">
-                      <div className="flex flex-wrap gap-2">
-                        {(edit.colours || []).map((c) => (
-                          <span key={c} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs border border-[#F3C4C1] shadow-sm">
-                            {c}
-                            <button className="text-[#A01F24] hover:text-[#7B1518]" onClick={() => removeColour(audit._id, c)}>✕</button>
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Add colour"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              addColour(audit._id, e.currentTarget.value);
-                              e.currentTarget.value = "";
-                            }
-                          }}
-                          className="flex-1 px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
-                        />
-                        <button
-                          onClick={(e) => {
-                            const input = e.currentTarget.previousSibling;
-                            if (input && input.value) {
-                              addColour(audit._id, input.value);
-                              input.value = "";
-                            }
-                          }}
-                          className="px-3 py-2 rounded-lg bg-[#C1272D] text-white text-xs font-semibold shadow hover:bg-[#A01F24] transition-colors"
-                        >
-                          Add
-                        </button>
+                      <div className="space-y-2">
+                        <span className="px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs font-semibold border border-[#F3C4C1]">
+                          {edit.color || audit.color || "-"}
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {(edit.colours || []).filter(c => c !== edit.color && c !== audit.color).map((c) => (
+                            <span key={c} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs border border-[#F3C4C1] shadow-sm">
+                              {c}
+                              <button className="text-[#A01F24] hover:text-[#7B1518]" onClick={() => removeColour(audit._id, c)}>✕</button>
+                            </span>
+                          ))}
+                        </div>
+                        {/* <div className="mt-2 flex gap-2">
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                addColour(audit._id, e.target.value);
+                                e.target.value = "";
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          >
+                            {Array.isArray(audit.box?.colours) && audit.box.colours
+                              .filter(c => !edit.colours?.includes(c) && c !== edit.color && c !== audit.color)
+                              .map(color => (
+                                <option key={color} value={color}>{color}</option>
+                              ))}
+                          </select>
+                        </div> */}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-right">
@@ -429,6 +430,7 @@ const ChallanGeneration = () => {
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
+                <th className="px-4 py-3 font-semibold whitespace-nowrap">Color</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
               </tr>
             </thead>
@@ -454,6 +456,11 @@ const ChallanGeneration = () => {
                     <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title}</td>
                     <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category}</td>
                     <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code}</td>
+                    <td className="px-4 py-3 text-[#2D1B0E]">
+                      <span className="px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs font-semibold border border-[#F3C4C1]">
+                        {a.color || "-"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-[#2D1B0E] font-semibold">{a.quantity}</td>
                   </tr>
                 ))

@@ -27,12 +27,14 @@ const AuditHistory = () => {
     return audits.filter((a) => {
       const userNameOrEmail = (a.user?.name || a.user?.email || "").toLowerCase();
       const qty = String(a.quantity || "").toLowerCase();
+      const color = (a.color || "").toLowerCase();
       const title = (a.box?.title || "").toLowerCase();
       const category = (a.box?.category || "").toLowerCase();
       const code = (a.box?.code || "").toLowerCase();
       return (
         userNameOrEmail.includes(q) ||
         qty.includes(q) ||
+        color.includes(q) ||
         title.includes(q) ||
         category.includes(q) ||
         code.includes(q)
@@ -50,7 +52,7 @@ const AuditHistory = () => {
           <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
           <input
             type="text"
-            placeholder="Search by user, quantity, box name, category, or code..."
+            placeholder="Search by user, quantity, color, box name, category, or code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
@@ -70,6 +72,7 @@ const AuditHistory = () => {
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Color</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
@@ -85,6 +88,11 @@ const AuditHistory = () => {
                         {a.user?.name || a.user?.email || "Unknown"}
                       </td>
                       <td className="px-4 py-3 text-[#2D1B0E] font-semibold">{a.quantity}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E]">
+                        <span className="px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs font-semibold border border-[#F3C4C1]">
+                          {a.color || "-"}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code || "-"}</td>
