@@ -19,6 +19,7 @@ connectDB();
 // Middleware
 const allowedOrigins = [
   "http://localhost:5173",
+  "https://boxinventory.vercel.app",
 ];
 
 app.use(
