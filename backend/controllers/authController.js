@@ -77,10 +77,13 @@ export const login = async (req, res) => {
 
 // Logout
 export const logout = (req, res) => {
+  // To successfully clear a cookie, the attributes (name, path, sameSite, secure, domain)
+  // must match the ones used when setting it. Since login/register use SameSite=None
+  // and secure:true for cross-site (Render + Vercel), we mirror those here.
   res.cookie("token", "", {
     httpOnly: true,
-    sameSite: "Strict",
-    secure: false, // set true in production
+    sameSite: "None", // must match login/register
+    secure: true, // must match login/register for SameSite=None
     expires: new Date(0), // expires immediately
   });
   res.status(200).json({ message: "Logged out successfully" });
