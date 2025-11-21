@@ -1,4 +1,5 @@
 import BoxAudit from "../models/boxAuditModel.js";
+import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
 import Counter from "../models/counterModel.js";
 import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
@@ -54,20 +55,28 @@ async function generateChallanNumber(includeGST) {
 // Admin: create challan from selected audit IDs
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, includeGST } = req.body;
-    if (!Array.isArray(auditIds) || auditIds.length === 0) {
-      return res.status(400).json({ message: "auditIds must be a non-empty array" });
+    const { auditIds, notes, terms, includeGST, clientDetails, manualItems } = req.body;
+    const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
+    const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
+
+    if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Provide at least one audited item or add manual challan rows" });
     }
 
     const includeGSTFlag = includeGST !== false && includeGST !== "false";
 
     // Fetch audits and validate
-    const audits = await BoxAudit.find({ _id: { $in: auditIds }, used: false })
-      .populate("user", "name email")
-      .populate("box", "title code category colours price");
+    let audits = [];
+    if (auditIdsArray.length > 0) {
+      audits = await BoxAudit.find({ _id: { $in: auditIdsArray }, used: false })
+        .populate("user", "name email")
+        .populate("box", "title code category colours price");
 
-    if (audits.length !== auditIds.length) {
-      return res.status(400).json({ message: "Some audits are invalid or already used" });
+      if (audits.length !== auditIdsArray.length) {
+        return res.status(400).json({ message: "Some audits are invalid or already used" });
+      }
     }
 
     const challanNumber = await generateChallanNumber(includeGSTFlag);
@@ -78,7 +87,7 @@ export const createChallan = async (req, res) => {
         lineItemMap.set(String(item.auditId), item);
       }
     });
-    const items = audits.map((a) => ({
+    const auditedItems = audits.map((a) => ({
       audit: a._id,
       box: {
         _id: a.box._id,
@@ -108,19 +117,130 @@ export const createChallan = async (req, res) => {
       auditedAt: a.createdAt,
     }));
 
-    const challan = await Challan.create({
-      number: challanNumber,
-      items,
-      notes: notes || "",
-      includeGST: includeGSTFlag,
-      createdBy: req.user._id,
+    const manualBoxFilters = [];
+    const manualBoxIds = [];
+    const manualBoxCodes = [];
+    manualItemsInput.forEach((item) => {
+      if (item?.boxId) {
+        manualBoxIds.push(item.boxId);
+      } else if (item?.boxCode) {
+        manualBoxCodes.push(String(item.boxCode).trim().toUpperCase());
+      }
     });
 
+    if (manualBoxIds.length) {
+      manualBoxFilters.push({ _id: { $in: manualBoxIds } });
+    }
+    if (manualBoxCodes.length) {
+      manualBoxFilters.push({ code: { $in: manualBoxCodes } });
+    }
+
+    let manualBoxes = [];
+    if (manualBoxFilters.length > 0) {
+      manualBoxes = await Box.find(
+        manualBoxFilters.length === 1 ? manualBoxFilters[0] : { $or: manualBoxFilters }
+      ).select("_id title code category colours price boxInnerSize");
+    }
+
+    const boxById = new Map();
+    const boxByCode = new Map();
+    manualBoxes.forEach((box) => {
+      boxById.set(String(box._id), box);
+      boxByCode.set(String(box.code).toUpperCase(), box);
+    });
+
+    const manualChallanItems = [];
+    for (let i = 0; i < manualItemsInput.length; i++) {
+      const manualItem = manualItemsInput[i];
+      if (!manualItem) continue;
+      if (!manualItem.boxId && !manualItem.boxCode) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} must include a product code` });
+      }
+      const codeKey = manualItem.boxCode ? String(manualItem.boxCode).trim().toUpperCase() : null;
+      const idKey = manualItem.boxId ? String(manualItem.boxId) : null;
+      const matchedBox = (idKey && boxById.get(idKey)) || (codeKey && boxByCode.get(codeKey));
+
+      if (!matchedBox) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} references an unknown product code` });
+      }
+
+      const qty = Number(manualItem.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} must include a valid quantity` });
+      }
+
+      const rate = Number(manualItem.rate || 0);
+      const assemblyCharge = Number(manualItem.assemblyCharge || 0);
+      const packagingCharge = Number(manualItem.packagingCharge || 0);
+      const manualColours = (() => {
+        if (Array.isArray(manualItem.colours) && manualItem.colours.length > 0) {
+          const cleaned = manualItem.colours.map((c) => String(c).trim()).filter(Boolean);
+          if (cleaned.length > 0) return cleaned;
+        }
+        if (manualItem.color) return [manualItem.color];
+        if (Array.isArray(matchedBox.colours)) return matchedBox.colours;
+        return [];
+      })();
+
+      manualChallanItems.push({
+        audit: null,
+        box: {
+          _id: matchedBox._id,
+          title: matchedBox.title,
+          code: matchedBox.code,
+          category: matchedBox.category,
+          colours: Array.isArray(matchedBox.colours) ? matchedBox.colours : [],
+        },
+        cavity: manualItem.cavity || matchedBox.boxInnerSize || "",
+        quantity: qty,
+        rate,
+        assemblyCharge,
+        packagingCharge,
+        color: manualItem.color || "",
+        colours: manualColours,
+        user: manualItem.user || undefined,
+        auditedAt: null,
+        manualEntry: true,
+      });
+    }
+
+    const items = [...auditedItems, ...manualChallanItems];
+
+    const normalizedClientDetails = {
+      name: clientDetails?.name?.trim() || "",
+      address: clientDetails?.address?.trim() || "",
+      mobile: clientDetails?.mobile?.trim() || "",
+      gstNumber: clientDetails?.gstNumber?.trim() || "",
+    };
+    const hasClientDetails = Object.values(normalizedClientDetails).some((val) => Boolean(val));
+
+    const challanPayload = {
+      number: challanNumber,
+      items,
+      notes: typeof terms === "string" ? terms : notes || "",
+      includeGST: includeGSTFlag,
+      createdBy: req.user._id,
+    };
+
+    if (hasClientDetails) {
+      challanPayload.clientDetails = normalizedClientDetails;
+    }
+
+    const challan = await Challan.create(challanPayload);
+
     // Mark audits as used and link to challan
-    await BoxAudit.updateMany(
-      { _id: { $in: auditIds } },
-      { $set: { used: true, challan: challan._id } }
-    );
+    if (auditIdsArray.length > 0) {
+      await BoxAudit.updateMany(
+        { _id: { $in: auditIdsArray } },
+        { $set: { used: true, challan: challan._id } }
+      );
+    }
 
     res.status(201).json(challan);
   } catch (error) {
@@ -182,6 +302,7 @@ export const downloadChallanPdf = async (req, res) => {
         createdBy: challan.createdBy
           ? { name: challan.createdBy.name || challan.createdBy.email || "" }
           : {},
+        clientDetails: challan.clientDetails || {},
       },
       includeGST
     );

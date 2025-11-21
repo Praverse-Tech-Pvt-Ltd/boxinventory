@@ -3,19 +3,53 @@ import { motion } from "framer-motion";
 import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans } from "../../services/challanService";
+import { getAllBoxes } from "../../services/boxService";
+
+const createEmptyClientDetails = () => ({
+  name: "",
+  address: "",
+  mobile: "",
+  gstNumber: "",
+});
+
+const generateManualRowId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const createManualRow = () => ({
+  id: generateManualRowId(),
+  code: "",
+  boxId: "",
+  boxTitle: "",
+  boxCategory: "",
+  availableColours: [],
+  cavity: "",
+  quantity: 0,
+  rate: 0,
+  assemblyCharge: 0,
+  packagingCharge: 0,
+  color: "",
+  colours: [],
+  coloursInput: "",
+});
 
 const ChallanGeneration = () => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState({});
-  const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const [recentChallans, setRecentChallans] = useState([]);
   const [loadingChallans, setLoadingChallans] = useState(true);
    const [editRows, setEditRows] = useState({});
   const [includeGST, setIncludeGST] = useState(true);
+  const [clientDetails, setClientDetails] = useState(() => createEmptyClientDetails());
+  const [manualRows, setManualRows] = useState([]);
+  const [boxes, setBoxes] = useState([]);
+  const [boxesLoading, setBoxesLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -44,6 +78,21 @@ const ChallanGeneration = () => {
   useEffect(() => {
     loadData();
     loadChallans();
+  }, []);
+
+  useEffect(() => {
+    const fetchBoxes = async () => {
+      try {
+        setBoxesLoading(true);
+        const data = await getAllBoxes();
+        setBoxes(Array.isArray(data) ? data : []);
+      } catch {
+        toast.error("Unable to load product catalog for manual entries");
+      } finally {
+        setBoxesLoading(false);
+      }
+    };
+    fetchBoxes();
   }, []);
 
    // Initialize/Edit rows whenever selection changes
@@ -90,6 +139,72 @@ const ChallanGeneration = () => {
      updateRow(id, { colours: [...current, val] });
    };
 
+  const addManualRow = () => {
+    setManualRows((prev) => [...prev, createManualRow()]);
+  };
+
+  const removeManualRow = (rowId) => {
+    setManualRows((prev) => prev.filter((row) => row.id !== rowId));
+  };
+
+  const updateManualRow = (rowId, patch) => {
+    setManualRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
+    );
+  };
+
+  const boxLookupByCode = useMemo(() => {
+    const map = new Map();
+    boxes.forEach((box) => {
+      if (box?.code) {
+        map.set(String(box.code).trim().toLowerCase(), box);
+      }
+    });
+    return map;
+  }, [boxes]);
+
+  const handleManualCodeLookup = (rowId, rawCode) => {
+    const cleaned = (rawCode || "").trim().toLowerCase();
+    if (!cleaned) {
+      updateManualRow(rowId, {
+        code: "",
+        boxId: "",
+        boxTitle: "",
+        boxCategory: "",
+        availableColours: [],
+      });
+      return;
+    }
+    const matched = boxLookupByCode.get(cleaned);
+    if (!matched) {
+      toast.error(`No product found for code ${rawCode}`);
+      updateManualRow(rowId, {
+        boxId: "",
+        boxTitle: "",
+        boxCategory: "",
+        availableColours: [],
+      });
+      return;
+    }
+    updateManualRow(rowId, {
+      boxId: matched._id,
+      code: matched.code,
+      boxTitle: matched.title,
+      boxCategory: matched.category,
+      cavity: matched.boxInnerSize || "",
+      rate: Number(matched.price || 0),
+      availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+    });
+  };
+
+  const handleManualColoursInput = (rowId, value) => {
+    const parsed = value
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    updateManualRow(rowId, { coloursInput: value, colours: parsed });
+  };
+
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return candidates;
       const q = searchQuery.toLowerCase();
@@ -121,6 +236,10 @@ const ChallanGeneration = () => {
     setSelected(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const updateClientDetails = (field, value) => {
+    setClientDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
   const selectedRows = useMemo(() => {
     return candidates
       .filter((a) => selected[a._id])
@@ -144,22 +263,62 @@ const ChallanGeneration = () => {
       });
   }, [candidates, editRows, selected]);
 
+  const manualRowsComputed = useMemo(() => {
+    return manualRows.map((row, idx) => {
+      const qty = Number(row.quantity) || 0;
+      const rate = Number(row.rate) || 0;
+      const assembly = Number(row.assemblyCharge) || 0;
+      const packaging = Number(row.packagingCharge) || 0;
+      const total = (rate + assembly + packaging) * qty;
+      return {
+        ...row,
+        idx,
+        qty,
+        rate,
+        assembly,
+        packaging,
+        total,
+      };
+    });
+  }, [manualRows]);
+
   const summary = useMemo(() => {
-    const subtotal = selectedRows.reduce((sum, row) => sum + row.total, 0);
-    const totalQty = selectedRows.reduce((sum, row) => sum + row.qty, 0);
+    const auditedSubtotal = selectedRows.reduce((sum, row) => sum + row.total, 0);
+    const manualSubtotal = manualRowsComputed.reduce((sum, row) => sum + row.total, 0);
+    const subtotal = auditedSubtotal + manualSubtotal;
+    const auditedQty = selectedRows.reduce((sum, row) => sum + row.qty, 0);
+    const manualQty = manualRowsComputed.reduce((sum, row) => sum + row.qty, 0);
+    const totalQty = auditedQty + manualQty;
     const gstAmount = includeGST ? subtotal * 0.18 : 0;
+    const totalBeforeRound = includeGST ? subtotal + gstAmount : subtotal;
+    const roundedTotal = Math.round(totalBeforeRound);
+    const roundOff = roundedTotal - totalBeforeRound;
     return {
       subtotal,
       totalQty,
       gstAmount,
-      grandTotal: subtotal + gstAmount,
+      totalBeforeRound,
+      roundOff,
+      grandTotal: roundedTotal,
     };
-  }, [selectedRows, includeGST]);
+  }, [selectedRows, manualRowsComputed, includeGST]);
+
+  const hasAnyRows = selectedRows.length > 0 || manualRowsComputed.length > 0;
 
   const handleGenerate = async () => {
     const auditIds = Object.keys(selected).filter(id => selected[id]);
-    if (auditIds.length === 0) {
-      toast.error("Select at least one item");
+    const manualPendingCode = manualRowsComputed.find(
+      (row) => row.code && !row.boxId
+    );
+    if (manualPendingCode) {
+      toast.error(`Fetch product details for manual item #${manualPendingCode.idx + 1}`);
+      return;
+    }
+    const manualInvalidQty = manualRowsComputed.find(
+      (row) => row.boxId && (!Number.isFinite(row.qty) || row.qty <= 0)
+    );
+    if (manualInvalidQty) {
+      toast.error(`Enter a valid quantity for manual item #${manualInvalidQty.idx + 1}`);
       return;
     }
     try {
@@ -178,12 +337,39 @@ const ChallanGeneration = () => {
           colours: Array.isArray(r.colours) ? r.colours : [],
         };
       });
-      const challan = await createChallan({ auditIds, notes, lineItems, includeGST });
+      const manualItemsPayload = manualRowsComputed
+        .filter((row) => row.boxId && row.qty > 0)
+        .map((row) => ({
+          boxId: row.boxId,
+          boxCode: row.code,
+          cavity: row.cavity || "",
+          quantity: row.qty,
+          rate: row.rate || 0,
+          assemblyCharge: row.assembly || 0,
+          packagingCharge: row.packaging || 0,
+          color: row.color || "",
+          colours: Array.isArray(row.colours) ? row.colours : [],
+        }));
+      if (auditIds.length === 0 && manualItemsPayload.length === 0) {
+        toast.error("Add at least one manual item or select from audits");
+        return;
+      }
+      const hasClientInfo = Object.values(clientDetails).some((val) => (val || "").trim().length > 0);
+      const challan = await createChallan({
+        auditIds,
+        terms,
+        lineItems,
+        manualItems: manualItemsPayload,
+        includeGST,
+        clientDetails: hasClientInfo ? clientDetails : undefined,
+      });
       toast.success(`Challan ${challan.number} created`);
       setSelected({});
-      setNotes("");
+      setTerms("");
       setEditRows({});
       setIncludeGST(true);
+      setClientDetails(createEmptyClientDetails());
+      setManualRows([]);
       await loadData();
       await loadChallans();
     } catch (e) {
@@ -226,17 +412,31 @@ const ChallanGeneration = () => {
             className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
           />
         </div>
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={addManualRow}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl border border-dashed border-[#C1272D]/40 text-[#C1272D] hover:bg-[#FFF3F3] transition-colors"
+          >
+            + Add Manual Item
+          </button>
+        </div>
 
       {/* Preview/Edit selected lines */}
-      {selectedRows.length > 0 && (
+      {hasAnyRows && (
          <div className="mt-6 bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
           <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-4">Challan Preview (Editable)</h3>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <div className="rounded-2xl border border-[#E8DCC6] bg-[#FDF9EE] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#C1272D]/80 font-semibold">Items Selected</p>
-              <p className="mt-1 text-2xl font-bold text-[#2D1B0E]">{selectedRows.length}</p>
+              <p className="text-xs uppercase tracking-wide text-[#C1272D]/80 font-semibold">Line Items</p>
+              <p className="mt-1 text-2xl font-bold text-[#2D1B0E]">
+                {selectedRows.length + manualRowsComputed.length}
+              </p>
+              <p className="text-[11px] text-[#6B5B4F] mt-0.5">
+                Audited: {selectedRows.length} • Manual: {manualRowsComputed.length}
+              </p>
             </div>
             <div className="rounded-2xl border border-[#E8DCC6] bg-[#EEF7FF] px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-[#2563EB]/70 font-semibold">Total Quantity</p>
@@ -276,8 +476,9 @@ const ChallanGeneration = () => {
               Without GST
              </label>
            </div>
-           <div className="overflow-x-auto">
-             <table className="min-w-full text-left border border-[#F0E5CF] rounded-2xl overflow-hidden shadow-sm">
+          {selectedRows.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left border border-[#F0E5CF] rounded-2xl overflow-hidden shadow-sm">
               <thead className="bg-linear-to-r from-[#F4E4BC] via-[#F9F1D6] to-[#F4E4BC] text-[#2D1B0E] uppercase tracking-wide text-xs">
                  <tr>
                   <th className="px-4 py-3">Sr.</th>
@@ -383,6 +584,202 @@ const ChallanGeneration = () => {
                </tbody>
              </table>
            </div>
+          )}
+          <div className="mt-8 rounded-2xl border border-dashed border-[#E8DCC6] bg-[#FFFCF6] px-5 py-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-[#2D1B0E]">Manual Items (Optional)</p>
+                <p className="text-xs text-[#6B5B4F]">
+                  Add extra products by code even if no audits are available
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addManualRow}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-[#C1272D]/30 text-[#C1272D] hover:bg-[#FFF3F3]"
+              >
+                + Add Manual Item
+              </button>
+            </div>
+            {manualRowsComputed.length === 0 ? (
+              <p className="text-sm text-[#6B5B4F] mt-4">
+                {boxesLoading
+                  ? "Loading product catalog..."
+                  : "Click “Add Manual Item” to input a product code and create a custom line."}
+              </p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {manualRowsComputed.map((row) => (
+                  <div
+                    key={row.id}
+                    className="rounded-2xl border border-[#E8DCC6] bg-white/80 px-4 py-4 space-y-4"
+                  >
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div>
+                        <p className="text-sm font-semibold text-[#2D1B0E]">
+                          Manual Item #{row.idx + 1}
+                        </p>
+                        <p className="text-xs text-[#6B5B4F]">
+                          {row.boxTitle
+                            ? `${row.boxTitle} ${row.boxCategory ? `• ${row.boxCategory}` : ""}`
+                            : "Enter product code to fetch box details"}
+                        </p>
+                        {row.availableColours?.length > 0 && (
+                          <p className="text-[11px] text-[#8B7355] mt-1">
+                            Available colours: {row.availableColours.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] uppercase tracking-wide text-[#6B5B4F]">
+                          Line Total
+                        </p>
+                        <p className="text-lg font-bold text-[#C1272D]">₹{row.total.toFixed(2)}</p>
+                        <button
+                          type="button"
+                          onClick={() => removeManualRow(row.id)}
+                          className="mt-2 text-xs text-[#A01F24] hover:text-[#7B1518]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Product Code
+                        </label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            type="text"
+                            value={row.code}
+                            onChange={(e) =>
+                              updateManualRow(row.id, { code: e.target.value.toUpperCase() })
+                            }
+                            onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
+                            placeholder="e.g. VP123"
+                            className="w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleManualCodeLookup(row.id, row.code)}
+                            className="px-3 py-2 rounded-lg border border-[#C1272D]/40 text-[#C1272D] text-xs font-semibold hover:bg-[#FFF3F3]"
+                          >
+                            Fetch
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Cavity / Size
+                        </label>
+                        <input
+                          type="text"
+                          value={row.cavity}
+                          onChange={(e) => updateManualRow(row.id, { cavity: e.target.value })}
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Quantity
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={row.quantity}
+                          onChange={(e) =>
+                            updateManualRow(row.id, { quantity: Number(e.target.value) })
+                          }
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Rate
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={row.rate}
+                          onChange={(e) => updateManualRow(row.id, { rate: Number(e.target.value) })}
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Assembly
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={row.assemblyCharge}
+                          onChange={(e) =>
+                            updateManualRow(row.id, { assemblyCharge: Number(e.target.value) })
+                          }
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Packaging
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={row.packagingCharge}
+                          onChange={(e) =>
+                            updateManualRow(row.id, { packagingCharge: Number(e.target.value) })
+                          }
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Primary Color
+                        </label>
+                        <input
+                          type="text"
+                          value={row.color}
+                          onChange={(e) => updateManualRow(row.id, { color: e.target.value })}
+                          placeholder="e.g. Crimson"
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                          Additional Colors (comma separated)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={row.coloursInput}
+                          onChange={(e) => handleManualColoursInput(row.id, e.target.value)}
+                          placeholder="e.g. Gold, Silver, Black"
+                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-inner"
+                        />
+                        {row.colours.length > 0 && (
+                          <p className="text-[11px] text-[#6B5B4F] mt-1">
+                            Selected: {row.colours.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addManualRow}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-dashed border-[#C1272D]/40 text-[#C1272D] hover:bg-[#FFF3F3]"
+                >
+                  + Add Another Manual Item
+                </button>
+              </div>
+            )}
+          </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl border border-[#E8DCC6] bg-[#FFF9EF] px-5 py-4 shadow-sm">
               <p className="text-xs uppercase tracking-wide text-[#6B5B4F] font-semibold">Summary</p>
@@ -395,8 +792,26 @@ const ChallanGeneration = () => {
                   <span>GST (18%)</span>
                   <span className="font-semibold text-[#2563EB]">₹{summary.gstAmount.toFixed(2)}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span>Round Off</span>
+                  <span
+                    className={`font-semibold ${
+                      summary.roundOff > 0
+                        ? "text-emerald-600"
+                        : summary.roundOff < 0
+                        ? "text-[#A01F24]"
+                        : "text-[#2D1B0E]"
+                    }`}
+                  >
+                    {summary.roundOff === 0
+                      ? "₹0.00"
+                      : `${summary.roundOff > 0 ? "+₹" : "-₹"}${Math.abs(summary.roundOff).toFixed(2)} ${
+                          summary.roundOff > 0 ? "added" : "deducted"
+                        }`}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between border-t border-dashed border-[#E8DCC6] pt-2">
-                  <span className="font-semibold text-[#C1272D]">Grand Total</span>
+                  <span className="font-semibold text-[#C1272D]">Total Payable</span>
                   <span className="text-lg font-bold text-[#C1272D]">₹{summary.grandTotal.toFixed(2)}</span>
                 </div>
               </div>
@@ -405,13 +820,63 @@ const ChallanGeneration = () => {
               <label className="block text-sm font-semibold text-[#2D1B0E] mb-2">Terms & Conditions</label>
               <textarea
                 rows={3}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={terms}
+                onChange={(e) => setTerms(e.target.value)}
                 placeholder="Add any terms and conditions to appear on the challan"
                 className="w-full px-4 py-3 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] shadow-inner"
               />
             </div>
            </div>
+          <div className="mt-4 rounded-2xl border border-[#E8DCC6] bg-white px-5 py-4 shadow-sm">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+              <p className="text-sm font-semibold text-[#2D1B0E]">Client Details (optional)</p>
+              <span className="text-xs text-[#6B5B4F]">Shown beneath the Prepared By section on the PDF</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Client Name</label>
+                <input
+                  type="text"
+                  value={clientDetails.name}
+                  onChange={(e) => updateClientDetails("name", e.target.value)}
+                  placeholder="e.g. ABC Pvt. Ltd."
+                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Mobile Number</label>
+                <input
+                  type="text"
+                  value={clientDetails.mobile}
+                  onChange={(e) => updateClientDetails("mobile", e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Address</label>
+                <textarea
+                  rows={2}
+                  value={clientDetails.address}
+                  onChange={(e) => updateClientDetails("address", e.target.value)}
+                  placeholder="Street, City, State, ZIP"
+                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-inner"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-1">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">GST Number</label>
+                <input
+                  type="text"
+                  value={clientDetails.gstNumber}
+                  onChange={(e) => updateClientDetails("gstNumber", e.target.value)}
+                  placeholder="27ABCDE1234F1Z5"
+                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                />
+              </div>
+            </div>
+          </div>
          </div>
        )}
 

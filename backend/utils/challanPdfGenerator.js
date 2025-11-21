@@ -76,6 +76,28 @@ const addHeader = (doc, challanNumber) => {
   doc.moveDown(0.2);
 };
 
+const addClientDetails = (doc, clientDetails = {}) => {
+  const entries = [
+    { label: "Name", value: clientDetails.name },
+    { label: "Address", value: clientDetails.address },
+    { label: "Mobile", value: clientDetails.mobile },
+    { label: "GST No.", value: clientDetails.gstNumber },
+  ];
+
+  const hasValue = entries.some((entry) => entry.value);
+  doc.moveDown(0.2);
+  doc.font("Helvetica-Bold").fontSize(10).text("Client Details:");
+  doc.moveDown(0.1);
+  doc.font("Helvetica").fontSize(10);
+  entries.forEach((entry) => {
+    doc.text(`${entry.label}: ${entry.value?.trim() ? entry.value : "-"}`);
+  });
+
+  if (!hasValue) {
+    doc.moveDown(0.1);
+  }
+};
+
 const addTable = (doc, items, startY) => {
   const startX = 40;
   const headerHeight = 26;
@@ -238,7 +260,13 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
   const labelWidth = tableWidth * 0.7;
   const valueWidth = tableWidth * 0.3;
   const gstAmount = includeGST ? subtotal * 0.18 : 0;
-  const totalWithGst = subtotal + gstAmount;
+  const totalBeforeRound = includeGST ? subtotal + gstAmount : subtotal;
+  const roundedTotal = Math.round(totalBeforeRound);
+  const roundOff = roundedTotal - totalBeforeRound;
+  const roundOffLabel =
+    roundOff > 0 ? "Round Off (Added)" : roundOff < 0 ? "Round Off (Deducted)" : "Round Off";
+  const roundOffValue =
+    roundOff === 0 ? formatCurrency(0) : `${roundOff > 0 ? "+" : "-"}${formatCurrency(Math.abs(roundOff))}`;
 
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
@@ -249,17 +277,21 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
     align: "right",
   });
 
-  doc.moveTo(startX, baseY + 24).lineTo(startX + tableWidth, baseY + 24).stroke();
+  doc.text(roundOffLabel, startX + 4, baseY + 24, { width: labelWidth - 8, align: "right" });
+  doc.text(roundOffValue, startX + labelWidth, baseY + 24, {
+    width: valueWidth - 8,
+    align: "right",
+  });
 
-  doc.text("TOTAL", startX + 4, baseY + 30, { width: labelWidth - 8, align: "right" });
-  doc.text(
-    formatCurrency(includeGST ? totalWithGst : subtotal),
-    startX + labelWidth,
-    baseY + 30,
-    { width: valueWidth - 8, align: "right" }
-  );
+  doc.moveTo(startX, baseY + 36).lineTo(startX + tableWidth, baseY + 36).stroke();
 
-  return baseY + 60;
+  doc.text("TOTAL (Rounded)", startX + 4, baseY + 42, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(roundedTotal), startX + labelWidth, baseY + 42, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+
+  return baseY + 78;
 };
 
 const addFooter = (doc, startY, terms) => {
@@ -304,11 +336,15 @@ export const generateChallanPdf = async (challanData, includeGST = true) => {
   doc.moveDown(0.5);
   doc.font("Helvetica").fontSize(10).text(`Prepared By: ${challanData.createdBy?.name || "-"}`);
 
+  if (challanData.clientDetails) {
+    addClientDetails(doc, challanData.clientDetails);
+  }
+
   doc.moveDown(0.5);
   const tableInfo = addTable(doc, challanData.items || [], doc.y + 10);
 
   // Always render GST/TOTAL just above the footer horizontal line
-  const summaryBlockHeight = 60; // must match addSummary's return delta
+  const summaryBlockHeight = 78; // must match addSummary's return delta
   const summarySpacing = 12;
   let targetFooterY = Math.max(tableInfo.endY + 20, doc.page.height - 160);
   let summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;

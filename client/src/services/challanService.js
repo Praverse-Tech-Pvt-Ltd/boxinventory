@@ -5,14 +5,35 @@ export const getChallanCandidates = async () => {
   return res.data;
 };
 
-export const createChallan = async ({ auditIds, notes, lineItems, includeGST = true }) => {
+export const createChallan = async ({
+  auditIds,
+  notes,
+  terms,
+  lineItems,
+  manualItems,
+  includeGST = true,
+  clientDetails,
+}) => {
   const payload = {
     auditIds,
-    notes,
     includeGST,
   };
+
+  if (typeof terms === "string") {
+    payload.terms = terms;
+  } else if (typeof notes === "string") {
+    payload.terms = notes;
+  }
+
+  if (clientDetails) {
+    payload.clientDetails = clientDetails;
+  }
+
   if (Array.isArray(lineItems)) {
     payload.lineItems = lineItems;
+  }
+  if (Array.isArray(manualItems) && manualItems.length > 0) {
+    payload.manualItems = manualItems;
   }
   const res = await axiosInstance.post('/api/challans', payload);
   return res.data;
