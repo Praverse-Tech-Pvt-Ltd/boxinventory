@@ -9,6 +9,7 @@ import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import boxRoutes from "./routes/boxRoutes.js";
 import challanRoutes from "./routes/challanRoutes.js";
+import clientBatchRoutes from "./routes/clientBatchRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -45,6 +46,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/boxes", boxRoutes);
 app.use("/api/challans", challanRoutes);
+app.use("/api/client-batches", clientBatchRoutes);
 
 app.get("/health", (req, res) => {
   console.log("🩺 Health check at:", new Date().toLocaleString());

@@ -23,15 +23,15 @@ const boxSchema = new mongoose.Schema(
     },
     bagSize: {
       type: String,
-      required: true, // e.g. "6 x 5 x 1.75 inch"
+      required: false, // e.g. "6 x 5 x 1.75 inch"
     },
     boxInnerSize: {
       type: String,
-      required: true, // e.g. "4 x 4 x 1.5 inch"
+      required: false, // e.g. "4 x 4 x 1.5 inch"
     },
     boxOuterSize: {
       type: String,
-      required: true, // e.g. "4.74 x 4.75 x 1.5 inch"
+      required: false, // e.g. "4.74 x 4.75 x 1.5 inch"
     },
     category: {
       type: String,
@@ -57,8 +57,8 @@ const boxSchema = new mongoose.Schema(
 boxSchema.index({ code: 1 });
 
 // Transform quantityByColor Map to object in JSON responses
-boxSchema.set('toJSON', {
-  transform: function(doc, ret) {
+boxSchema.set("toJSON", {
+  transform: function (doc, ret) {
     // Convert Map to plain object
     if (ret.quantityByColor instanceof Map) {
       const obj = {};
@@ -66,14 +66,23 @@ boxSchema.set('toJSON', {
         obj[key] = value;
       });
       ret.quantityByColor = obj;
-    } else if (ret.quantityByColor && typeof ret.quantityByColor === 'object') {
+    } else if (ret.quantityByColor && typeof ret.quantityByColor === "object") {
       // Already an object, keep as is
       ret.quantityByColor = ret.quantityByColor;
     } else {
       ret.quantityByColor = {};
     }
+
+    // Compute total quantity across all colors
+    const values = Object.values(ret.quantityByColor || {});
+    const total = values.reduce((sum, qty) => {
+      const n = Number(qty);
+      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+    }, 0);
+    ret.totalQuantity = total;
+
     return ret;
-  }
+  },
 });
 
 const Box = mongoose.model("Box", boxSchema);

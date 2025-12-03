@@ -127,9 +127,9 @@ const BoxesManagement = () => {
     code: "",
     category: "",
     price: "",
-    bagSize: "",
-    boxInnerSize: "",
-    boxOuterSize: "",
+      bagSize: "",
+      boxInnerSize: "",
+      boxOuterSize: "",
     colours: "",
     quantityByColor: { "": 0 }, // Start with one empty pair
   });
@@ -435,7 +435,7 @@ const BoxesManagement = () => {
                 {/* Bag Size */}
                 <div>
                   <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
-                    Bag Size *
+                    Bag Size
                   </label>
                   <input
                     type="text"
@@ -443,7 +443,6 @@ const BoxesManagement = () => {
                     value={formData.bagSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("bagSize")}
-                    required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="6 x 5 x 1.75 inch"
                   />
@@ -452,7 +451,7 @@ const BoxesManagement = () => {
                 {/* Box Inner Size */}
                 <div>
                   <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
-                    Box Inner Size *
+                    Box Inner Size
                   </label>
                   <input
                     type="text"
@@ -460,7 +459,6 @@ const BoxesManagement = () => {
                     value={formData.boxInnerSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("boxInnerSize")}
-                    required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4 x 4 x 1.5 inch"
                   />
@@ -469,7 +467,7 @@ const BoxesManagement = () => {
                 {/* Box Outer Size */}
                 <div>
                   <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
-                    Box Outer Size *
+                    Box Outer Size
                   </label>
                   <input
                     type="text"
@@ -477,7 +475,6 @@ const BoxesManagement = () => {
                     value={formData.boxOuterSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("boxOuterSize")}
-                    required
                     className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                     placeholder="4.74 x 4.75 x 1.5 inch"
                   />
@@ -711,6 +708,10 @@ const BoxesManagement = () => {
                   <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
+                    <div>
+                      <span className="font-semibold">Total Quantity:</span>{" "}
+                      {typeof box.totalQuantity === "number" ? box.totalQuantity : 0}
+                    </div>
                     <div><span className="font-semibold">Quantity by Color:</span>
                       <div className="ml-2 mt-1 space-y-1">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (

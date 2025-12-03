@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiDownload } from "react-icons/fi";
+import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
+import { downloadChallanPdf } from "../../services/challanService";
 
 const AuditHistory = () => {
   const [audits, setAudits] = useState([]);
@@ -20,6 +22,23 @@ const AuditHistory = () => {
     };
     loadAudits();
   }, []);
+
+  const handleDownload = async (challanId) => {
+    if (!challanId) return;
+    try {
+      const blob = await downloadChallanPdf(challanId, true);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `challan-${challanId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Failed to download challan PDF");
+    }
+  };
 
   const filteredAudits = useMemo(() => {
     if (!searchQuery.trim()) return audits;
@@ -76,6 +95,7 @@ const AuditHistory = () => {
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Challan</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
@@ -96,6 +116,18 @@ const AuditHistory = () => {
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code || "-"}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E]">
+                        {a.challan ? (
+                          <button
+                            onClick={() => handleDownload(a.challan)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md hover:bg-[#A01F24]"
+                          >
+                            <FiDownload /> Download
+                          </button>
+                        ) : (
+                          <span className="text-xs text-[#6B5B4F]">No challan</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
