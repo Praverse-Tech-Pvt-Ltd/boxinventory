@@ -11,12 +11,11 @@ export const createChallan = async ({
   terms,
   lineItems,
   manualItems,
-  includeGST = true,
   clientDetails,
+  hsnCode,
 }) => {
   const payload = {
     auditIds,
-    includeGST,
   };
 
   if (typeof terms === "string") {
@@ -27,6 +26,9 @@ export const createChallan = async ({
 
   if (clientDetails) {
     payload.clientDetails = clientDetails;
+  }
+  if (typeof hsnCode === "string" && hsnCode.trim()) {
+    payload.hsnCode = hsnCode.trim();
   }
 
   if (Array.isArray(lineItems)) {
@@ -49,9 +51,8 @@ export const getChallanById = async (id) => {
   return res.data;
 };
 
-export const downloadChallanPdf = async (id, includeGST = true) => {
+export const downloadChallanPdf = async (id) => {
   const res = await axiosInstance.get(`/api/challans/${id}/download`, {
-    params: { includeGST },
     responseType: "blob",
   });
   return res.data;

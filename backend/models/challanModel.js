@@ -35,6 +35,7 @@ const challanSchema = new mongoose.Schema(
     notes: { type: String, trim: true },
     includeGST: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    hsnCode: { type: String, trim: true },
     clientDetails: {
       name: { type: String, trim: true },
       address: { type: String, trim: true },

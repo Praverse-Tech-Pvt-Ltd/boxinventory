@@ -59,7 +59,7 @@ const drawTableBorders = (doc, startX, startY, headerHeight, rowHeights, colWidt
   });
 };
 
-const addHeader = (doc, challanNumber) => {
+const addHeader = (doc, challanNumber, hsnCode) => {
   doc.font("Helvetica-Bold").fontSize(10).text("DELIVERY CHALLAN", { align: "center" });
   doc.moveDown(0.2);
   doc.fontSize(18).text(COMPANY.name, { align: "center" });
@@ -70,9 +70,19 @@ const addHeader = (doc, challanNumber) => {
   doc.font("Helvetica-Bold").text(COMPANY.gst, { align: "center" });
 
   doc.moveDown(0.3);
-  doc.font("Helvetica-Bold").fontSize(11).text(`Challan No.: ${challanNumber}`, 50, doc.y, {
-    align: "left",
-  });
+  const yStart = doc.y;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text(`Challan No.: ${challanNumber}`, 50, yStart, {
+      align: "left",
+    });
+  doc
+    .font("Helvetica")
+    .fontSize(10)
+    .text(`HSN Code: ${hsnCode || "-"}`, 0, yStart, {
+      align: "right",
+    });
   doc.moveDown(0.2);
 };
 
@@ -259,8 +269,8 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.7;
   const valueWidth = tableWidth * 0.3;
-  const gstAmount = includeGST ? subtotal * 0.18 : 0;
-  const totalBeforeRound = includeGST ? subtotal + gstAmount : subtotal;
+  const gstAmount = subtotal * 0.05;
+  const totalBeforeRound = subtotal + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
   const roundOffLabel =
@@ -271,7 +281,7 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
   doc.font("Helvetica-Bold").fontSize(10);
-  doc.text("GST (18%)", startX + 4, baseY + 6, { width: labelWidth - 8, align: "right" });
+  doc.text("GST (5%)", startX + 4, baseY + 6, { width: labelWidth - 8, align: "right" });
   doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 6, {
     width: valueWidth - 8,
     align: "right",
@@ -331,7 +341,7 @@ export const generateChallanPdf = async (challanData, includeGST = true) => {
   const writeStream = fs.createWriteStream(filePath);
   doc.pipe(writeStream);
 
-  addHeader(doc, challanData.number || "");
+  addHeader(doc, challanData.number || "", challanData.hsnCode || "");
 
   doc.moveDown(0.5);
   doc.font("Helvetica").fontSize(10).text(`Prepared By: ${challanData.createdBy?.name || "-"}`);
