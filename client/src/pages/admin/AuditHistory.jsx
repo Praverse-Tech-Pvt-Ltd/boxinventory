@@ -4,6 +4,7 @@ import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
 import { downloadChallanPdf, listChallans } from "../../services/challanService";
+import jsPDF from "jspdf";
 import "../../styles/dashboard.css";
 
 // Helper function to safely convert values to numbers
@@ -15,194 +16,194 @@ const safeToNumber = (value) => {
   return Number.isFinite(num) ? num : 0;
 };
 
-// Function to generate PDF
+// Function to generate PDF using jsPDF
 const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
-  if (typeof window === "undefined") return;
-
   try {
-    // Using a simple approach with html2canvas and jspdf would be ideal, but we'll use a direct approach
-    const PDFLib = require("pdfkit");
-    // For now, we'll create a simple solution using the browser's print-to-PDF or provide downloadable PDF
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - 2 * margin;
+    let yPosition = margin;
 
-    // Create SVG/Canvas based PDF would be complex, so let's use a different approach
-    // We'll generate an HTML document and let the browser print it as PDF
+    // Helper function to add text
+    const addText = (text, x, y, options = {}) => {
+      doc.setFont("helvetica", options.weight || "normal");
+      doc.setFontSize(options.size || 12);
+      doc.setTextColor(options.color ? options.color[0] : 0, options.color ? options.color[1] : 0, options.color ? options.color[2] : 0);
+      doc.text(text, x, y, { maxWidth: options.maxWidth || contentWidth });
+    };
 
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Sales Report</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            color: #333;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #dc2626;
-            padding-bottom: 15px;
-        }
-        .company-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #dc2626;
-            margin-bottom: 5px;
-        }
-        .report-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .date-range {
-            font-size: 12px;
-            color: #666;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        th {
-            background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #d97706 100%);
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: bold;
-            border: 1px solid #d97706;
-        }
-        td {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f3ed;
-        }
-        tr:hover {
-            background-color: #fef5ed;
-        }
-        .totals-row {
-            background-color: #f3f4f6;
-            font-weight: bold;
-        }
-        .summary {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .summary-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-        }
-        .summary-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        .summary-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #dc2626;
-        }
-        .amount-col {
-            text-align: right;
-        }
-        @media print {
-            body {
-                margin: 0;
-                padding: 20px;
-            }
-            .no-print {
-                display: none;
-            }
-            .summary {
-                page-break-inside: avoid;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="company-name">VISHAL PAPER PRODUCT</div>
-        <div class="report-title">Sales Report</div>
-        <div class="date-range">Date Range: ${new Date(fromDate).toLocaleDateString()} to ${new Date(toDate).toLocaleDateString()}</div>
-    </div>
+    // Header Section
+    addText("VISHAL PAPER PRODUCT", margin, yPosition, {
+      size: 20,
+      weight: "bold",
+      color: [220, 38, 38], // Red color
+    });
+    yPosition += 10;
 
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Client</th>
-                <th>Challan No.</th>
-                <th class="amount-col">Taxable Amount (Excl. GST)</th>
-                <th class="amount-col">GST Amount</th>
-                <th class="amount-col">Total Amount (Incl. GST)</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${salesData.map((item) => `
-            <tr>
-                <td>${item.date}</td>
-                <td>${item.client}</td>
-                <td>${item.challanNo}</td>
-                <td class="amount-col">₹${item.taxableAmount.toFixed(2)}</td>
-                <td class="amount-col">₹${item.gstAmount.toFixed(2)}</td>
-                <td class="amount-col">₹${item.totalAmount.toFixed(2)}</td>
-            </tr>
-            `).join("")}
-            <tr class="totals-row">
-                <td colspan="3">TOTAL</td>
-                <td class="amount-col">₹${totals.totalTaxable.toFixed(2)}</td>
-                <td class="amount-col">₹${totals.totalGst.toFixed(2)}</td>
-                <td class="amount-col">₹${totals.totalAmount.toFixed(2)}</td>
-            </tr>
-        </tbody>
-    </table>
+    addText("Sales Report", margin, yPosition, {
+      size: 14,
+      weight: "bold",
+      color: [0, 0, 0],
+    });
+    yPosition += 8;
 
-    <div class="summary">
-        <div class="summary-card">
-            <div class="summary-label">Total Sales (Excl. GST)</div>
-            <div class="summary-value">₹${totals.totalTaxable.toFixed(2)}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Total GST Collected</div>
-            <div class="summary-value">₹${totals.totalGst.toFixed(2)}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Grand Total (Incl. GST)</div>
-            <div class="summary-value">₹${totals.totalAmount.toFixed(2)}</div>
-        </div>
-    </div>
+    addText(`Date Range: ${new Date(fromDate).toLocaleDateString()} to ${new Date(toDate).toLocaleDateString()}`, margin, yPosition, {
+      size: 10,
+      color: [100, 100, 100],
+    });
+    yPosition += 12;
 
-    <script>
-        window.addEventListener('load', function() {
-            window.print();
+    // Horizontal line
+    doc.setDrawColor(220, 38, 38);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    // Table Headers
+    const columns = ["Date", "Client", "Challan No.", "Taxable (₹)", "GST (₹)", "Total (₹)"];
+    const colWidths = [25, 35, 25, 30, 25, 30];
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setFillColor(217, 119, 6); // Gold color
+    doc.setTextColor(255, 255, 255); // White text
+
+    let xPosition = margin;
+    columns.forEach((col, i) => {
+      doc.rect(xPosition, yPosition - 5, colWidths[i], 7, "F"); // Filled rectangle for header
+      doc.text(col, xPosition + 1, yPosition, { maxWidth: colWidths[i] - 2 });
+      xPosition += colWidths[i];
+    });
+
+    yPosition += 10;
+
+    // Table Rows
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+
+    const rowHeight = 6;
+    let rowIndex = 0;
+
+    salesData.forEach((item) => {
+      // Check if we need a new page
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = margin;
+
+        // Repeat headers on new page
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setFillColor(217, 119, 6);
+        doc.setTextColor(255, 255, 255);
+
+        xPosition = margin;
+        columns.forEach((col, i) => {
+          doc.rect(xPosition, yPosition - 5, colWidths[i], 7, "F");
+          doc.text(col, xPosition + 1, yPosition, { maxWidth: colWidths[i] - 2 });
+          xPosition += colWidths[i];
         });
-    </script>
-</body>
-</html>
-    `;
 
-    const blob = new Blob([htmlContent], { type: "text/html" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `sales-report-${new Date().toISOString().split("T")[0]}.html`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    toast.success("Sales report ready. Use browser print (Ctrl+P) to save as PDF.");
+        yPosition += 10;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+      }
+
+      // Alternate row background
+      if (rowIndex % 2 === 1) {
+        doc.setFillColor(249, 243, 237); // Light beige
+        doc.rect(margin, yPosition - 4, contentWidth, rowHeight, "F");
+      }
+
+      xPosition = margin + 1;
+      doc.text(item.date, xPosition, yPosition, { maxWidth: colWidths[0] - 2 });
+      xPosition += colWidths[0];
+
+      doc.text(item.client, xPosition, yPosition, { maxWidth: colWidths[1] - 2 });
+      xPosition += colWidths[1];
+
+      doc.text(item.challanNo, xPosition, yPosition, { maxWidth: colWidths[2] - 2 });
+      xPosition += colWidths[2];
+
+      doc.setFont("helvetica", "bold");
+      doc.text(`₹${item.taxableAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
+      xPosition += colWidths[3];
+
+      doc.text(`₹${item.gstAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
+      xPosition += colWidths[4];
+
+      doc.text(`₹${item.totalAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
+
+      yPosition += rowHeight;
+      rowIndex++;
+      doc.setFont("helvetica", "normal");
+    });
+
+    // Totals Row
+    yPosition += 2;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    xPosition = margin + 1;
+    doc.text("TOTAL", xPosition, yPosition, { maxWidth: colWidths[0] + colWidths[1] + colWidths[2] - 2 });
+
+    xPosition = margin + colWidths[0] + colWidths[1] + colWidths[2] + 1;
+    doc.text(`₹${totals.totalTaxable.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
+    xPosition += colWidths[3];
+
+    doc.text(`₹${totals.totalGst.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
+    xPosition += colWidths[4];
+
+    doc.text(`₹${totals.totalAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
+
+    yPosition += 12;
+
+    // Summary Cards
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+
+    doc.text("Total Sales (Excl. GST):", margin, yPosition);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38);
+    doc.setFontSize(11);
+    doc.text(`₹${totals.totalTaxable.toFixed(2)}`, margin + 70, yPosition);
+
+    yPosition += 10;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Total GST Collected:", margin, yPosition);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(217, 119, 6);
+    doc.setFontSize(11);
+    doc.text(`₹${totals.totalGst.toFixed(2)}`, margin + 70, yPosition);
+
+    yPosition += 10;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Grand Total (Incl. GST):", margin, yPosition);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38);
+    doc.setFontSize(11);
+    doc.text(`₹${totals.totalAmount.toFixed(2)}`, margin + 70, yPosition);
+
+    // Save PDF
+    const filename = `sales-report-${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(filename);
+    toast.success("Sales report PDF downloaded successfully!");
   } catch (error) {
     console.error("Error generating PDF:", error);
-    toast.error("Failed to generate PDF report");
+    toast.error("Failed to generate PDF report: " + (error.message || "Unknown error"));
   }
 };
 
