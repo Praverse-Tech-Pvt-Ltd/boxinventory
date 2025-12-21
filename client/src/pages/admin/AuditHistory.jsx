@@ -107,92 +107,112 @@ const AuditHistory = () => {
   }, [audits, searchQuery, selectedClient, challanToClientMap]);
 
   return (
-    <div className="w-full space-y-6">
-      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
-        <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">Audit History</h3>
-
-        <div className="grid gap-4 md:grid-cols-2 mb-6">
-          <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
-            <input
-              type="text"
-              placeholder="Search by user, quantity, color, box name, category, or code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-            />
-          </div>
-
-          <div className="relative">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F] mb-2">Filter by Client</label>
-            <select
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] transition-all duration-300"
-            >
-              <option value="">All Clients</option>
-              {clientsList.map((client) => (
-                <option key={client} value={client}>
-                  {client}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-3xl font-bold text-slate-900">📊 Audit History</h1>
+          <p className="mt-1 text-sm text-slate-600">Track all inventory movements and transactions</p>
         </div>
+      </div>
 
-        <div className="mt-6">
-          {loadingAudits ? (
-            <div className="text-center py-10 text-[#2D1B0E] poppins font-medium">Loading audits...</div>
-          ) : filteredAudits.length === 0 ? (
-            <div className="text-center py-10 text-[#2D1B0E] poppins font-medium">No audits found.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden text-xs sm:text-sm">
-                <thead className="bg-[#F4E4BC] text-[#2D1B0E] uppercase tracking-wide">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Color</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          {/* Filters */}
+          <div className="grid gap-4 md:grid-cols-2 mb-6">
+            <div className="relative">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Search</label>
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by user, box name, category, code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="relative">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Filter by Client</label>
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+              >
+                <option value="">All Clients</option>
+                {clientsList.map((client) => (
+                  <option key={client} value={client}>
+                    {client}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="mt-6">
+            {loadingAudits ? (
+              <div className="text-center py-10 text-slate-600 font-medium">Loading audits...</div>
+            ) : filteredAudits.length === 0 ? (
+              <div className="text-center py-10 text-slate-600 font-medium">No audits found.</div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-slate-700 font-semibold uppercase tracking-wider text-xs">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Action</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Color</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Client</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Challan</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white">
-                  {filteredAudits.map((a) => (
-                    <tr key={a._id} className="border-t border-[#E8DCC6]">
-                      <td className="px-4 py-3 text-[#2D1B0E] whitespace-nowrap">
+                <tbody>
+                  {filteredAudits.map((a, idx) => (
+                    <tr
+                      key={a._id}
+                      className={`border-b border-slate-200 transition-colors hover:bg-slate-50 ${
+                        idx % 2 === 0 ? "bg-white" : "bg-slate-50"
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
                         {new Date(a.createdAt).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-[#2D1B0E] whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
                         {a.user?.name || a.user?.email || "Unknown"}
                       </td>
-                      <td className="px-4 py-3 text-[#2D1B0E] font-semibold">{a.quantity}</td>
-                      <td className="px-4 py-3 text-[#2D1B0E]">
-                        <span className="px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs font-semibold border border-[#F3C4C1]">
+                      <td className="px-4 py-3 text-slate-900 font-semibold text-sm">{a.quantity}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
                           {a.color || "-"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title || "-"}</td>
-                      <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category || "-"}</td>
-                      <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code || "-"}</td>
-                      <td className="px-4 py-3 text-[#2D1B0E]">
+                      <td className="px-4 py-3 text-slate-700 text-sm">{a.box?.title || "-"}</td>
+                      <td className="px-4 py-3 text-slate-700 text-sm">{a.box?.category || "-"}</td>
+                      <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap text-sm">
+                        {a.box?.code || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 text-sm">
                         {challanToClientMap.get(String(a.challan)) || "-"}
                       </td>
-                      <td className="px-4 py-3 text-[#2D1B0E]">
+                      <td className="px-4 py-3 text-sm">
                         {a.challan ? (
                           <button
                             onClick={() => handleDownload(a.challan)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md hover:bg-[#A01F24]"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-sm hover:bg-blue-700 transition-colors"
                           >
                             <FiDownload /> Download
                           </button>
                         ) : (
-                          <span className="text-xs text-[#6B5B4F]">No challan</span>
+                          <span className="text-xs text-slate-500">No challan</span>
                         )}
                       </td>
                     </tr>

@@ -663,60 +663,68 @@ const ChallanGeneration = () => {
   };
 
   return (
-    <div className="w-full space-y-6">
-      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
-        <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">Challan Generation</h3>
-
-        {/* Search */}
-        <div className="relative mb-4">
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
-          <input
-            type="text"
-            placeholder="Search by user, box name, code, category, color, or quantity..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-          />
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-3xl font-bold text-slate-900">📋 Challan Generation</h1>
+          <p className="mt-1 text-sm text-slate-600">Create and manage challan documents for inventory dispatch</p>
         </div>
-        <div className="flex justify-end mb-4">
-          <button
-            type="button"
-            onClick={addManualRow}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl border border-dashed border-[#C1272D]/40 text-[#C1272D] hover:bg-[#FFF3F3] transition-colors"
-          >
-            + Add Manual Item
-          </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Search and Add Button */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="relative">
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search by user, box name, code, category, color, or quantity..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+            />
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-600">{Object.keys(selected).filter(k => selected[k]).length} items selected</span>
+            <button
+              type="button"
+              onClick={addManualRow}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              ➕ Add Manual Item
+            </button>
+          </div>
         </div>
 
       {/* Preview/Edit selected lines */}
       {hasAnyRows && (
-         <div className="mt-6 bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
-          <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-4">Challan Preview (Editable)</h3>
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h3 className="text-2xl font-bold text-slate-900 mb-6">Challan Preview</h3>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <div className="rounded-2xl border border-[#E8DCC6] bg-[#FDF9EE] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#C1272D]/80 font-semibold">Line Items</p>
-              <p className="mt-1 text-2xl font-bold text-[#2D1B0E]">
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Line Items</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">
                 {selectedRows.length + manualRowsComputed.length}
               </p>
-              <p className="text-[11px] text-[#6B5B4F] mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Audited: {selectedRows.length} • Manual: {manualRowsComputed.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-[#E8DCC6] bg-[#EEF7FF] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#2563EB]/70 font-semibold">Total Quantity</p>
-              <p className="mt-1 text-2xl font-bold text-[#2D1B0E]">{summary.totalQty}</p>
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Total Quantity</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{summary.totalQty}</p>
             </div>
-            <div className="rounded-2xl border border-[#E8DCC6] bg-[#F9F5FF] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#7C3AED]/70 font-semibold">Subtotal</p>
-              <p className="mt-1 text-2xl font-bold text-[#2D1B0E]">₹{summary.subtotal.toFixed(2)}</p>
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Subtotal</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">₹{summary.subtotal.toFixed(2)}</p>
             </div>
-            <div className="rounded-2xl border border-[#E8DCC6] bg-[#F4E4BC]/70 px-4 py-3 flex flex-col justify-between">
-              <p className="text-xs uppercase tracking-wide text-[#7C5A1F]/80 font-semibold">GST</p>
-              <div className="mt-2 flex items-center gap-3 text-sm text-[#2D1B0E]">
-                <span className="px-3 py-1 rounded-full bg-white/80 font-semibold">Fixed at 5%</span>
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 flex flex-col justify-between">
+              <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">GST</p>
+              <div className="mt-2 flex items-center gap-3 text-sm text-slate-900">
+                <span className="px-3 py-1 rounded-full bg-slate-100 font-semibold text-slate-700">Fixed at 5%</span>
               </div>
             </div>
           </div>
@@ -724,8 +732,8 @@ const ChallanGeneration = () => {
           {/* GST preference removed; fixed at 5% */}
           {selectedRows.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left border border-[#F0E5CF] rounded-2xl overflow-hidden shadow-sm">
-              <thead className="bg-linear-to-r from-[#F4E4BC] via-[#F9F1D6] to-[#F4E4BC] text-[#2D1B0E] uppercase tracking-wide text-xs">
+            <table className="min-w-full text-left border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+              <thead className="bg-slate-100 text-slate-900 uppercase tracking-wide text-xs font-semibold border-b border-slate-200">
                  <tr>
                   <th className="px-4 py-3">Sr.</th>
                   <th className="px-4 py-3">Item</th>
@@ -739,33 +747,33 @@ const ChallanGeneration = () => {
                   <th className="px-4 py-3 text-right">Total</th>
                  </tr>
                </thead>
-              <tbody className="bg-white divide-y divide-[#F0E5CF]">
-                {selectedRows.map(({ audit, edit, idx, qty, rate, assembly, packaging, total }) => (
-                  <tr key={audit._id} className="align-top hover:bg-[#FFF9EF] transition-colors">
-                    <td className="px-4 py-4 text-sm font-semibold text-[#C1272D]">{idx + 1}</td>
-                    <td className="px-4 py-4 text-sm text-[#2D1B0E]">
+              <tbody className="divide-y divide-slate-200">
+                {selectedRows.map(({ audit, edit, idx, qty, rate, assembly, packaging, total }, rowIdx) => (
+                  <tr key={audit._id} className={`align-top transition-colors hover:bg-slate-50 ${rowIdx % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                    <td className="px-4 py-4 text-sm font-semibold text-blue-600">{idx + 1}</td>
+                    <td className="px-4 py-4 text-sm text-slate-900">
                       <div className="font-semibold">{audit.box?.title}</div>
-                      <p className="text-xs text-[#6B5B4F] mt-1">Auto-rate prefilled from box price, adjust if needed.</p>
+                      <p className="text-xs text-slate-500 mt-1">Auto-rate prefilled from box price, adjust if needed.</p>
                     </td>
                     <td className="px-4 py-4 text-sm">
                            <input
                              type="text"
                         value={edit.cavity ?? ""}
                         onChange={(e) => updateRow(audit._id, { cavity: e.target.value })}
-                        className="w-full sm:w-48 px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                        className="w-full sm:w-48 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                            />
                          </td>
-                    <td className="px-4 py-4 text-sm font-mono text-[#2D1B0E]">{audit.box?.code}</td>
+                    <td className="px-4 py-4 text-sm font-mono text-slate-700">{audit.box?.code}</td>
                     <td className="px-4 py-4 text-sm">
                       <div className="space-y-2">
-                        <span className="px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs font-semibold border border-[#F3C4C1]">
+                        <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
                           {edit.color || audit.color || "-"}
                         </span>
                         <div className="flex flex-wrap gap-2">
                           {(edit.colours || []).filter(c => c !== edit.color && c !== audit.color).map((c) => (
-                            <span key={c} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#FBE8E7] text-[#C1272D] text-xs border border-[#F3C4C1] shadow-sm">
+                            <span key={c} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700 text-xs border border-slate-200 shadow-sm">
                               {c}
-                              <button className="text-[#A01F24] hover:text-[#7B1518]" onClick={() => removeColour(audit._id, c)}>✕</button>
+                              <button className="text-red-600 hover:text-red-700" onClick={() => removeColour(audit._id, c)}>✕</button>
                             </span>
                           ))}
                         </div>
@@ -777,7 +785,7 @@ const ChallanGeneration = () => {
                                 e.target.value = "";
                               }
                             }}
-                            className="flex-1 px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                           >
                             {Array.isArray(audit.box?.colours) && audit.box.colours
                               .filter(c => !edit.colours?.includes(c) && c !== edit.color && c !== audit.color)
@@ -794,7 +802,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.quantity ?? 0}
                         onChange={(e) => updateRow(audit._id, { quantity: Number(e.target.value) })}
-                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-right text-sm shadow-sm"
+                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-right text-sm shadow-sm"
                       />
                     </td>
                     <td className="px-4 py-4 text-sm text-right">
@@ -803,7 +811,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.rate ?? 0}
                         onChange={(e) => updateRow(audit._id, { rate: Number(e.target.value) })}
-                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-right text-sm shadow-sm"
+                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-right text-sm shadow-sm"
                       />
                     </td>
                     <td className="px-4 py-4 text-sm text-right">
@@ -812,7 +820,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.assemblyCharge ?? 0}
                         onChange={(e) => updateRow(audit._id, { assemblyCharge: Number(e.target.value) })}
-                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-right text-sm shadow-sm"
+                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-right text-sm shadow-sm"
                       />
                     </td>
                     <td className="px-4 py-4 text-sm text-right">
@@ -821,28 +829,28 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.packagingCharge ?? 0}
                         onChange={(e) => updateRow(audit._id, { packagingCharge: Number(e.target.value) })}
-                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-right text-sm shadow-sm"
+                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-right text-sm shadow-sm"
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm font-semibold text-right text-[#C1272D]">₹{total.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-sm font-semibold text-right text-blue-600">₹{total.toFixed(2)}</td>
                   </tr>
                 ))}
                </tbody>
              </table>
            </div>
           )}
-          <div className="mt-8 rounded-2xl border border-dashed border-[#E8DCC6] bg-[#FFFCF6] px-5 py-4 shadow-sm">
+          <div className="mt-8 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <p className="text-sm font-semibold text-[#2D1B0E]">Manual Items (Optional)</p>
-                <p className="text-xs text-[#6B5B4F]">
+                <p className="text-sm font-semibold text-slate-900">Manual Items (Optional)</p>
+                <p className="text-xs text-slate-600">
                   Add extra products by code even if no audits are available
                 </p>
               </div>
               <button
                 type="button"
                 onClick={addManualRow}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-[#C1272D]/30 text-[#C1272D] hover:bg-[#FFF3F3]"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
               >
                 + Add Manual Item
               </button>
@@ -892,7 +900,7 @@ const ChallanGeneration = () => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Product Title
                         </label>
                         <div className="flex gap-2 mt-1">
@@ -904,32 +912,32 @@ const ChallanGeneration = () => {
                             }
                             onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
                             placeholder="e.g. 9 Cavity Floral Bag Box"
-                            className="w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                           />
                           <button
                             type="button"
                             onClick={() => handleManualCodeLookup(row.id, row.searchTitle)}
-                            className="px-3 py-2 rounded-lg border border-[#C1272D]/40 text-[#C1272D] text-xs font-semibold hover:bg-[#FFF3F3]"
+                            className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50"
                           >
                             Fetch
                           </button>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Cavity / Size
                         </label>
                         <input
                           type="text"
                           value={row.cavity}
                           onChange={(e) => updateManualRow(row.id, { cavity: e.target.value })}
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                     </div>
                     <div className="grid gap-4 md:grid-cols-4">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Quantity
                         </label>
                         <input
@@ -939,11 +947,11 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { quantity: Number(e.target.value) })
                           }
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Rate
                         </label>
                         <input
@@ -951,11 +959,11 @@ const ChallanGeneration = () => {
                           min="0"
                           value={row.rate}
                           onChange={(e) => updateManualRow(row.id, { rate: Number(e.target.value) })}
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Assembly
                         </label>
                         <input
@@ -965,11 +973,11 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { assemblyCharge: Number(e.target.value) })
                           }
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Packaging
                         </label>
                         <input
@@ -979,13 +987,13 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { packagingCharge: Number(e.target.value) })
                           }
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Primary Color
                         </label>
                         <input
@@ -993,11 +1001,11 @@ const ChallanGeneration = () => {
                           value={row.color}
                           onChange={(e) => updateManualRow(row.id, { color: e.target.value })}
                           placeholder="e.g. Crimson"
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                           Additional Colors (comma separated)
                         </label>
                         <textarea
@@ -1005,10 +1013,10 @@ const ChallanGeneration = () => {
                           value={row.coloursInput}
                           onChange={(e) => handleManualColoursInput(row.id, e.target.value)}
                           placeholder="e.g. Gold, Silver, Black"
-                          className="mt-1 w-full px-3 py-2 border border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-inner"
+                          className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                         />
                         {row.colours.length > 0 && (
-                          <p className="text-[11px] text-[#6B5B4F] mt-1">
+                          <p className="text-xs text-slate-600 mt-1">
                             Selected: {row.colours.join(", ")}
                           </p>
                         )}
@@ -1019,7 +1027,7 @@ const ChallanGeneration = () => {
                 <button
                   type="button"
                   onClick={addManualRow}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-dashed border-[#C1272D]/40 text-[#C1272D] hover:bg-[#FFF3F3]"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-dashed border-red-200 text-red-600 hover:bg-red-50"
                 >
                   + Add Another Manual Item
                 </button>
@@ -1027,26 +1035,26 @@ const ChallanGeneration = () => {
             )}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-[#E8DCC6] bg-[#FFF9EF] px-5 py-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-[#6B5B4F] font-semibold">Summary</p>
-              <div className="mt-3 space-y-2 text-sm text-[#2D1B0E]">
+            <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Summary</p>
+              <div className="mt-3 space-y-2 text-sm text-slate-900">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
                   <span className="font-semibold">₹{summary.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>GST (5%)</span>
-                  <span className="font-semibold text-[#2563EB]">₹{summary.gstAmount.toFixed(2)}</span>
+                  <span className="font-semibold text-blue-600">₹{summary.gstAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Round Off</span>
                   <span
                     className={`font-semibold ${
                       summary.roundOff > 0
-                        ? "text-emerald-600"
+                        ? "text-green-600"
                         : summary.roundOff < 0
-                        ? "text-[#A01F24]"
-                        : "text-[#2D1B0E]"
+                        ? "text-red-600"
+                        : "text-slate-700"
                     }`}
                   >
                     {summary.roundOff === 0
@@ -1056,45 +1064,45 @@ const ChallanGeneration = () => {
                         }`}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-dashed border-[#E8DCC6] pt-2">
-                  <span className="font-semibold text-[#C1272D]">Total Payable</span>
-                  <span className="text-lg font-bold text-[#C1272D]">₹{summary.grandTotal.toFixed(2)}</span>
+                <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-2">
+                  <span className="font-semibold text-blue-600">Total Payable</span>
+                  <span className="text-lg font-bold text-blue-600">₹{summary.grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-[#E8DCC6] bg-white px-5 py-4 shadow-sm md:col-span-2 lg:col-span-2">
-              <label className="block text-sm font-semibold text-[#2D1B0E] mb-2">Terms & Conditions</label>
+            <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm md:col-span-2 lg:col-span-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-2">Terms & Conditions</label>
               <textarea
                 rows={3}
                 value={terms}
                 onChange={(e) => setTerms(e.target.value)}
                 placeholder="Add any terms and conditions to appear on the challan"
-                className="w-full px-4 py-3 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] shadow-inner"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-slate-900 shadow-sm"
               />
             </div>
            </div>
-          <div className="mt-4 rounded-2xl border border-[#E8DCC6] bg-white px-5 py-4 shadow-sm">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-              <p className="text-sm font-semibold text-[#2D1B0E]">Challan Details</p>
-              <span className="text-xs text-[#6B5B4F]">HSN code is printed on the challan header</span>
+              <p className="text-sm font-semibold text-slate-900">Challan Details</p>
+              <span className="text-xs text-slate-600">HSN code is printed on the challan header</span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">HSN Code</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">HSN Code</label>
                 <input
                   type="text"
                   value={hsnCode}
                   onChange={(e) => setHsnCode(e.target.value)}
                   placeholder="e.g. 48192090"
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Inventory Type</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">Inventory Type</label>
                 <select
                   value={inventoryType}
                   onChange={(e) => setInventoryType(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                 >
                   <option value="subtract">Dispatch / Subtract from Inventory</option>
                   <option value="add">Add to Inventory (New Stock)</option>
@@ -1102,14 +1110,14 @@ const ChallanGeneration = () => {
               </div>
             </div>
           </div>
-          <div className="mt-4 rounded-2xl border border-[#E8DCC6] bg-white px-5 py-4 shadow-sm">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-              <p className="text-sm font-semibold text-[#2D1B0E]">Client Details (optional)</p>
-              <span className="text-xs text-[#6B5B4F]">Shown beneath the Prepared By section on the PDF</span>
+              <p className="text-sm font-semibold text-slate-900">Client Details (optional)</p>
+              <span className="text-xs text-slate-600">Shown beneath the Prepared By section on the PDF</span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Client Name</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">Client Name</label>
                 <div className="relative client-search-container">
                   <input
                     type="text"
@@ -1146,15 +1154,15 @@ const ChallanGeneration = () => {
                         <motion.button
                           key={idx}
                           onClick={() => selectClientFromSearch(client)}
-                          className="w-full px-4 py-2.5 text-left hover:bg-[#FDF9EE] transition-colors border-b border-[#E8DCC6] last:border-b-0"
+                          className="w-full px-4 py-2.5 text-left hover:bg-slate-100 transition-colors border-b border-slate-200 last:border-b-0"
                           whileHover={{ paddingLeft: 20 }}
                         >
-                          <div className="text-sm font-semibold text-[#2D1B0E]">{client.name}</div>
+                          <div className="text-sm font-semibold text-slate-900">{client.name}</div>
                           {client.mobile && (
-                            <div className="text-xs text-[#6B5B4F]">📞 {client.mobile}</div>
+                            <div className="text-xs text-slate-600">📞 {client.mobile}</div>
                           )}
                           {client.usageCount && (
-                            <div className="text-xs text-[#B8860B]">Used {client.usageCount} times</div>
+                            <div className="text-xs text-slate-600">Used {client.usageCount} times</div>
                           )}
                         </motion.button>
                       ))}
@@ -1163,35 +1171,35 @@ const ChallanGeneration = () => {
                 </AnimatePresence>
               </div>
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Mobile Number</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">Mobile Number</label>
                 <input
                   type="text"
                   value={clientDetails.mobile}
                   onChange={(e) => updateClientDetails("mobile", e.target.value)}
                   placeholder="+91 98765 43210"
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                 />
               </div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Address</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">Address</label>
                 <textarea
                   rows={2}
                   value={clientDetails.address}
                   onChange={(e) => updateClientDetails("address", e.target.value)}
                   placeholder="Street, City, State, ZIP"
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-inner"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                 />
               </div>
               <div className="space-y-2 md:col-span-1">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">GST Number</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">GST Number</label>
                 <input
                   type="text"
                   value={clientDetails.gstNumber}
                   onChange={(e) => updateClientDetails("gstNumber", e.target.value)}
                   placeholder="27ABCDE1234F1Z5"
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm shadow-sm"
                 />
               </div>
             </div>
@@ -1200,11 +1208,11 @@ const ChallanGeneration = () => {
        )}
 
       {showClientBatchPanel && (
-        <div className="mt-6 rounded-2xl border border-dashed border-[#E8DCC6] bg-[#FDF9EE] px-5 py-4 shadow-sm">
+        <div className="mt-6 rounded-lg border border-dashed border-slate-300 bg-white px-5 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-sm font-semibold text-[#2D1B0E]">Client Batch (multi‑challan)</p>
-              <p className="text-xs text-[#6B5B4F]">
+              <p className="text-sm font-semibold text-slate-900">Client Batch (multi‑challan)</p>
+              <p className="text-xs text-slate-600">
                 Save this client’s lines, then repeat for other clients and generate all challans together.
               </p>
             </div>
@@ -1214,14 +1222,14 @@ const ChallanGeneration = () => {
                 disabled={!hasAnyRows}
                 title={hasAnyRows ? "" : "Select audits or add manual items above to enable"}
                 onClick={handleSaveNewBatch}
-                className="px-4 py-2 rounded-xl border border-[#C1272D]/40 text-[#C1272D] text-xs font-semibold hover:bg-[#FFF3F3] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add as New Client
               </button>
               {clientBatches.length > 0 && (
                 <div className="flex items-center gap-2">
                   <select
-                    className="px-3 py-2 rounded-xl border border-[#E8DCC6] bg-white text-xs"
+                    className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs"
                     value={appendTargetBatchId}
                     onChange={(e) => setAppendTargetBatchId(e.target.value)}
                   >
@@ -1246,7 +1254,7 @@ const ChallanGeneration = () => {
                         : "Select audits or manual items first"
                     }
                     onClick={handleAppendToExistingBatch}
-                    className="px-4 py-2 rounded-xl border border-[#2563EB]/40 text-[#2563EB] text-xs font-semibold hover:bg-[#EFF6FF] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 rounded-lg border border-blue-200 text-blue-600 text-xs font-semibold hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add to Existing
                   </button>
@@ -1295,7 +1303,7 @@ const ChallanGeneration = () => {
                               : 0}
                           </span>
                         </div>
-                        <div className="text-[11px] text-[#6B5B4F]">
+                        <div className="text-xs text-slate-600">
                           HSN: {batch.hsnCode || "N/A"} • Terms:{" "}
                           {batch.terms
                             ? `${batch.terms.slice(0, 40)}${
@@ -1307,27 +1315,27 @@ const ChallanGeneration = () => {
                       <button
                         type="button"
                         onClick={() => batchId && handleRemoveClientBatch(batchId)}
-                        className="text-xs text-[#A01F24] hover:text-[#7B1518]"
+                        className="text-xs text-red-600 hover:text-red-700"
                       >
                         Remove Client
                       </button>
                     </div>
                     {batchAudits.length > 0 && (
-                      <div className="mt-2 border-t border-dashed border-[#E8DCC6] pt-2">
-                        <div className="text-[11px] font-semibold text-[#6B5B4F] mb-1">
+                      <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                        <div className="text-xs font-semibold text-slate-600 mb-1">
                           Audits in this client
                         </div>
                         <div className="space-y-1 max-h-40 overflow-auto pr-1">
                           {batchAudits.map(({ id, audit, line }) => (
                             <div
                               key={id}
-                              className="flex items-center justify-between gap-2 text-[11px] text-[#2D1B0E]"
+                              className="flex items-center justify-between gap-2 text-xs text-slate-900"
                             >
                               <div className="flex-1">
                                 <div className="font-semibold">
                                     {audit?.box?.title || line?.boxSnapshot?.title || "Unknown box"}
                                 </div>
-                                <div className="text-[10px] text-[#6B5B4F]">
+                                <div className="text-xs text-slate-600">
                                     Code: {audit?.box?.code || line?.boxSnapshot?.code || "-"} • Color:{" "}
                                     {line?.color || audit?.color || "-"}
                                   {" • Qty: "}
@@ -1336,7 +1344,7 @@ const ChallanGeneration = () => {
                               </div>
                               {clientBatches.length > 1 && (
                                 <select
-                                  className="text-[10px] border border-[#E8DCC6] rounded-lg px-1 py-0.5 bg-white"
+                                  className="text-xs border border-slate-300 rounded-lg px-1 py-0.5 bg-white"
                                   onChange={(e) => {
                                     const targetId = e.target.value;
                                     if (!targetId) return;
@@ -1381,15 +1389,15 @@ const ChallanGeneration = () => {
 
         {/* Candidates table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden text-xs sm:text-sm">
-            <thead className="bg-[#F4E4BC] text-[#2D1B0E] uppercase tracking-wide">
+          <table className="min-w-full text-left border border-slate-200 rounded-lg overflow-hidden text-xs sm:text-sm">
+            <thead className="bg-slate-100 text-slate-900 uppercase tracking-wide font-semibold">
               <tr>
-                <th className="px-4 py-3 font-semibold w-12">
-                  <button onClick={toggleAll} className="text-[#C1272D]">
+                <th className="px-4 py-3 w-12">
+                  <button onClick={toggleAll} className="text-blue-600">
                     {allSelected ? <FiCheckSquare /> : <FiSquare />}
                   </button>
                 </th>
-                <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
+                <th className="px-4 py-3 whitespace-nowrap">Date</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
@@ -1497,7 +1505,7 @@ const ChallanGeneration = () => {
                 }
               }}
               disabled={submitting}
-              className="px-6 py-3 bg-white text-[#C1272D] rounded-xl font-semibold poppins border-2 border-[#C1272D]/70 shadow-sm hover:bg-[#FFF3F3] disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
+              className="px-6 py-3 bg-white text-red-600 rounded-lg font-semibold border-2 border-red-200 shadow-sm hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
               whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
               whileTap={{ scale: submitting ? 1 : 0.98 }}
             >
@@ -1508,25 +1516,24 @@ const ChallanGeneration = () => {
       </div>
 
       {/* Client-wise challan summary + Recent challans */}
-      <div className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-4 sm:p-6 md:p-8 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
-        <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-4">Client-wise Challan Summary</h3>
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6 md:p-8 relative overflow-hidden">
+        <h3 className="text-2xl font-bold text-slate-900 mb-4">Client-wise Challan Summary</h3>
         <div className="overflow-x-auto mb-6">
-          <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden text-xs sm:text-sm">
-            <thead className="bg-[#F4E4BC] text-[#2D1B0E]">
+          <table className="min-w-full text-left border border-slate-200 rounded-lg overflow-hidden text-xs sm:text-sm">
+            <thead className="bg-slate-100 text-slate-900 font-semibold">
               <tr>
-                <th className="px-4 py-3 font-semibold">Client</th>
-                <th className="px-4 py-3 font-semibold">Challans</th>
-                <th className="px-4 py-3 font-semibold">Total Items</th>
-                <th className="px-4 py-3 font-semibold">Last Challan</th>
+                <th className="px-4 py-3">Client</th>
+                <th className="px-4 py-3">Challans</th>
+                <th className="px-4 py-3">Total Items</th>
+                <th className="px-4 py-3">Last Challan</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody>
               {loadingChallans ? (
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-4 py-4 text-center text-[#2D1B0E] poppins text-sm"
+                    className="px-4 py-4 text-center text-slate-700 text-sm"
                   >
                     Loading...
                   </td>
@@ -1535,21 +1542,21 @@ const ChallanGeneration = () => {
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-4 py-4 text-center text-[#2D1B0E] poppins text-sm"
+                    className="px-4 py-4 text-center text-slate-700 text-sm"
                   >
                     No challans yet.
                   </td>
                 </tr>
               ) : (
-                clientChallanSummary.map((g) => (
-                  <tr key={g.clientName} className="border-t border-[#E8DCC6]">
-                    <td className="px-4 py-3 text-xs sm:text-sm text-[#2D1B0E]">
+                clientChallanSummary.map((g, idx) => (
+                  <tr key={g.clientName} className={`border-t border-slate-200 transition-colors hover:bg-slate-50 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                    <td className="px-4 py-3 text-xs sm:text-sm text-slate-900">
                       {g.clientName}
                     </td>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-[#2D1B0E] font-semibold">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold">
                       {g.challanCount}
                     </td>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-[#2D1B0E] font-semibold">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold">
                       {g.totalItems}
                     </td>
                     <td className="px-4 py-3 text-xs sm:text-sm text-[#2D1B0E]">
@@ -1595,21 +1602,21 @@ const ChallanGeneration = () => {
                 </tr>
               ) : (
                 recentChallans.map((c) => (
-                  <tr key={c._id} className="border-t border-[#E8DCC6]">
-                    <td className="px-4 py-3 text-sm text-[#2D1B0E] font-mono">{c.number}</td>
-                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">
+                  <tr key={c._id} className="border-t border-slate-200 hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-slate-900 font-mono">{c.number}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">
                       {(c.clientDetails?.name || "").trim() || "Unnamed Client"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">
+                    <td className="px-4 py-3 text-sm text-slate-700">
                       {new Date(c.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-[#2D1B0E]">
+                    <td className="px-4 py-3 text-sm text-slate-700">
                       {c.items?.length || 0}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <button
                         onClick={() => downloadPdf(c._id, c.number)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md hover:bg-[#A01F24]"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-sm hover:bg-blue-700 transition-colors"
                         title="Download PDF"
                       >
                         <FiDownload /> Download
