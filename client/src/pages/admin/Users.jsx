@@ -139,6 +139,7 @@ const Users = () => {
                         value={isEditing ? formState.name : u.name}
                         onChange={handleChange}
                         disabled={!isEditing}
+                        autoComplete="name"
                         className={`w-full px-3 py-2 rounded-lg text-sm poppins text-theme-text-primary ${
                           isEditing
                             ? "border-2 border-theme-primary/50 bg-theme-input-bg focus:ring-2 focus:ring-theme-primary/30 focus:border-theme-primary"
@@ -152,6 +153,7 @@ const Users = () => {
                         value={isEditing ? formState.email : u.email}
                         onChange={handleChange}
                         disabled={!isEditing}
+                        autoComplete="email"
                         className={`w-full px-3 py-2 rounded-lg text-sm poppins text-theme-text-primary ${
                           isEditing
                             ? "border-2 border-theme-primary/50 bg-theme-input-bg focus:ring-2 focus:ring-theme-primary/30 focus:border-theme-primary"

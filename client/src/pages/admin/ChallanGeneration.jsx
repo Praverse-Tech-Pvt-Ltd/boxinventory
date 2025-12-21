@@ -735,6 +735,7 @@ const ChallanGeneration = () => {
                   placeholder="Search by user, box name, code, category, color, or quantity..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  autoComplete="off"
                   className="form-input pl-8 text-sm"
                 />
               </div>
@@ -804,6 +805,7 @@ const ChallanGeneration = () => {
                              type="text"
                         value={edit.cavity ?? ""}
                         onChange={(e) => updateRow(audit._id, { cavity: e.target.value })}
+                        autoComplete="off"
                         className="w-full sm:w-48 px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-input-bg text-sm shadow-sm text-theme-text-primary"
                            />
                          </td>
@@ -846,6 +848,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.quantity ?? 0}
                         onChange={(e) => updateRow(audit._id, { quantity: Number(e.target.value) })}
+                        autoComplete="off"
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
                     </td>
@@ -855,8 +858,10 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.rate ?? 0}
                         onChange={(e) => updateRow(audit._id, { rate: Number(e.target.value) })}
+                        autoComplete="off"
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
+                    </td>
                     </td>
                     <td className="px-4 py-4 text-sm text-right">
                       <input
@@ -864,6 +869,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.assemblyCharge ?? 0}
                         onChange={(e) => updateRow(audit._id, { assemblyCharge: Number(e.target.value) })}
+                        autoComplete="off"
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
                     </td>
@@ -873,6 +879,7 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.packagingCharge ?? 0}
                         onChange={(e) => updateRow(audit._id, { packagingCharge: Number(e.target.value) })}
+                        autoComplete="off"
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
                     </td>
@@ -956,6 +963,7 @@ const ChallanGeneration = () => {
                             }
                             onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
                             placeholder="e.g. BOX001"
+                            autoComplete="off"
                             className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm font-mono uppercase"
                           />
                           <button
@@ -980,6 +988,7 @@ const ChallanGeneration = () => {
                           type="text"
                           value={row.cavity}
                           onChange={(e) => updateManualRow(row.id, { cavity: e.target.value })}
+                          autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>
@@ -996,6 +1005,7 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { quantity: Number(e.target.value) })
                           }
+                          autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>
@@ -1008,6 +1018,7 @@ const ChallanGeneration = () => {
                           min="0"
                           value={row.rate}
                           onChange={(e) => updateManualRow(row.id, { rate: Number(e.target.value) })}
+                          autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>
@@ -1022,6 +1033,7 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { assemblyCharge: Number(e.target.value) })
                           }
+                          autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>
@@ -1036,6 +1048,7 @@ const ChallanGeneration = () => {
                           onChange={(e) =>
                             updateManualRow(row.id, { packagingCharge: Number(e.target.value) })
                           }
+                          autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>

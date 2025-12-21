@@ -152,6 +152,7 @@ const Register = () => {
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
               placeholder="Your Name"
+              autoComplete="name"
               required
             />
           </motion.div>
@@ -171,6 +172,7 @@ const Register = () => {
               onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </motion.div>
@@ -191,6 +193,7 @@ const Register = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 pr-12 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 required
               />
               <button

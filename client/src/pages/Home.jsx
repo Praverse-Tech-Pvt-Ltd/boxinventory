@@ -172,6 +172,7 @@ const Home = () => {
             placeholder="Search by name, code, or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            autoComplete="off"
             className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
           />
         </div>
@@ -310,6 +311,7 @@ const Home = () => {
                         placeholder="Qty"
                         value={qtyInputs[box._id] ?? ""}
                         onChange={(e) => handleQtyChange(box._id, e.target.value)}
+                        autoComplete="off"
                         className="w-full sm:w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
                       />
                       <motion.button
