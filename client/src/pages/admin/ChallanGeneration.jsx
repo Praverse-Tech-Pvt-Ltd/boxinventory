@@ -654,7 +654,7 @@ const ChallanGeneration = () => {
       terms,
       note,
       hsnCode,
-      inventoryType,
+      inventoryType: inventoryType || "subtract", // Ensure it has a value, default to subtract
       clientDetails: hasClientInfo ? clientDetails : undefined,
     };
   };
@@ -662,6 +662,7 @@ const ChallanGeneration = () => {
   const handleGenerate = async () => {
     try {
       const payload = buildCurrentClientPayload();
+      console.log("[Frontend] Sending payload with inventoryType:", payload.inventoryType);
       setSubmitting(true);
       const challan = await createChallan(payload);
       toast.success(`Challan ${challan.number} created`);
@@ -1572,23 +1573,43 @@ const ChallanGeneration = () => {
 
         {/* Action */}
         <div className="mt-4 flex flex-col md:flex-row gap-3 md:items-center">
-          <motion.button
-            onClick={handleGenerate}
-            disabled={submitting}
-            className="px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
-            whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
-            whileTap={{ scale: submitting ? 1 : 0.98 }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "100%" }}
-              transition={{ duration: 0.6 }}
-            />
-            <span className="relative z-10">
-              {submitting ? "Generating..." : "Generate Single Challan (Current Client)"}
-            </span>
-          </motion.button>
+          {inventoryType === "add" ? (
+            <motion.button
+              onClick={handleGenerate}
+              disabled={submitting}
+              className="px-6 py-3 bg-linear-to-r from-[#10B981] via-[#059669] to-[#10B981] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
+              whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
+              whileTap={{ scale: submitting ? 1 : 0.98 }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "100%" }}
+                transition={{ duration: 0.6 }}
+              />
+              <span className="relative z-10">
+                {submitting ? "Adding to Inventory..." : "✅ Add to Inventory (Current Client)"}
+              </span>
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={handleGenerate}
+              disabled={submitting}
+              className="px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
+              whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
+              whileTap={{ scale: submitting ? 1 : 0.98 }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "100%" }}
+                transition={{ duration: 0.6 }}
+              />
+              <span className="relative z-10">
+                {submitting ? "Generating..." : "📄 Generate Challan (Current Client)"}
+              </span>
+            </motion.button>
+          )}
           {clientBatches.length > 0 && (
             <motion.button
               onClick={async () => {
