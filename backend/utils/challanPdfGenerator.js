@@ -11,7 +11,29 @@ const COMPANY = {
   gst: "GST NO.: 27BCZPS4667K1ZD",
 };
 
-const DEFAULT_TERMS = "Goods once sold will not be taken back.";
+const HSN_CODE = "481920"; // Fixed HSN Code for Paper Products
+
+const DEFAULT_TERMS = `Terms & Conditions:
+• Parcel will be dispatched after payment confirmation.
+• Order once placed – No refund / No cancellation / No exchange.
+• Customised order – colour difference is possible in printing.
+• Order will be shipped within 24 hours of payment received.
+• Delivery timeline: 2–6 working days, depending on location.`;
+
+const DEFAULT_NOTE = `Note:
+~ The above-mentioned prices are without GST. GST @ 18% applicable.
+~ Shipping & packaging charges are additional.
+~ Shipping charges are dynamic and depend on weight and dimensions.
+~ Goods once sold will not be taken back / exchanged / refunded.
+~ Final amount including shipping & packaging will be shared after order confirmation.
+~ Always share payment confirmation screenshot.
+~ Order will be dispatched within 24–48 hours after payment receipt.
+~ Shipping time:
+  • 1–2 days within Mumbai
+  • 5–7 days PAN India
+  • May take longer during festive seasons
+~ Opening video of parcel is mandatory to claim any damage.
+~ Tracking ID will be shared once the parcel is picked up.`;
 
 const ensureDirectory = async (dirPath) => {
   await fsPromises.mkdir(dirPath, { recursive: true });
@@ -88,7 +110,7 @@ const addHeader = (doc, challanNumber, hsnCode) => {
   });
   
   doc.font("Helvetica-Bold").fontSize(11);
-  doc.text(`HSN Code: ${hsnCode || "-"}`, leftMargin + columnWidth + 10, currentY, {
+  doc.text(`HSN Code: ${HSN_CODE}`, leftMargin + columnWidth + 10, currentY, {
     width: columnWidth - 20,
     align: "left",
   });
@@ -328,23 +350,39 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
 };
 
 const addFooter = (doc, startY, terms) => {
-  const footerY = Math.max(startY, doc.page.height - 165);
+  const footerY = Math.max(startY, doc.page.height - 280);
   doc.lineWidth(0.7);
   doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).stroke();
 
-  doc.font("Helvetica-Bold").fontSize(10).text("Terms & Conditions:", 50, footerY + 12);
-  doc.font("Helvetica").fontSize(9).text(terms || DEFAULT_TERMS, 50, footerY + 28, {
-    width: doc.page.width / 2 - 70,
+  // Terms & Conditions
+  const termsToUse = terms || DEFAULT_TERMS;
+  doc.font("Helvetica-Bold").fontSize(9).text("Terms & Conditions:", 50, footerY + 8);
+  doc.font("Helvetica").fontSize(8).text(termsToUse, 50, footerY + 22, {
+    width: doc.page.width - 100,
     align: "left",
+    lineGap: 2,
   });
 
+  // Calculate height used by terms
+  const termsHeight = doc.heightOfString(termsToUse, { width: doc.page.width - 100 });
+  const noteStartY = footerY + 22 + termsHeight + 12;
+
+  // Note Section
+  doc.font("Helvetica-Bold").fontSize(9).text("Note:", 50, noteStartY);
+  doc.font("Helvetica").fontSize(7.5).text(DEFAULT_NOTE, 50, noteStartY + 14, {
+    width: doc.page.width - 100,
+    align: "left",
+    lineGap: 1.5,
+  });
+
+  // Signature area on right
   doc.font("Helvetica-Bold")
-    .fontSize(10)
-    .text("VISHAL PAPER PRODUCT", 50, footerY + 12, {
+    .fontSize(9)
+    .text("VISHAL PAPER PRODUCT", 50, footerY + 8, {
       width: doc.page.width - 100,
       align: "right",
     });
-  doc.font("Helvetica").fontSize(9).text("PRO.", 50, footerY + 28, {
+  doc.font("Helvetica").fontSize(8).text("PRO.", 50, footerY + 22, {
     width: doc.page.width - 100,
     align: "right",
   });

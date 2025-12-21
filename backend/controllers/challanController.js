@@ -279,12 +279,8 @@ export const createChallan = async (req, res) => {
       inventoryType: invType,
     };
 
-    if (hsnCode && typeof hsnCode === "string") {
-      const cleanedHsn = hsnCode.trim();
-      if (cleanedHsn) {
-        challanPayload.hsnCode = cleanedHsn;
-      }
-    }
+    // HSN Code is now fixed to 481920 and handled in PDF generator
+    // No longer accepting user input for HSN Code
 
     if (hasClientDetails) {
       challanPayload.clientDetails = normalizedClientDetails;

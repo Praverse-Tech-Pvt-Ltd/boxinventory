@@ -28,7 +28,7 @@ const generateManualRowId = () =>
 
 const createManualRow = () => ({
   id: generateManualRowId(),
-  searchTitle: "",
+  searchCode: "",
   boxId: "",
   boxTitle: "",
   boxCode: "",
@@ -214,20 +214,21 @@ const ChallanGeneration = () => {
   const boxLookupByTitle = useMemo(() => {
     const map = new Map();
     boxes.forEach((box) => {
-      if (box?.title) {
-        map.set(String(box.title).trim().toLowerCase(), box);
+      if (box?.code) {
+        map.set(String(box.code).trim().toUpperCase(), box);
       }
     });
     return map;
   }, [boxes]);
 
-  const handleManualCodeLookup = (rowId, rawTitle) => {
-    const cleaned = (rawTitle || "").trim().toLowerCase();
+  const handleManualCodeLookup = (rowId, rawCode) => {
+    const cleaned = (rawCode || "").trim().toUpperCase();
     if (!cleaned) {
       updateManualRow(rowId, {
-        searchTitle: "",
+        searchCode: "",
         boxId: "",
         boxTitle: "",
+        boxCode: "",
         boxCategory: "",
         availableColours: [],
       });
@@ -235,10 +236,11 @@ const ChallanGeneration = () => {
     }
     const matched = boxLookupByTitle.get(cleaned);
     if (!matched) {
-      toast.error(`No product found for title "${rawTitle}"`);
+      toast.error(`Invalid product code: "${rawCode}". Product not found.`);
       updateManualRow(rowId, {
         boxId: "",
         boxTitle: "",
+        boxCode: "",
         boxCategory: "",
         availableColours: [],
       });
@@ -246,7 +248,7 @@ const ChallanGeneration = () => {
     }
     updateManualRow(rowId, {
       boxId: matched._id,
-      searchTitle: matched.title,
+      searchCode: matched.code,
       boxTitle: matched.title,
       boxCode: matched.code || "",
       boxCategory: matched.category,
@@ -560,7 +562,7 @@ const ChallanGeneration = () => {
 
   const buildCurrentClientPayload = () => {
     const auditIds = Object.keys(selected).filter((id) => selected[id]);
-    const manualPending = manualRowsComputed.find((row) => row.searchTitle && !row.boxId);
+    const manualPending = manualRowsComputed.find((row) => row.searchCode && !row.boxId);
     if (manualPending) {
       throw new Error(`Fetch product details for manual item #${manualPending.idx + 1}`);
     }
@@ -605,7 +607,7 @@ const ChallanGeneration = () => {
         color: row.color || "",
         colours: Array.isArray(row.colours) ? row.colours : [],
         boxSnapshot: {
-          title: row.boxTitle || row.searchTitle || "",
+          title: row.boxTitle || row.searchCode || "",
           code: row.boxCode || "",
           category: row.boxCategory || "",
         },
@@ -918,27 +920,32 @@ const ChallanGeneration = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          Product Title
+                          Product Code *
                         </label>
                         <div className="flex gap-2 mt-1">
                           <input
                             type="text"
-                            value={row.searchTitle}
+                            value={row.searchCode || ""}
                             onChange={(e) =>
-                              updateManualRow(row.id, { searchTitle: e.target.value })
+                              updateManualRow(row.id, { searchCode: e.target.value.toUpperCase() })
                             }
                             onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
-                            placeholder="e.g. 9 Cavity Floral Bag Box"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-sm shadow-sm"
+                            placeholder="e.g. BOX001"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-sm shadow-sm font-mono uppercase"
                           />
                           <button
                             type="button"
-                            onClick={() => handleManualCodeLookup(row.id, row.searchTitle)}
+                            onClick={() => handleManualCodeLookup(row.id, row.searchCode)}
                             className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50"
                           >
                             Fetch
                           </button>
                         </div>
+                        {row.boxTitle && (
+                          <p className="mt-2 text-xs text-slate-600">
+                            <span className="font-semibold">Product:</span> {row.boxTitle}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -1101,18 +1108,14 @@ const ChallanGeneration = () => {
           <div className="mt-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
               <p className="text-sm font-semibold text-slate-900">Challan Details</p>
-              <span className="text-xs text-slate-600">HSN code is printed on the challan header</span>
+              <span className="text-xs text-slate-600">HSN code is auto-applied to the challan header</span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">HSN Code</label>
-                <input
-                  type="text"
-                  value={hsnCode}
-                  onChange={(e) => setHsnCode(e.target.value)}
-                  placeholder="e.g. 48192090"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-sm shadow-sm"
-                />
+                <div className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-sm shadow-sm text-slate-700 font-semibold">
+                  481920
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-slate-600">Inventory Type</label>

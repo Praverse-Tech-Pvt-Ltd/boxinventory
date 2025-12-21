@@ -4,7 +4,7 @@ const boxSchema = new mongoose.Schema(
   {
     image: {
       type: String, // Cloudinary image URL
-      required: true,
+      required: false,
     },
     title: {
       type: String,
@@ -35,7 +35,7 @@ const boxSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       lowercase: true,
     },

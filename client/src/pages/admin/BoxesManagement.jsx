@@ -189,9 +189,6 @@ const BoxesManagement = () => {
       
       if (formData.image) {
         formDataToSend.append("image", formData.image);
-      } else if (!editingId && !formData.imagePreview) {
-        toast.error("Image is required");
-        return;
       }
 
       formDataToSend.append("title", formData.title);
@@ -347,7 +344,7 @@ const BoxesManagement = () => {
                 {/* Image Upload */}
                 <div className="md:col-span-2">
                   <label className="form-label">
-                    Product Image {!editingId && "*"}
+                    Product Image
                   </label>
                   <div className="flex items-center gap-4">
                     <input
@@ -401,14 +398,13 @@ const BoxesManagement = () => {
                 {/* Category */}
                 <div className="form-group">
                   <label className="form-label">
-                    Category *
+                    Category
                   </label>
                   <input
                     type="text"
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    required
                     className="form-input"
                     placeholder="lotus-pink series"
                   />
