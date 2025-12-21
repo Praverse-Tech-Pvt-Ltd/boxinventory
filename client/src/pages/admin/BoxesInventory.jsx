@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiPlus, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllBoxes, addBoxQuantity, subtractBoxQuantity } from "../../services/boxService";
+import "../../styles/dashboard.css";
 
 const ITEMS_PER_PAGE = 18;
 
@@ -174,21 +175,30 @@ const BoxesInventory = () => {
   const skeletonRows = Array(3).fill(0);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-slate-900">📦 Box Inventory</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage and track your inventory stock levels</p>
-        </div>
+    <div className="w-full section-spacing">
+      {/* Section Header */}
+      <div className="mb-6">
+        <h2 className="section-title">📦 Boxes Inventory</h2>
+        <p className="section-subtitle">Manage and track inventory stock levels by color</p>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Card */}
+      <motion.div
+        className="dashboard-card hover-lift"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {/* Card Header */}
+        <div className="card-header">
+          <h3 className="card-header-title">Inventory Overview</h3>
+          <span className="text-sm text-gray-500">{filteredBoxes.length} boxes available</span>
+        </div>
+
         {/* Search Bar */}
-        <div className="mb-8">
+        <div className="card-body mb-6">
           <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search by name, code, or category..."
@@ -197,18 +207,13 @@ const BoxesInventory = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200"
+              className="form-input pl-12"
             />
           </div>
         </div>
 
-        {/* Content Container */}
-        <motion.div
-          className="bg-white rounded-xl shadow-sm border border-slate-200 p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
+        {/* Grid Content */}
+        <div className="card-body">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {skeletonRows.map((_, idx) => (
@@ -244,7 +249,7 @@ const BoxesInventory = () => {
                     onClick={() =>
                       setExpandedId((prev) => (prev === box._id ? null : box._id))
                     }
-                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-blue-700"
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-700"
                   >
                     {expandedId === box._id ? "Close" : "View"}
                   </button>
@@ -306,7 +311,7 @@ const BoxesInventory = () => {
                             return (
                               <div key={color} className="flex justify-between items-center text-xs">
                                 <span className="text-slate-600">{color}</span>
-                                <span className={`font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                <span className={`font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
                                   {qty} units
                                 </span>
                               </div>
@@ -340,7 +345,7 @@ const BoxesInventory = () => {
                         <select
                           value={colorInputs[box._id] ?? ""}
                           onChange={(e) => handleColorChange(box._id, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                         >
                           <option value="">Select color</option>
                           {Array.isArray(box.colours) &&
@@ -357,14 +362,15 @@ const BoxesInventory = () => {
                           placeholder="Qty"
                           value={qtyInputs[box._id] ?? ""}
                           onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                          className="w-14 px-2 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-14 px-2 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
                       </div>
                       {/* Action Buttons */}
                       <div className="flex gap-2 pt-2">
                         <motion.button
                           onClick={() => submitSubtract(box)}
                           disabled={submittingId === box._id}
-                          className="flex-1 px-3 py-2.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          className="flex-1 px-3 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                           whileHover={{ scale: submittingId === box._id ? 1 : 1.02 }}
                           whileTap={{ scale: submittingId === box._id ? 1 : 0.98 }}
                         >
@@ -373,7 +379,7 @@ const BoxesInventory = () => {
                         <motion.button
                           onClick={() => setShowAddModal(box._id)}
                           disabled={submittingId === box._id}
-                          className="flex-1 px-3 py-2.5 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          className="flex-1 px-3 py-2.5 rounded-lg bg-amber-600 text-white font-semibold text-xs hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                           whileHover={{ scale: submittingId === box._id ? 1 : 1.02 }}
                           whileTap={{ scale: submittingId === box._id ? 1 : 0.98 }}
                         >
@@ -420,7 +426,7 @@ const BoxesInventory = () => {
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 rounded-lg font-semibold transition-all ${
                           currentPage === page
-                            ? "bg-blue-600 text-white"
+                            ? "bg-red-600 text-white"
                             : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                         }`}
                         whileHover={{ scale: 1.05 }}
@@ -484,7 +490,7 @@ const BoxesInventory = () => {
                     <select
                       value={addFormData.color}
                       onChange={(e) => setAddFormData({ ...addFormData, color: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                     >
                       <option value="">Select a color</option>
                       {Array.isArray(boxes.find((b) => b._id === showAddModal)?.colours) &&
@@ -509,7 +515,7 @@ const BoxesInventory = () => {
                       value={addFormData.quantity}
                       onChange={(e) => setAddFormData({ ...addFormData, quantity: e.target.value })}
                       placeholder="0"
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                     />
                   </div>
 
@@ -522,7 +528,7 @@ const BoxesInventory = () => {
                       onChange={(e) => setAddFormData({ ...addFormData, note: e.target.value })}
                       placeholder="e.g. New stock received"
                       rows="3"
-                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all resize-none"
                     />
                   </div>
 
@@ -539,7 +545,7 @@ const BoxesInventory = () => {
                     <motion.button
                       onClick={() => submitAdd(boxes.find((b) => b._id === showAddModal))}
                       disabled={submittingId === showAddModal}
-                      className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       whileHover={{ scale: submittingId === showAddModal ? 1 : 1.02 }}
                       whileTap={{ scale: submittingId === showAddModal ? 1 : 0.98 }}
                     >
@@ -551,11 +557,14 @@ const BoxesInventory = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
 
 export default BoxesInventory;
+
+
+
 

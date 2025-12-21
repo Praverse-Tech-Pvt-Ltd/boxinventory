@@ -4,6 +4,7 @@ import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
 import { downloadChallanPdf, listChallans } from "../../services/challanService";
+import "../../styles/dashboard.css";
 
 const AuditHistory = () => {
   const [audits, setAudits] = useState([]);
@@ -107,74 +108,82 @@ const AuditHistory = () => {
   }, [audits, searchQuery, selectedClient, challanToClientMap]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-slate-900">📊 Audit History</h1>
-          <p className="mt-1 text-sm text-slate-600">Track all inventory movements and transactions</p>
-        </div>
+    <div className="w-full section-spacing">
+      {/* Section Header */}
+      <div className="mb-6">
+        <h2 className="section-title">📊 Audit History</h2>
+        <p className="section-subtitle">Track all inventory movements and transactions</p>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          {/* Filters */}
-          <div className="grid gap-4 md:grid-cols-2 mb-6">
-            <div className="relative">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Search</label>
+      {/* Main Card */}
+      <motion.div
+        className="dashboard-card hover-lift"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {/* Card Header */}
+        <div className="card-header">
+          <h3 className="card-header-title">Audit Records</h3>
+          <span className="text-sm text-gray-500">{filteredAudits.length} records found</span>
+        </div>
+
+        {/* Filters */}
+        <div className="toolbar mb-4">
+          <div className="toolbar-left">
+            <label className="toolbar-label">Filters:</label>
+          </div>
+          <div className="toolbar-right">
+            <div className="flex-1 min-w-[250px] max-w-[400px]">
               <div className="relative">
-                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="text"
                   placeholder="Search by user, box name, category, code..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+                  className="form-input pl-8 text-sm"
                 />
               </div>
             </div>
 
-            <div className="relative">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Filter by Client</label>
-              <select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-              >
-                <option value="">All Clients</option>
-                {clientsList.map((client) => (
-                  <option key={client} value={client}>
-                    {client}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="form-select text-sm"
+            >
+              <option value="">All Clients</option>
+              {clientsList.map((client) => (
+                <option key={client} value={client}>
+                  {client}
+                </option>
+              ))}
+            </select>
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="mt-6">
-            {loadingAudits ? (
-              <div className="text-center py-10 text-slate-600 font-medium">Loading audits...</div>
-            ) : filteredAudits.length === 0 ? (
-              <div className="text-center py-10 text-slate-600 font-medium">No audits found.</div>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-slate-700 font-semibold uppercase tracking-wider text-xs">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Date</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">User</th>
-                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Action</th>
+        {/* Table */}
+        <div className="card-body">
+          {loadingAudits ? (
+            <div className="text-center py-12 text-gray-500 font-medium">Loading audits...</div>
+          ) : filteredAudits.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 font-medium">No audits found.</div>
+          ) : (
+            <div className="table-container">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
                       <th className="px-4 py-3 font-semibold whitespace-nowrap">Quantity</th>
                       <th className="px-4 py-3 font-semibold whitespace-nowrap">Color</th>
                       <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                       <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
                       <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Client</th>
-                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Challan</th>
-                  </tr>
-                </thead>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Client</th>
+                      <th className="px-4 py-3 font-semibold whitespace-nowrap">Challan</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {filteredAudits.map((a, idx) => (
                     <tr
@@ -207,7 +216,7 @@ const AuditHistory = () => {
                         {a.challan ? (
                           <button
                             onClick={() => handleDownload(a.challan)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-sm hover:bg-blue-700 transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-sm hover:bg-red-700 transition-colors"
                           >
                             <FiDownload /> Download
                           </button>
@@ -222,11 +231,12 @@ const AuditHistory = () => {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
 
 export default AuditHistory;
+
 
 

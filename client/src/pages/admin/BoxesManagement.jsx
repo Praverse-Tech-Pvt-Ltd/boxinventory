@@ -6,6 +6,7 @@ import {
   deleteBox,
 } from "../../services/boxService";
 import { toast } from "react-hot-toast";
+import "../../styles/dashboard.css";
 import { FiTrash2, FiCheck, FiPlus, FiX, FiSearch } from "react-icons/fi";
 import { FaRegEdit } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -271,59 +272,61 @@ const BoxesManagement = () => {
   const skeletonRows = Array(3).fill(0);
 
   return (
-    <div className="w-full space-y-6">
-      {/* Add Box Button */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <motion.button
-          onClick={() => {
-            if (showForm && !editingId) {
-              // Form is open and not editing - close it
-              resetForm();
-            } else if (editingId) {
-              // Currently editing - cancel edit
-              resetForm();
-            } else {
-              // Form is closed - open it for new box
-              setEditingId(null);
-              setFormData(getInitialFormData());
-              setShowForm(true);
-            }
-          }}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <motion.div
-            className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
-            initial={{ x: "-100%" }}
-            whileHover={{ x: "100%" }}
-            transition={{ duration: 0.6 }}
-          />
-          {showForm && !editingId ? (
-            <>
-              <FiX className="relative z-10" size={20} />
-              <span className="relative z-10">Cancel</span>
-            </>
-          ) : (
-            <>
-              <FiPlus className="relative z-10" size={20} />
-              <span className="relative z-10">
-                {editingId ? "Cancel Edit" : "Add New Box"}
-              </span>
-            </>
-          )}
-        </motion.button>
+    <div className="w-full section-spacing">
+      {/* Section Header */}
+      <div className="mb-6">
+        <h2 className="section-title">📦 Boxes Management</h2>
+        <p className="section-subtitle">Create, edit and manage box products</p>
+      </div>
 
+      {/* Main Card */}
+      <motion.div
+        className="dashboard-card hover-lift"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {/* Card Header & Add Box Button */}
+        <div className="card-header mb-6">
+          <h3 className="card-header-title">Box Products</h3>
+          <motion.button
+            onClick={() => {
+              if (showForm && !editingId) {
+                resetForm();
+              } else if (editingId) {
+                resetForm();
+              } else {
+                setEditingId(null);
+                setFormData(getInitialFormData());
+                setShowForm(true);
+              }
+            }}
+            className="btn btn-success btn-sm"
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {showForm && !editingId ? (
+              <>
+                <FiX size={16} />
+                <span>Cancel</span>
+              </>
+            ) : (
+              <>
+                <FiPlus size={16} />
+                <span>{editingId ? "Cancel Edit" : "Add New Box"}</span>
+              </>
+            )}
+          </motion.button>
+        </div>
         {editingId && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-sm text-[#C1272D] font-semibold poppins"
+            className="text-sm text-red-600 font-semibold mb-4 px-6"
           >
-            Editing Box
+            ✎ Editing mode - modify details below
           </motion.div>
         )}
-      </div>
 
       {/* Add/Edit Form */}
       <AnimatePresence>
@@ -333,10 +336,9 @@ const BoxesManagement = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
+            className="dashboard-card mb-6"
           >
-          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
-            <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">
+            <h3 className="card-header-title mb-6">
               {editingId ? "Edit Box" : "Add New Box"}
             </h3>
 
@@ -344,7 +346,7 @@ const BoxesManagement = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Image Upload */}
                 <div className="md:col-span-2">
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                  <label className="form-label">
                     Product Image {!editingId && "*"}
                   </label>
                   <div className="flex items-center gap-4">
@@ -352,21 +354,21 @@ const BoxesManagement = () => {
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="block w-full text-sm text-[#2D1B0E] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-[#2D1B0E] hover:file:bg-[#C1272D] hover:file:text-white cursor-pointer"
+                      className="dropzone"
                     />
                     {formData.imagePreview && (
                       <img
                         src={formData.imagePreview}
                         alt="Preview"
-                        className="w-20 h-20 object-cover rounded-lg border-2 border-[#D4AF37]/30"
+                        className="w-20 h-20 object-cover rounded-lg border-2 border-red-300"
                       />
                     )}
                   </div>
                 </div>
 
                 {/* Title */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Title *
                   </label>
                   <input
@@ -375,14 +377,14 @@ const BoxesManagement = () => {
                     value={formData.title}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="Luxury Gift Box"
                   />
                 </div>
 
                 {/* Code */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Code *
                   </label>
                   <input
@@ -391,14 +393,14 @@ const BoxesManagement = () => {
                     value={formData.code}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300 uppercase"
+                    className="form-input uppercase"
                     placeholder="BOX001"
                   />
                 </div>
 
                 {/* Category */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Category *
                   </label>
                   <input
@@ -407,14 +409,14 @@ const BoxesManagement = () => {
                     value={formData.category}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="lotus-pink series"
                   />
                 </div>
 
                 {/* Price */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Price *
                   </label>
                   <input
@@ -425,16 +427,14 @@ const BoxesManagement = () => {
                     required
                     step="0.01"
                     min="0"
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="100.00"
                   />
                 </div>
 
-                {/* Quantity by Color - will be shown after colours are entered */}
-
                 {/* Bag Size */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Bag Size
                   </label>
                   <input
@@ -443,14 +443,14 @@ const BoxesManagement = () => {
                     value={formData.bagSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("bagSize")}
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="6 x 5 x 1.75 inch"
                   />
                 </div>
 
                 {/* Box Inner Size */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Box Inner Size
                   </label>
                   <input
@@ -459,14 +459,14 @@ const BoxesManagement = () => {
                     value={formData.boxInnerSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("boxInnerSize")}
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="4 x 4 x 1.5 inch"
                   />
                 </div>
 
                 {/* Box Outer Size */}
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                <div className="form-group">
+                  <label className="form-label">
                     Box Outer Size
                   </label>
                   <input
@@ -475,14 +475,14 @@ const BoxesManagement = () => {
                     value={formData.boxOuterSize}
                     onChange={handleChange}
                     onBlur={() => handleDimensionBlur("boxOuterSize")}
-                    className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                    className="form-input"
                     placeholder="4.74 x 4.75 x 1.5 inch"
                   />
                 </div>
 
                 {/* Color-Quantity Pairs */}
                 <div className="md:col-span-2">
-                  <label className="block mb-2 text-sm font-semibold text-[#2D1B0E] poppins">
+                  <label className="form-label">
                     Color-Quantity Pairs *
                   </label>
                   <div className="space-y-3">
@@ -494,9 +494,7 @@ const BoxesManagement = () => {
                           onChange={(e) => {
                             const newColor = e.target.value.trim();
                             const updatedQtyByColor = { ...formData.quantityByColor };
-                            // Remove old color entry
                             delete updatedQtyByColor[color];
-                            // Add new color entry with same quantity
                             if (newColor) {
                               updatedQtyByColor[newColor] = qty;
                             }
@@ -507,7 +505,7 @@ const BoxesManagement = () => {
                             }));
                           }}
                           placeholder="Color name"
-                          className="w-40 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                          className="w-40 form-input"
                         />
                         <input
                           type="number"
@@ -524,7 +522,7 @@ const BoxesManagement = () => {
                             }));
                           }}
                           placeholder="Quantity"
-                          className="flex-1 px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+                          className="flex-1 form-input"
                         />
                         <motion.button
                           type="button"
@@ -537,10 +535,11 @@ const BoxesManagement = () => {
                               colours: Object.keys(updatedQtyByColor).join(", ")
                             }));
                           }}
-                          className="px-4 py-3 rounded-xl bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors"
+                          className="btn btn-danger btn-sm"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
+                          <FiTrash2 size={16} />
                           Remove
                         </motion.button>
                       </div>
@@ -556,15 +555,15 @@ const BoxesManagement = () => {
                           }
                         }));
                       }}
-                      className="w-full px-4 py-3 border-2 border-dashed border-[#D4AF37] rounded-xl text-[#C1272D] font-semibold hover:bg-[#FDF9EE] transition-colors flex items-center justify-center gap-2"
+                      className="w-full btn btn-secondary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <FiPlus size={20} />
+                      <FiPlus size={16} />
                       Add Color-Quantity Pair
                     </motion.button>
                   </div>
-                  <p className="mt-2 text-xs text-[#2D1B0E]/60 poppins">
+                  <p className="mt-2 text-xs text-gray-600">
                     Add color-quantity pairs. At least one pair with quantity &gt; 0 is required.
                   </p>
                 </div>
@@ -572,59 +571,49 @@ const BoxesManagement = () => {
 
               {/* Submit Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <motion.button
-                  type="submit"
-                    className="flex-1 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white py-3 rounded-xl font-semibold poppins shadow-lg hover:shadow-xl relative overflow-hidden group transition-all duration-300 w-full"
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <motion.div
-                    className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
-                    initial={{ x: "-100%" }}
-                    whileHover={{ x: "100%" }}
-                    transition={{ duration: 0.6 }}
-                  />
-                  <span className="relative z-10">
-                    {editingId ? "Update Box" : "Create Box"}
-                  </span>
-                </motion.button>
-                {editingId && (
                   <motion.button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-6 py-3 border-2 border-[#C1272D] text-[#C1272D] rounded-xl font-semibold poppins hover:bg-[#C1272D] hover:text-white transition-all duration-300 w-full sm:w-auto"
-                    whileHover={{ scale: 1.02 }}
+                    type="submit"
+                    className="flex-1 btn btn-success"
+                    whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    Cancel
+                    <FiCheck size={16} />
+                    <span>
+                      {editingId ? "Update Box" : "Create Box"}
+                    </span>
                   </motion.button>
-                )}
-              </div>
+                  {editingId && (
+                    <motion.button
+                      type="button"
+                      onClick={resetForm}
+                      className="px-6 btn btn-secondary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <FiX size={16} />
+                      Cancel
+                    </motion.button>
+                  )}
+                </div>
             </form>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Search Bar */}
-      <div className="relative">
-        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
+      <div className="relative mb-6">
+        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <input
           type="text"
           placeholder="Search by name or code..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+          className="form-input pl-12"
         />
       </div>
 
       {/* Boxes Grid */}
-      <motion.div
-        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-5 sm:p-6 md:p-8 relative overflow-hidden"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-[#D4AF37] to-transparent" />
+      <div>
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
@@ -738,18 +727,20 @@ const BoxesManagement = () => {
                   <div className="mt-4 flex flex-col sm:flex-row sm:justify-end gap-3">
                     <motion.button
                       onClick={() => startEdit(box)}
-                      className="px-4 py-2 rounded-lg bg-[#D4AF37] text-[#2D1B0E] font-semibold hover:bg-[#C1272D] hover:text-white transition-colors text-center"
+                      className="btn btn-warning btn-sm"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
+                      <FaRegEdit size={14} />
                       Edit
                     </motion.button>
                     <motion.button
                       onClick={() => handleDelete(box._id, box.title)}
-                      className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors text-center"
+                      className="btn btn-danger btn-sm"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
+                      <FiTrash2 size={14} />
                       Delete
                     </motion.button>
                   </div>
@@ -761,8 +752,8 @@ const BoxesManagement = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
-            <div className="text-sm text-[#2D1B0E] poppins font-medium text-center lg:text-left">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-gray-200">
+            <div className="text-sm text-gray-600 text-center lg:text-left">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
@@ -770,7 +761,7 @@ const BoxesManagement = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="btn btn-secondary btn-sm disabled:opacity-50"
                 whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
               >
@@ -787,14 +778,14 @@ const BoxesManagement = () => {
                   .map((page, idx, arr) => (
                     <React.Fragment key={page}>
                       {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span className="text-[#6B5B4F]">...</span>
+                        <span className="text-gray-400">...</span>
                       )}
                       <motion.button
                         onClick={() => setCurrentPage(page)}
-                        className={`px-4 py-2 rounded-lg font-semibold poppins transition-all duration-300 ${
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                           currentPage === page
-                            ? "bg-[#C1272D] text-white"
-                            : "border-2 border-[#D4AF37] text-[#2D1B0E] hover:bg-[#D4AF37] hover:text-white"
+                            ? "btn btn-primary"
+                            : "btn btn-secondary"
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -807,7 +798,7 @@ const BoxesManagement = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="btn btn-secondary btn-sm disabled:opacity-50"
                 whileHover={{ scale: currentPage === totalPages ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === totalPages ? 1 : 0.95 }}
               >
@@ -816,6 +807,8 @@ const BoxesManagement = () => {
             </div>
           </div>
         )}
+      </div>
+
       </motion.div>
 
       {/* Confirm delete dialog */}
