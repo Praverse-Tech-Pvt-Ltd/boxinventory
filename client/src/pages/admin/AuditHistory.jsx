@@ -16,6 +16,23 @@ const safeToNumber = (value) => {
   return Number.isFinite(num) ? num : 0;
 };
 
+// Helper function to format currency for PDF (using INR instead of ₹ to avoid font issues)
+const formatCurrencyForPDF = (amount) => {
+  return `INR ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+};
+
+// Helper function to display client name (replace empty/dash with "Unnamed Client")
+const getClientDisplay = (clientName) => {
+  if (!clientName || clientName === "-" || clientName.trim() === "") {
+    return "Unnamed Client";
+  }
+  return clientName;
+};
+
+// Helper function to format currency for UI display (with thousands separator and ₹)
+const formatCurrencyUI = (amount) => {
+  return `₹${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+
 // Function to generate PDF using jsPDF
 const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
   try {
@@ -62,7 +79,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     yPosition += 8;
 
     // Table Headers
-    const columns = ["Date", "Client", "Challan No.", "Taxable (₹)", "GST (₹)", "Total (₹)"];
+    const columns = ["Date", "Client", "Challan No.", "Taxable (INR)", "GST (INR)", "Total (INR)"];
     const colWidths = [25, 35, 25, 30, 25, 30];
 
     doc.setFont("helvetica", "bold");
@@ -122,20 +139,20 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
       doc.text(item.date, xPosition, yPosition, { maxWidth: colWidths[0] - 2 });
       xPosition += colWidths[0];
 
-      doc.text(item.client, xPosition, yPosition, { maxWidth: colWidths[1] - 2 });
+      doc.text(getClientDisplay(item.client), xPosition, yPosition, { maxWidth: colWidths[1] - 2 });
       xPosition += colWidths[1];
 
       doc.text(item.challanNo, xPosition, yPosition, { maxWidth: colWidths[2] - 2 });
       xPosition += colWidths[2];
 
       doc.setFont("helvetica", "bold");
-      doc.text(`₹${item.taxableAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
+      doc.text(formatCurrencyForPDF(item.taxableAmount), xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
       xPosition += colWidths[3];
 
-      doc.text(`₹${item.gstAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
+      doc.text(formatCurrencyForPDF(item.gstAmount), xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
       xPosition += colWidths[4];
 
-      doc.text(`₹${item.totalAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
+      doc.text(formatCurrencyForPDF(item.totalAmount), xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
 
       yPosition += rowHeight;
       rowIndex++;
@@ -156,13 +173,13 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.text("TOTAL", xPosition, yPosition, { maxWidth: colWidths[0] + colWidths[1] + colWidths[2] - 2 });
 
     xPosition = margin + colWidths[0] + colWidths[1] + colWidths[2] + 1;
-    doc.text(`₹${totals.totalTaxable.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
+    doc.text(formatCurrencyForPDF(totals.totalTaxable), xPosition, yPosition, { maxWidth: colWidths[3] - 2, align: "right" });
     xPosition += colWidths[3];
 
-    doc.text(`₹${totals.totalGst.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
+    doc.text(formatCurrencyForPDF(totals.totalGst), xPosition, yPosition, { maxWidth: colWidths[4] - 2, align: "right" });
     xPosition += colWidths[4];
 
-    doc.text(`₹${totals.totalAmount.toFixed(2)}`, xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
+    doc.text(formatCurrencyForPDF(totals.totalAmount), xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
 
     yPosition += 12;
 
@@ -175,7 +192,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
     doc.setFontSize(11);
-    doc.text(`₹${totals.totalTaxable.toFixed(2)}`, margin + 70, yPosition);
+    doc.text(formatCurrencyForPDF(totals.totalTaxable), margin + 70, yPosition);
 
     yPosition += 10;
     doc.setFont("helvetica", "normal");
@@ -185,7 +202,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(217, 119, 6);
     doc.setFontSize(11);
-    doc.text(`₹${totals.totalGst.toFixed(2)}`, margin + 70, yPosition);
+    doc.text(formatCurrencyForPDF(totals.totalGst), margin + 70, yPosition);
 
     yPosition += 10;
     doc.setFont("helvetica", "normal");
@@ -195,7 +212,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
     doc.setFontSize(11);
-    doc.text(`₹${totals.totalAmount.toFixed(2)}`, margin + 70, yPosition);
+    doc.text(formatCurrencyForPDF(totals.totalAmount), margin + 70, yPosition);
 
     // Save PDF
     const filename = `sales-report-${new Date().toISOString().split("T")[0]}.pdf`;
@@ -383,7 +400,7 @@ const AuditHistory = () => {
       return {
         _id: challan._id,
         date: new Date(challan.createdAt).toLocaleDateString(),
-        client: challan.clientDetails?.name || "-",
+        client: getClientDisplay(challan.clientDetails?.name || "-"),
         challanNo: challan.number || "-",
         taxableAmount: amounts.taxable,
         gstAmount: amounts.gst,
@@ -655,15 +672,15 @@ const AuditHistory = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Total Sales (Excl. GST)</p>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">₹{salesTotals.totalTaxable.toFixed(2)}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-900">{formatCurrencyUI(salesTotals.totalTaxable)}</p>
                   </div>
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <p className="text-xs uppercase tracking-wide text-slate-600 font-semibold">Total GST Collected</p>
-                    <p className="mt-2 text-2xl font-bold text-amber-600">₹{salesTotals.totalGst.toFixed(2)}</p>
+                    <p className="mt-2 text-2xl font-bold text-amber-600">{formatCurrencyUI(salesTotals.totalGst)}</p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg border border-red-200">
                     <p className="text-xs uppercase tracking-wide text-red-600 font-semibold">Grand Total (Incl. GST)</p>
-                    <p className="mt-2 text-2xl font-bold text-red-600">₹{salesTotals.totalAmount.toFixed(2)}</p>
+                    <p className="mt-2 text-2xl font-bold text-red-600">{formatCurrencyUI(salesTotals.totalAmount)}</p>
                   </div>
                 </div>
 
@@ -709,17 +726,17 @@ const AuditHistory = () => {
                           <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">{item.date}</td>
                           <td className="px-4 py-3 text-slate-700 text-sm">{item.client}</td>
                           <td className="px-4 py-3 text-slate-700 font-mono text-sm">{item.challanNo}</td>
-                          <td className="px-4 py-3 text-slate-700 font-semibold text-sm">₹{item.taxableAmount.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-amber-600 font-semibold text-sm">₹{item.gstAmount.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-red-600 font-bold text-sm">₹{item.totalAmount.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-slate-700 font-semibold text-sm">{formatCurrencyUI(item.taxableAmount)}</td>
+                          <td className="px-4 py-3 text-amber-600 font-semibold text-sm">{formatCurrencyUI(item.gstAmount)}</td>
+                          <td className="px-4 py-3 text-red-600 font-bold text-sm">{formatCurrencyUI(item.totalAmount)}</td>
                         </tr>
                       ))}
                       {/* Totals Row */}
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
                         <td colSpan="3" className="px-4 py-4 text-slate-900 text-sm">TOTAL</td>
-                        <td className="px-4 py-4 text-slate-900 text-sm">₹{salesTotals.totalTaxable.toFixed(2)}</td>
-                        <td className="px-4 py-4 text-amber-600 text-sm">₹{salesTotals.totalGst.toFixed(2)}</td>
-                        <td className="px-4 py-4 text-red-600 text-sm">₹{salesTotals.totalAmount.toFixed(2)}</td>
+                        <td className="px-4 py-4 text-slate-900 text-sm">{formatCurrencyUI(salesTotals.totalTaxable)}</td>
+                        <td className="px-4 py-4 text-amber-600 text-sm">{formatCurrencyUI(salesTotals.totalGst)}</td>
+                        <td className="px-4 py-4 text-red-600 text-sm">{formatCurrencyUI(salesTotals.totalAmount)}</td>
                       </tr>
                     </tbody>
                   </table>
