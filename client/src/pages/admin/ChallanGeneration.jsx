@@ -862,7 +862,6 @@ const ChallanGeneration = () => {
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
                     </td>
-                    </td>
                     <td className="px-4 py-4 text-sm text-right">
                       <input
                         type="number"
