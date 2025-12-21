@@ -32,6 +32,7 @@ const getClientDisplay = (clientName) => {
 // Helper function to format currency for UI display (with thousands separator and ₹)
 const formatCurrencyUI = (amount) => {
   return `₹${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+};
 
 // Function to generate PDF using jsPDF
 const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
