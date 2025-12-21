@@ -344,7 +344,7 @@ const BoxesManagement = () => {
                 {/* Image Upload */}
                 <div className="md:col-span-2">
                   <label className="form-label">
-                    Product Image
+                    Product Image (Optional)
                   </label>
                   <div className="flex items-center gap-4">
                     <input
@@ -398,7 +398,7 @@ const BoxesManagement = () => {
                 {/* Category */}
                 <div className="form-group">
                   <label className="form-label">
-                    Category
+                    Category (Optional)
                   </label>
                   <input
                     type="text"
@@ -431,7 +431,7 @@ const BoxesManagement = () => {
                 {/* Bag Size */}
                 <div className="form-group">
                   <label className="form-label">
-                    Bag Size
+                    Bag Size (Optional)
                   </label>
                   <input
                     type="text"
@@ -447,7 +447,7 @@ const BoxesManagement = () => {
                 {/* Box Inner Size */}
                 <div className="form-group">
                   <label className="form-label">
-                    Box Inner Size
+                    Box Inner Size (Optional)
                   </label>
                   <input
                     type="text"
@@ -463,7 +463,7 @@ const BoxesManagement = () => {
                 {/* Box Outer Size */}
                 <div className="form-group">
                   <label className="form-label">
-                    Box Outer Size
+                    Box Outer Size (Optional)
                   </label>
                   <input
                     type="text"

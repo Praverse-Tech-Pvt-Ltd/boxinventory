@@ -55,7 +55,7 @@ async function generateChallanNumber(includeGST) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, includeGST, clientDetails, manualItems, hsnCode, inventoryType } = req.body;
+    const { auditIds, notes, terms, note, includeGST, clientDetails, manualItems, hsnCode, inventoryType } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     const invType = inventoryType === "add" ? "add" : "subtract"; // Default to subtract (dispatch)
@@ -277,6 +277,7 @@ export const createChallan = async (req, res) => {
       includeGST: includeGSTFlag,
       createdBy: req.user._id,
       inventoryType: invType,
+      hsnCode: "481920", // Fixed HSN Code for Paper Products
     };
 
     // HSN Code is now fixed to 481920 and handled in PDF generator

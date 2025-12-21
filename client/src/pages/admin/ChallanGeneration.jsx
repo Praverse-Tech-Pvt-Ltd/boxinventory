@@ -44,19 +44,42 @@ const createManualRow = () => ({
   coloursInput: "",
 });
 
+const DEFAULT_TERMS = `Terms & Conditions:
+• Parcel will be dispatched after payment confirmation.
+• Order once placed – No refund / No cancellation / No exchange.
+• Customised order – colour difference is possible in printing.
+• Order will be shipped within 24 hours of payment received.
+• Delivery timeline: 2–6 working days, depending on location.`;
+
+const DEFAULT_NOTE = `Note:
+~ Prices are without GST. GST @ 18% applicable.
+~ Shipping & packaging charges are additional.
+~ Shipping charges depend on weight and dimensions.
+~ Goods once sold will not be taken back / exchanged / refunded.
+~ Final amount will be shared after order confirmation.
+~ Payment confirmation screenshot is mandatory.
+~ Dispatch within 24–48 hours after payment.
+~ Delivery:
+  • 1–2 days Mumbai
+  • 5–7 days PAN India
+  • May delay during festive season
+~ Opening video mandatory for damage claims.
+~ Tracking ID shared after pickup.`;
+
 const ChallanGeneration = () => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState({});
-  const [terms, setTerms] = useState("");
+  const [terms, setTerms] = useState(DEFAULT_TERMS);
+  const [note, setNote] = useState(DEFAULT_NOTE);
   const [submitting, setSubmitting] = useState(false);
 
   const [recentChallans, setRecentChallans] = useState([]);
   const [loadingChallans, setLoadingChallans] = useState(true);
    const [editRows, setEditRows] = useState({});
   const [clientDetails, setClientDetails] = useState(() => createEmptyClientDetails());
-  const [hsnCode, setHsnCode] = useState("");
+  const [hsnCode, setHsnCode] = useState("481920");
   const [inventoryType, setInventoryType] = useState("subtract"); // 'add' or 'subtract'
   const [manualRows, setManualRows] = useState([]);
   const [boxes, setBoxes] = useState([]);
@@ -270,10 +293,11 @@ const ChallanGeneration = () => {
 
   const resetCurrentClientDraft = () => {
     setSelected({});
-    setTerms("");
+    setTerms(DEFAULT_TERMS);
+    setNote(DEFAULT_NOTE);
     setEditRows({});
     setClientDetails(createEmptyClientDetails());
-    setHsnCode("");
+    setHsnCode("481920");
     setInventoryType("subtract");
     setManualRows([]);
   };
@@ -626,6 +650,7 @@ const ChallanGeneration = () => {
       lineItems,
       manualItems: manualItemsPayload,
       terms,
+      note,
       hsnCode,
       inventoryType,
       clientDetails: hasClientInfo ? clientDetails : undefined,
