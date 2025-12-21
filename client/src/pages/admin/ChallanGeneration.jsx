@@ -900,7 +900,7 @@ const ChallanGeneration = () => {
               </button>
             </div>
             {manualRowsComputed.length === 0 ? (
-              <p className="text-sm text-[#6B5B4F] mt-4">
+              <p className="text-sm text-theme-text-secondary mt-4">
                 {boxesLoading
                   ? "Loading product catalog..."
                   : "Click “Add Manual Item” to input a product code and create a custom line."}
@@ -910,33 +910,33 @@ const ChallanGeneration = () => {
                 {manualRowsComputed.map((row) => (
                   <div
                     key={row.id}
-                    className="rounded-2xl border border-[#E8DCC6] bg-white/80 px-4 py-4 space-y-4"
+                    className="rounded-2xl border border-theme-border bg-theme-surface px-4 py-4 space-y-4 shadow-md"
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div>
-                        <p className="text-sm font-semibold text-[#2D1B0E]">
+                        <p className="text-sm font-semibold text-theme-text-primary">
                           Manual Item #{row.idx + 1}
                         </p>
-                        <p className="text-xs text-[#6B5B4F]">
+                        <p className="text-xs text-theme-text-secondary">
                           {row.boxTitle
                             ? `${row.boxTitle} ${row.boxCategory ? `• ${row.boxCategory}` : ""}`
                             : "Enter product code to fetch box details"}
                         </p>
                         {row.availableColours?.length > 0 && (
-                          <p className="text-[11px] text-[#8B7355] mt-1">
+                          <p className="text-[11px] text-theme-text-muted mt-1">
                             Available colours: {row.availableColours.join(", ")}
                           </p>
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-[11px] uppercase tracking-wide text-[#6B5B4F]">
+                        <p className="text-[11px] uppercase tracking-wide text-theme-text-muted">
                           Line Total
                         </p>
-                        <p className="text-lg font-bold text-[#C1272D]">₹{row.total.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-theme-primary">₹{row.total.toFixed(2)}</p>
                         <button
                           type="button"
                           onClick={() => removeManualRow(row.id)}
-                          className="mt-2 text-xs text-[#A01F24] hover:text-[#7B1518]"
+                          className="mt-2 text-xs text-theme-primary hover:text-theme-primary-light"
                         >
                           Remove
                         </button>
@@ -961,7 +961,7 @@ const ChallanGeneration = () => {
                           <button
                             type="button"
                             onClick={() => handleManualCodeLookup(row.id, row.searchCode)}
-                            className="px-3 py-2 rounded-lg border border-red-200 text-theme-primary text-xs font-semibold hover:bg-red-50"
+                            className="px-3 py-2 rounded-lg border border-theme-primary text-theme-primary text-xs font-semibold hover:bg-theme-primary hover:text-white transition-colors"
                           >
                             Fetch
                           </button>
@@ -1084,19 +1084,19 @@ const ChallanGeneration = () => {
             )}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-theme-text-secondary font-semibold">Summary</p>
-              <div className="mt-3 space-y-2 text-sm text-theme-text-primary">
+            <div className="rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-md">
+              <p className="text-xs uppercase tracking-wide text-theme-text-muted font-semibold mb-3">Summary</p>
+              <div className="mt-3 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-semibold">₹{summary.subtotal.toFixed(2)}</span>
+                  <span className="text-theme-text-secondary">Subtotal</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>GST (5%)</span>
-                  <span className="font-semibold text-theme-primary">₹{summary.gstAmount.toFixed(2)}</span>
+                  <span className="text-theme-text-secondary">GST (5%)</span>
+                  <span className="font-bold text-theme-primary">₹{summary.gstAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Round Off</span>
+                  <span className="text-theme-text-secondary">Round Off</span>
                   <span
                     className={`font-semibold ${
                       summary.roundOff > 0
@@ -1113,9 +1113,9 @@ const ChallanGeneration = () => {
                         }`}
                   </span>
                 </div>
-                <div className="flex items-center justify-between border-t border-dashed border-theme-border pt-2">
-                  <span className="font-semibold text-theme-primary">Total Payable</span>
-                  <span className="text-lg font-bold text-theme-primary">₹{summary.grandTotal.toFixed(2)}</span>
+                <div className="flex items-center justify-between border-t border-dashed border-theme-border pt-3 mt-3">
+                  <span className="font-bold text-theme-text-primary">Total Payable</span>
+                  <span className="text-xl font-bold text-theme-primary">₹{summary.grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1309,14 +1309,14 @@ const ChallanGeneration = () => {
           </div>
 
           {loadingBatches ? (
-            <p className="text-xs text-[#6B5B4F] mt-3">Loading pending client batches...</p>
+            <p className="text-xs text-theme-text-secondary mt-3">Loading pending client batches...</p>
           ) : clientBatches.length === 0 ? (
-            <p className="text-xs text-[#6B5B4F] mt-3">
+            <p className="text-xs text-theme-text-secondary mt-3">
               No clients batched yet. Add the current client selection to start batching.
             </p>
           ) : (
             <div className="mt-4 space-y-3">
-              <div className="text-xs font-semibold text-[#6B5B4F] uppercase tracking-wide">
+              <div className="text-xs font-semibold text-theme-text-muted uppercase tracking-wide">
                 Pending Client Challans ({clientBatches.length})
               </div>
               {clientBatches.map((batch, idx) => {
@@ -1329,14 +1329,14 @@ const ChallanGeneration = () => {
                 return (
                   <div
                     key={batchId || idx}
-                    className="rounded-xl border border-[#E8DCC6] bg-theme-surface px-4 py-3 space-y-3"
+                    className="rounded-xl border border-theme-border bg-theme-surface px-4 py-3 space-y-3 shadow-md"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="space-y-1 text-xs text-[#2D1B0E]">
-                        <div className="font-semibold text-sm">
+                      <div className="space-y-1 text-xs text-theme-text-primary">
+                        <div className="font-semibold text-sm text-theme-text-primary">
                           {idx + 1}. {batch.label}
                         </div>
-                        <div>
+                        <div className="text-theme-text-secondary">
                           Audits:{" "}
                           <span className="font-semibold">
                             {batch.auditIds?.length || 0}
@@ -1348,7 +1348,7 @@ const ChallanGeneration = () => {
                               : 0}
                           </span>
                         </div>
-                        <div className="text-xs text-theme-text-secondary">
+                        <div className="text-xs text-theme-text-muted">
                           HSN: {batch.hsnCode || "N/A"} • Terms:{" "}
                           {batch.terms
                             ? `${batch.terms.slice(0, 40)}${
@@ -1571,8 +1571,8 @@ const ChallanGeneration = () => {
           <h3 className="card-header-title">Client-wise Challan Summary</h3>
         </div>
         <div className="overflow-x-auto mb-6">
-          <table className="min-w-full text-left border border-theme-border rounded-lg overflow-hidden text-xs sm:text-sm">
-            <thead className="bg-theme-surface-2 text-theme-text-primary font-semibold">
+          <table className="min-w-full text-left border border-theme-border rounded-lg overflow-hidden text-xs sm:text-sm bg-theme-surface">
+            <thead style={{ background: "var(--theme-table-header-bg)" }} className="text-theme-table-header-text font-semibold">
               <tr>
                 <th className="px-4 py-3">Client</th>
                 <th className="px-4 py-3">Challans</th>
@@ -1580,7 +1580,7 @@ const ChallanGeneration = () => {
                 <th className="px-4 py-3">Last Challan</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-theme-border">
               {loadingChallans ? (
                 <tr>
                   <td
@@ -1601,17 +1601,17 @@ const ChallanGeneration = () => {
                 </tr>
               ) : (
                 clientChallanSummary.map((g, idx) => (
-                  <tr key={g.clientName} className={`border-t border-theme-border transition-colors hover:bg-theme-surface-2 ${idx % 2 === 0 ? "bg-theme-surface" : "bg-theme-surface-2"}`}>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary">
+                  <tr key={g.clientName} className="border-t border-theme-border transition-colors hover:bg-theme-row-hover">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-semibold">
                       {g.clientName}
                     </td>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-semibold">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-bold">
                       {g.challanCount}
                     </td>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-semibold">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-bold">
                       {g.totalItems}
                     </td>
-                    <td className="px-4 py-3 text-xs sm:text-sm text-[#2D1B0E]">
+                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-secondary">
                       {g.latestDate ? g.latestDate.toLocaleString() : "-"}
                     </td>
                   </tr>
@@ -1621,23 +1621,23 @@ const ChallanGeneration = () => {
           </table>
         </div>
 
-        <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-4">Recent Challans</h3>
+        <h3 className="text-2xl font-bold playfair text-theme-primary mb-4">Recent Challans</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left border-2 border-[#E8DCC6] rounded-xl overflow-hidden">
-            <thead className="bg-[#F4E4BC] text-[#2D1B0E]">
+          <table className="min-w-full text-left border border-theme-border rounded-lg overflow-hidden bg-theme-surface">
+            <thead style={{ background: "var(--theme-table-header-bg)" }} className="text-theme-table-header-text font-semibold">
               <tr>
-                <th className="px-4 py-3 text-sm font-semibold">Number</th>
-                <th className="px-4 py-3 text-sm font-semibold">Client</th>
-                <th className="px-4 py-3 text-sm font-semibold">Created</th>
-                <th className="px-4 py-3 text-sm font-semibold">Items</th>
-                <th className="px-4 py-3 text-sm font-semibold">Actions</th>
+                <th className="px-4 py-3 text-sm">Number</th>
+                <th className="px-4 py-3 text-sm">Client</th>
+                <th className="px-4 py-3 text-sm">Created</th>
+                <th className="px-4 py-3 text-sm">Items</th>
+                <th className="px-4 py-3 text-sm">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody className="divide-y divide-theme-border">
               {loadingChallans ? (
                 <tr>
                   <td
-                    className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium"
+                    className="px-4 py-6 text-center text-theme-text-secondary poppins font-medium"
                     colSpan={5}
                   >
                     Loading...
@@ -1646,7 +1646,7 @@ const ChallanGeneration = () => {
               ) : recentChallans.length === 0 ? (
                 <tr>
                   <td
-                    className="px-4 py-6 text-center text-[#2D1B0E] poppins font-medium"
+                    className="px-4 py-6 text-center text-theme-text-secondary poppins font-medium"
                     colSpan={5}
                   >
                     No challans yet
