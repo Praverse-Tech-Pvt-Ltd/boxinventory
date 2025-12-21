@@ -13,6 +13,7 @@ export const createChallan = async ({
   manualItems,
   clientDetails,
   hsnCode,
+  inventoryType,
 }) => {
   const payload = {
     auditIds,
@@ -29,6 +30,9 @@ export const createChallan = async ({
   }
   if (typeof hsnCode === "string" && hsnCode.trim()) {
     payload.hsnCode = hsnCode.trim();
+  }
+  if (typeof inventoryType === "string" && inventoryType.trim()) {
+    payload.inventoryType = inventoryType.trim();
   }
 
   if (Array.isArray(lineItems)) {
