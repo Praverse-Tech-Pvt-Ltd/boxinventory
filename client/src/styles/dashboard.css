@@ -108,20 +108,19 @@ body, html {
 }
 
 /* Dark mode background */
-[data-theme="dark"] body,
-[data-theme="dark"] html {
+html[data-theme="dark"],
+html[data-theme="dark"] body {
   background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%);
 }
 
 #root {
   background: linear-gradient(135deg, #c41e3a 0%, #a01628 50%, #8b1428 100%);
   transition: background var(--transition-base);
+  min-height: 100vh;
 }
 
 [data-theme="dark"] #root {
   background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1a202c 100%);
-}
-  min-height: 100vh;
 }
 
 /* ============================================
