@@ -91,7 +91,7 @@ const Users = () => {
         {/* Card Header with Toolbar */}
         <div className="card-header">
           <h3 className="card-header-title">Users List</h3>
-          <span className="text-sm text-gray-500">{users.length} total users</span>
+          <span className="text-theme-text-muted">{users.length} total users</span>
         </div>
 
         {/* Table */}
@@ -110,15 +110,15 @@ const Users = () => {
                 {loading ? (
                   skeletonRows.map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      <td><div className="h-4 bg-gray-200 rounded w-3/4"></div></td>
-                      <td><div className="h-4 bg-gray-200 rounded w-5/6"></div></td>
-                      <td><div className="h-4 bg-gray-200 rounded w-1/2"></div></td>
-                      <td className="text-right"><div className="h-4 bg-gray-200 rounded w-12 ml-auto"></div></td>
+                      <td><div className="h-4 bg-gray-300 dark:bg-slate-600 rounded w-3/4"></div></td>
+                      <td><div className="h-4 bg-gray-300 dark:bg-slate-600 rounded w-5/6"></div></td>
+                      <td><div className="h-4 bg-gray-300 dark:bg-slate-600 rounded w-1/2"></div></td>
+                      <td className="text-right"><div className="h-4 bg-gray-300 dark:bg-slate-600 rounded w-12 ml-auto"></div></td>
                     </tr>
                   ))
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500 font-medium">
+                    <td colSpan="4" className="px-6 py-12 text-center text-theme-text-muted font-medium">
                       No users found.
                     </td>
                   </tr>
@@ -128,7 +128,7 @@ const Users = () => {
                 return (
                   <motion.tr
                     key={u._id}
-                    className="border-b border-slate-200/40 hover:bg-slate-50/40 transition-colors duration-200"
+                    className="border-b border-theme-border hover:bg-theme-row-hover transition-colors duration-200"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
@@ -139,9 +139,9 @@ const Users = () => {
                         value={isEditing ? formState.name : u.name}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-slate-800 ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-theme-text-primary ${
                           isEditing
-                            ? "border-2 border-red-400/50 bg-white focus:ring-2 focus:ring-red-400/50 focus:border-red-400"
+                            ? "border-2 border-theme-primary/50 bg-theme-input-bg focus:ring-2 focus:ring-theme-primary/30 focus:border-theme-primary"
                             : "bg-transparent border-none"
                         }`}
                       />
@@ -152,9 +152,9 @@ const Users = () => {
                         value={isEditing ? formState.email : u.email}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-slate-800 ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-theme-text-primary ${
                           isEditing
-                            ? "border-2 border-red-400/50 bg-white focus:ring-2 focus:ring-red-400/50 focus:border-red-400"
+                            ? "border-2 border-theme-primary/50 bg-theme-input-bg focus:ring-2 focus:ring-theme-primary/30 focus:border-theme-primary"
                             : "bg-transparent border-none"
                         }`}
                       />
@@ -165,9 +165,9 @@ const Users = () => {
                         value={isEditing ? formState.role : u.role}
                         onChange={handleChange}
                         disabled={!isEditing}
-                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-slate-800 ${
+                        className={`w-full px-3 py-2 rounded-lg text-sm poppins text-theme-text-primary ${
                           isEditing
-                            ? "border-2 border-red-400/50 bg-white focus:ring-2 focus:ring-red-400/50 focus:border-red-400"
+                            ? "border-2 border-theme-primary/50 bg-theme-input-bg focus:ring-2 focus:ring-theme-primary/30 focus:border-theme-primary"
                             : "bg-transparent border-none"
                         }`}
                       >

@@ -192,13 +192,13 @@ const BoxesInventory = () => {
         {/* Card Header */}
         <div className="card-header">
           <h3 className="card-header-title">Inventory Overview</h3>
-          <span className="text-sm text-gray-500">{filteredBoxes.length} boxes available</span>
+          <span className="text-sm text-theme-text-secondary">{filteredBoxes.length} boxes available</span>
         </div>
 
         {/* Search Bar */}
         <div className="card-body mb-6">
           <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-theme-text-muted" size={18} />
             <input
               type="text"
               placeholder="Search by name, code, or category..."
@@ -219,17 +219,17 @@ const BoxesInventory = () => {
               {skeletonRows.map((_, idx) => (
                 <div
                   key={idx}
-                  className="animate-pulse rounded-lg border border-slate-200 p-4 bg-slate-50"
+                  className="animate-pulse rounded-lg border border-theme-border p-4 bg-theme-surface-2"
                 >
-                  <div className="h-40 w-full bg-slate-300 rounded-lg mb-4"></div>
-                  <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-slate-300 rounded w-1/2 mb-2"></div>
-                  <div className="h-4 bg-slate-300 rounded w-2/3"></div>
+                  <div className="h-40 w-full bg-theme-surface-hover rounded-lg mb-4"></div>
+                  <div className="h-4 bg-theme-surface-hover rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-theme-surface-hover rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-theme-surface-hover rounded w-2/3"></div>
                 </div>
               ))}
             </div>
           ) : currentBoxes.length === 0 ? (
-            <div className="text-center py-12 text-slate-600 font-medium">
+            <div className="text-center py-12 text-theme-text-primary font-medium">
               {searchQuery ? "🔍 No boxes found matching your search." : "📦 No boxes found."}
             </div>
         ) : (
@@ -237,19 +237,19 @@ const BoxesInventory = () => {
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 relative group"
+                className="rounded-lg border border-theme-border bg-theme-surface overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 relative group"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.02 }}
               >
                 {/* Image Container */}
-                <div className="relative overflow-hidden bg-slate-100 h-48">
+                <div className="relative overflow-hidden bg-theme-surface-hover h-48">
                   <img src={box.image} alt={box.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   <button
                     onClick={() =>
                       setExpandedId((prev) => (prev === box._id ? null : box._id))
                     }
-                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-700"
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-theme-primary text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-theme-primary-dark"
                   >
                     {expandedId === box._id ? "Close" : "View"}
                   </button>
@@ -282,24 +282,24 @@ const BoxesInventory = () => {
                 <div className="p-5">
                   {/* Title and Category */}
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <h3 className="text-lg font-bold text-slate-900 line-clamp-2">{box.title}</h3>
-                    <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+                    <h3 className="text-lg font-bold text-theme-text-primary line-clamp-2">{box.title}</h3>
+                    <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-theme-accent/10 text-theme-accent-dark">
                       {box.category || "other"}
                     </span>
                   </div>
 
                   {/* Product Info */}
-                  <div className="space-y-2 text-sm text-slate-600 mb-4">
+                  <div className="space-y-2 text-sm text-theme-text-primary mb-4">
                     <div className="flex justify-between">
-                      <span className="font-medium text-slate-700">Code:</span>
-                      <span className="font-mono text-slate-900 font-semibold">{box.code}</span>
+                      <span className="font-medium text-theme-text-secondary">Code:</span>
+                      <span className="font-mono text-theme-text-primary font-semibold">{box.code}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-medium text-slate-700">Price:</span>
-                      <span className="text-slate-900 font-semibold">₹{Number(box.price).toFixed(2)}</span>
+                      <span className="font-medium text-theme-text-secondary">Price:</span>
+                      <span className="text-theme-text-primary font-semibold">₹{Number(box.price).toFixed(2)}</span>
                     </div>
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="font-medium text-slate-700 block mb-2">Stock by Color:</span>
+                    <div className="pt-2 border-t border-theme-border">
+                      <span className="font-medium text-theme-text-secondary block mb-2">Stock by Color:</span>
                       <div className="space-y-1.5">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (
                           box.colours.map((color) => {
@@ -310,15 +310,15 @@ const BoxesInventory = () => {
                             const outOfStock = qty === 0;
                             return (
                               <div key={color} className="flex justify-between items-center text-xs">
-                                <span className="text-slate-600">{color}</span>
-                                <span className={`font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                                <span className="text-theme-text-secondary">{color}</span>
+                                <span className={`font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-theme-primary/10 text-theme-primary-dark' : 'bg-theme-accent/10 text-theme-accent-dark'}`}>
                                   {qty} units
                                 </span>
                               </div>
                             );
                           })
                         ) : (
-                          <span className="text-xs text-slate-500 italic">No colors available</span>
+                          <span className="text-xs text-theme-text-muted italic">No colors available</span>
                         )}
                       </div>
                     </div>
@@ -338,14 +338,14 @@ const BoxesInventory = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="mt-5 pt-4 border-t border-slate-200 space-y-2">
+                  <div className="mt-5 pt-4 border-t border-theme-border space-y-2">
                     <div className="flex flex-col gap-2">
                       {/* Color and Quantity Inputs */}
                       <div className="flex gap-2 items-center">
                         <select
                           value={colorInputs[box._id] ?? ""}
                           onChange={(e) => handleColorChange(box._id, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          className="flex-1 px-3 py-2 border border-theme-input-border rounded-lg bg-theme-input-bg text-theme-text-primary text-xs font-medium focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent"
                         >
                           <option value="">Select color</option>
                           {Array.isArray(box.colours) &&
@@ -362,7 +362,7 @@ const BoxesInventory = () => {
                           placeholder="Qty"
                           value={qtyInputs[box._id] ?? ""}
                           onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                          className="w-14 px-2 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          className="w-14 px-2 py-2 border border-theme-input-border rounded-lg bg-theme-input-bg text-theme-text-primary text-xs font-medium focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent"
                         />
                       </div>
                       {/* Action Buttons */}

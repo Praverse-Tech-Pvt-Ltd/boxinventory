@@ -1,0 +1,134 @@
+/* ============================================
+   THEME TOKENS SYSTEM
+   Light Mode + Dark Mode
+   Vishal Paper Product - Red + Gold Brand
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  /* BACKGROUNDS */
+  --theme-bg: #faf8f6;
+  --theme-surface: #ffffff;
+  --theme-surface-2: #f9f3ed;
+  --theme-surface-hover: #fef5ed;
+  
+  /* TEXT */
+  --theme-text-primary: #1f2937;
+  --theme-text-secondary: #6b7280;
+  --theme-text-muted: #9ca3af;
+  --theme-placeholder: #d1d5db;
+  
+  /* BORDERS & DIVIDERS */
+  --theme-border: #e5e7eb;
+  --theme-border-subtle: rgba(0, 0, 0, 0.05);
+  
+  /* INTERACTIVE */
+  --theme-row-hover: #fef5ed;
+  --theme-input-bg: #ffffff;
+  --theme-input-border: #ddd;
+  --theme-focus-ring: rgba(220, 38, 38, 0.2);
+  
+  /* BRAND COLORS */
+  --theme-primary: #dc2626;
+  --theme-primary-light: #ef4444;
+  --theme-primary-dark: #b91c1c;
+  
+  --theme-accent: #d97706;
+  --theme-accent-light: #f59e0b;
+  --theme-accent-dark: #b45309;
+  
+  /* SHADOWS */
+  --theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* TABLE SPECIFIC */
+  --theme-table-header-bg: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #d97706 100%);
+  --theme-table-header-text: #ffffff;
+  --theme-table-row-border: #e5e7eb;
+  --theme-table-row-alt-bg: transparent;
+}
+
+[data-theme="dark"] {
+  /* BACKGROUNDS - Very dark base, slightly lighter surfaces */
+  --theme-bg: #0f172a;
+  --theme-surface: #1a2844;
+  --theme-surface-2: #0f1f38;
+  --theme-surface-hover: #1f2f48;
+  
+  /* TEXT - Near white for primary, light grey for secondary */
+  --theme-text-primary: #f1f5f9;
+  --theme-text-secondary: #cbd5e1;
+  --theme-text-muted: #94a3b8;
+  --theme-placeholder: #64748b;
+  
+  /* BORDERS & DIVIDERS - Subtle but visible */
+  --theme-border: rgba(226, 232, 240, 0.12);
+  --theme-border-subtle: rgba(226, 232, 240, 0.05);
+  
+  /* INTERACTIVE */
+  --theme-row-hover: rgba(255, 255, 255, 0.06);
+  --theme-input-bg: #0f1f38;
+  --theme-input-border: rgba(226, 232, 240, 0.15);
+  --theme-focus-ring: rgba(239, 68, 68, 0.15);
+  
+  /* BRAND COLORS - Bright & vibrant for dark mode */
+  --theme-primary: #ff5555;
+  --theme-primary-light: #ff7777;
+  --theme-primary-dark: #dd3333;
+  
+  --theme-accent: #ffd700;
+  --theme-accent-light: #ffed4e;
+  --theme-accent-dark: #dab300;
+  
+  /* SHADOWS - More pronounced for dark mode */
+  --theme-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --theme-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --theme-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  
+  /* TABLE SPECIFIC */
+  --theme-table-header-bg: linear-gradient(90deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+  --theme-table-header-text: #0f172a;
+  --theme-table-row-border: rgba(226, 232, 240, 0.1);
+  --theme-table-row-alt-bg: rgba(255, 255, 255, 0.02);
+}
+
+/* UTILITY CLASSES FOR COMMON PATTERNS */
+
+.text-primary {
+  color: var(--theme-text-primary);
+}
+
+.text-secondary {
+  color: var(--theme-text-secondary);
+}
+
+.text-muted {
+  color: var(--theme-text-muted);
+}
+
+.bg-surface {
+  background-color: var(--theme-surface);
+}
+
+.bg-surface-2 {
+  background-color: var(--theme-surface-2);
+}
+
+.border-subtle {
+  border-color: var(--theme-border);
+}
+
+.input-field {
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-input-border);
+  color: var(--theme-text-primary);
+}
+
+.input-field::placeholder {
+  color: var(--theme-placeholder);
+}
+
+.row-hover {
+  background-color: var(--theme-row-hover);
+}

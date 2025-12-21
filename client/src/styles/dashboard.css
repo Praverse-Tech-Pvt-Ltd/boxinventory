@@ -3,46 +3,42 @@
    Premium SaaS/ERP Dashboard Styling
    ============================================ */
 
-/* ============================================
-   1. ROOT & GLOBAL STYLES - LIGHT MODE
-   ============================================ */
+@import './theme-tokens.css';
 
+/* Map theme tokens to legacy variable names for backward compatibility */
 :root,
 [data-theme="light"] {
-  /* PRIMARY RED */
-  --primary-red: #dc2626;
-  --primary-red-dark: #b91c1c;
-  --primary-red-light: #ef4444;
+  --primary-red: var(--theme-primary);
+  --primary-red-dark: var(--theme-primary-dark);
+  --primary-red-light: var(--theme-primary-light);
   
-  /* ACCENT GOLD */
-  --accent-gold: #d97706;
-  --accent-gold-dark: #b45309;
-  --accent-gold-light: #f59e0b;
+  --accent-gold: var(--theme-accent);
+  --accent-gold-dark: var(--theme-accent-dark);
+  --accent-gold-light: var(--theme-accent-light);
   
-  /* LEGACY - for compatibility */
-  --primary-blue: #dc2626;
-  --primary-blue-dark: #b91c1c;
-  --primary-blue-light: #ef4444;
+  --primary-blue: var(--theme-primary);
+  --primary-blue-dark: var(--theme-primary-dark);
+  --primary-blue-light: var(--theme-primary-light);
   
-  --success-green: #d97706;
-  --danger-red: #dc2626;
-  --warning-amber: #d97706;
+  --success-green: var(--theme-accent);
+  --danger-red: var(--theme-primary);
+  --warning-amber: var(--theme-accent);
   
-  --bg-primary: #faf8f6;
-  --bg-secondary: #ffffff;
-  --bg-hover: #fef5ed;
-  --bg-tertiary: #f9f3ed;
+  --bg-primary: var(--theme-bg);
+  --bg-secondary: var(--theme-surface);
+  --bg-hover: var(--theme-surface-hover);
+  --bg-tertiary: var(--theme-surface-2);
   
-  --border-light: #e5e7eb;
-  --border-medium: #d1d5db;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
+  --border-light: var(--theme-border);
+  --border-medium: var(--theme-border);
+  --text-primary: var(--theme-text-primary);
+  --text-secondary: var(--theme-text-secondary);
+  --text-muted: var(--theme-text-muted);
   
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+  --shadow-sm: var(--theme-shadow-sm);
+  --shadow-md: var(--theme-shadow-md);
+  --shadow-lg: var(--theme-shadow-lg);
+  --shadow-xl: var(--theme-shadow-lg);
   
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -52,45 +48,38 @@
   --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ============================================
-   DARK MODE VARIABLES
-   ============================================ */
-
 [data-theme="dark"] {
-  /* PRIMARY RED - adjusted for dark mode */
-  --primary-red: #f87171;
-  --primary-red-dark: #ef4444;
-  --primary-red-light: #fca5a5;
+  --primary-red: var(--theme-primary);
+  --primary-red-dark: var(--theme-primary-dark);
+  --primary-red-light: var(--theme-primary-light);
   
-  /* ACCENT GOLD - adjusted for dark mode */
-  --accent-gold: #fcd34d;
-  --accent-gold-dark: #fbbf24;
-  --accent-gold-light: #fef3c7;
+  --accent-gold: var(--theme-accent);
+  --accent-gold-dark: var(--theme-accent-dark);
+  --accent-gold-light: var(--theme-accent-light);
   
-  /* LEGACY */
-  --primary-blue: #f87171;
-  --primary-blue-dark: #ef4444;
-  --primary-blue-light: #fca5a5;
+  --primary-blue: var(--theme-primary);
+  --primary-blue-dark: var(--theme-primary-dark);
+  --primary-blue-light: var(--theme-primary-light);
   
-  --success-green: #fcd34d;
-  --danger-red: #f87171;
-  --warning-amber: #fcd34d;
+  --success-green: var(--theme-accent);
+  --danger-red: var(--theme-primary);
+  --warning-amber: var(--theme-accent);
   
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-hover: #0f3460;
-  --bg-tertiary: #2d3e50;
+  --bg-primary: var(--theme-bg);
+  --bg-secondary: var(--theme-surface);
+  --bg-hover: var(--theme-surface-hover);
+  --bg-tertiary: var(--theme-surface-2);
   
-  --border-light: #2d3e50;
-  --border-medium: #3d4e60;
-  --text-primary: #f5f5f5;
-  --text-secondary: #b0b0b0;
-  --text-muted: #808080;
+  --border-light: var(--theme-border);
+  --border-medium: var(--theme-border);
+  --text-primary: var(--theme-text-primary);
+  --text-secondary: var(--theme-text-secondary);
+  --text-muted: var(--theme-text-muted);
   
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.7);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.7);
+  --shadow-sm: var(--theme-shadow-sm);
+  --shadow-md: var(--theme-shadow-md);
+  --shadow-lg: var(--theme-shadow-lg);
+  --shadow-xl: var(--theme-shadow-lg);
   
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -105,12 +94,13 @@ body, html {
   background: linear-gradient(135deg, #c41e3a 0%, #a01628 50%, #8b1428 100%);
   min-height: 100vh;
   transition: background var(--transition-base);
+  color: var(--theme-text-primary);
 }
 
 /* Dark mode background */
-html[data-theme="dark"],
-html[data-theme="dark"] body {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+[data-theme="dark"] body,
+[data-theme="dark"] html {
+  background: linear-gradient(135deg, #0f172a 0%, #1a2844 50%, #0f172a 100%);
 }
 
 #root {
@@ -120,7 +110,7 @@ html[data-theme="dark"] body {
 }
 
 [data-theme="dark"] #root {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1a2844 50%, #0f172a 100%);
 }
 
 /* ============================================
@@ -138,20 +128,20 @@ html[data-theme="dark"] body {
 .dashboard-subtitle {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--theme-text-secondary);
   margin-top: 4px;
 }
 
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--theme-text-primary);
   margin-bottom: 16px;
 }
 
 .section-subtitle {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--theme-text-secondary);
   margin-bottom: 12px;
 }
 
@@ -160,21 +150,25 @@ html[data-theme="dark"] body {
    ============================================ */
 
 .dashboard-card {
-  background: var(--bg-secondary);
-  border: 2px solid rgba(217, 119, 6, 0.3);
+  background: var(--theme-surface);
+  border: 2px solid var(--theme-border-subtle);
   border-radius: var(--radius-lg);
   padding: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--theme-shadow-md);
   transition: all var(--transition-base);
 }
 
+.dashboard-card:hover {
+  box-shadow: var(--theme-shadow-lg);
+  border-color: var(--theme-border);
+}
+
 [data-theme="dark"] .dashboard-card {
-  background: #16213e;
-  border-color: rgba(252, 211, 77, 0.25);
+  border-color: rgba(255, 215, 0, 0.15);
 }
 
 [data-theme="dark"] .dashboard-card:hover {
-  border-color: rgba(252, 211, 77, 0.35);
+  border-color: rgba(255, 215, 0, 0.3);
 }
 
 .dashboard-card-compact {
@@ -187,13 +181,13 @@ html[data-theme="dark"] body {
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 3px solid #d97706;
+  border-bottom: 3px solid var(--theme-accent);
 }
 
 .card-header-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--theme-text-primary);
 }
 
 .card-body {
@@ -322,46 +316,41 @@ html[data-theme="dark"] body {
 }
 
 .dashboard-table thead {
-  background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #d97706 100%);
-  border-bottom: 3px solid #b45309;
-}
-
-[data-theme="dark"] .dashboard-table thead {
-  background: linear-gradient(90deg, #fbbf24 0%, #fcd34d 50%, #fbbf24 100%);
-  border-bottom-color: #f59e0b;
-  color: #1a1a2e;
-}
-
-[data-theme="dark"] .dashboard-table thead th {
-  color: #1a1a2e;
+  background: var(--theme-table-header-bg);
+  border-bottom: 3px solid var(--theme-accent-dark);
 }
 
 .dashboard-table thead th {
   padding: 14px 16px;
   text-align: left;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--theme-table-header-text);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .dashboard-table tbody tr {
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--theme-table-row-border);
   transition: background-color var(--transition-base);
+  background-color: var(--theme-surface);
+}
+
+.dashboard-table tbody tr:nth-child(even) {
+  background-color: var(--theme-table-row-alt-bg);
 }
 
 .dashboard-table tbody tr:hover {
-  background-color: rgba(217, 119, 6, 0.08);
+  background-color: var(--theme-row-hover);
 }
 
 .dashboard-table tbody td {
   padding: 14px 16px;
-  color: var(--text-primary);
+  color: var(--theme-text-primary);
 }
 
 .dashboard-table tbody td.text-muted {
-  color: var(--text-secondary);
+  color: var(--theme-text-secondary);
   font-size: 13px;
 }
 
@@ -395,7 +384,7 @@ html[data-theme="dark"] body {
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--theme-text-primary);
   margin-bottom: 6px;
 }
 
@@ -404,41 +393,32 @@ html[data-theme="dark"] body {
 .form-textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1.5px solid #ddd;
+  border: 1.5px solid var(--theme-input-border);
   border-radius: var(--radius-md);
   font-size: 14px;
-  color: var(--text-primary);
-  background: #ffffff;
+  color: var(--theme-text-primary);
+  background: var(--theme-input-bg);
   transition: all var(--transition-base);
   font-family: inherit;
 }
 
-[data-theme="dark"] .form-input,
-[data-theme="dark"] .form-select,
-[data-theme="dark"] .form-textarea {
-  background: #0f3460;
-  border-color: #2d3e50;
-  color: #f5f5f5;
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--theme-placeholder);
 }
 
 .form-input:hover,
 .form-select:hover,
 .form-textarea:hover {
-  border-color: var(--border-medium);
+  border-color: var(--theme-border);
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
-}
-
-[data-theme="dark"] .form-input:focus,
-[data-theme="dark"] .form-select:focus,
-[data-theme="dark"] .form-textarea:focus {
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
 }
 
 .form-input::placeholder {
@@ -488,6 +468,11 @@ html[data-theme="dark"] body {
   flex-wrap: wrap;
 }
 
+[data-theme="dark"] .toolbar {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.06) 0%, rgba(255, 215, 0, 0.02) 100%);
+  border-color: rgba(255, 215, 0, 0.1);
+}
+
 .toolbar-left {
   display: flex;
   align-items: center;
@@ -507,7 +492,7 @@ html[data-theme="dark"] body {
 .toolbar-label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--theme-text-secondary);
 }
 
 /* ============================================
@@ -715,57 +700,14 @@ html[data-theme="dark"] body {
   color: var(--text-secondary);
 }
 
-[data-theme="dark"] .table-container {
-  border-color: var(--border-light);
+/* ============================================
+   13. DARK MODE UTILITIES (DEPRECATED - USE THEME TOKENS)
+   ============================================ */
+
+/* All dark mode styling is now handled by theme tokens in theme-tokens.css
+   These utility classes remain for backward compatibility */
+
+[data-theme="dark"] {
+  color-scheme: dark;
 }
 
-[data-theme="dark"] .dashboard-table tbody tr {
-  border-color: var(--border-light);
-}
-
-[data-theme="dark"] .dashboard-table tbody tr:hover {
-  background-color: rgba(251, 191, 36, 0.08);
-}
-
-[data-theme="dark"] .toolbar {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.04) 100%);
-  border-color: rgba(251, 191, 36, 0.1);
-}
-
-[data-theme="dark"] .badge {
-  background: rgba(251, 191, 36, 0.15);
-}
-
-[data-theme="dark"] .dropzone {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.04) 100%);
-  border-color: rgba(251, 191, 36, 0.4);
-}
-
-[data-theme="dark"] .btn-primary {
-  background: #f87171;
-  color: #1a1a2e;
-}
-
-[data-theme="dark"] .btn-primary:hover {
-  background: #fca5a5;
-  color: #1a1a2e;
-}
-
-[data-theme="dark"] .btn-success {
-  background: #fcd34d;
-  color: #1a1a2e;
-}
-
-[data-theme="dark"] .btn-success:hover {
-  background: #fef3c7;
-  color: #1a1a2e;
-}
-
-[data-theme="dark"] .card-header {
-  border-bottom-color: rgba(251, 191, 36, 0.4);
-}
-
-[data-theme="dark"] input::placeholder,
-[data-theme="dark"] textarea::placeholder {
-  color: #64748b;
-}

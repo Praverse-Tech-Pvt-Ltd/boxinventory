@@ -559,7 +559,7 @@ const BoxesManagement = () => {
                       Add Color-Quantity Pair
                     </motion.button>
                   </div>
-                  <p className="mt-2 text-xs text-gray-600">
+                  <p className="mt-2 text-xs text-theme-text-muted">
                     Add color-quantity pairs. At least one pair with quantity &gt; 0 is required.
                   </p>
                 </div>
@@ -613,16 +613,16 @@ const BoxesManagement = () => {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {skeletonRows.map((_, idx) => (
-              <div key={idx} className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-[#F9F7F4]">
-                <div className="h-40 w-full bg-[#E8DCC6] rounded-xl mb-4"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-2/3"></div>
+              <div key={idx} className="animate-pulse rounded-2xl border-2 border-theme-border p-4 bg-theme-surface-2">
+                <div className="h-40 w-full bg-theme-surface-hover rounded-xl mb-4"></div>
+                <div className="h-4 bg-theme-surface-hover rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-theme-surface-hover rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-theme-surface-hover rounded w-2/3"></div>
               </div>
             ))}
           </div>
         ) : currentBoxes.length === 0 ? (
-          <div className="text-center py-12 text-[#2D1B0E] poppins font-medium">
+          <div className="text-center py-12 text-theme-text-primary poppins font-medium">
             {searchQuery ? "No boxes found matching your search." : "No boxes found."}
           </div>
         ) : (
@@ -630,7 +630,7 @@ const BoxesManagement = () => {
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
+                className="rounded-2xl border-2 border-theme-accent/30 bg-theme-surface overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
@@ -644,7 +644,7 @@ const BoxesManagement = () => {
                   />
                   <button
                     onClick={() => setExpandedId((prev) => (prev === box._id ? null : box._id))}
-                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-theme-primary/90 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                     title={expandedId === box._id ? "Minimize" : "Expand"}
                   >
                     {expandedId === box._id ? "Minimize" : "Expand"}
@@ -685,12 +685,12 @@ const BoxesManagement = () => {
                 {/* Details */}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <h4 className="text-lg font-semibold playfair text-[#C1272D]">{box.title}</h4>
-                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#2D1B0E]">
+                    <h4 className="text-lg font-semibold playfair text-theme-primary">{box.title}</h4>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-theme-accent/10 text-theme-accent-dark">
                       {box.category || "uncategorized"}
                     </span>
                   </div>
-                  <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
+                  <div className="mt-2 space-y-1 text-sm text-theme-text-primary poppins">
                     <div><span className="font-semibold">Code:</span> <span className="font-mono">{box.code}</span></div>
                     <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
                     <div>
@@ -709,7 +709,7 @@ const BoxesManagement = () => {
                             )
                           })
                         ) : (
-                          <span className="text-xs text-gray-500">No colors available</span>
+                          <span className="text-xs text-theme-text-muted">No colors available</span>
                         )}
                       </div>
                     </div>
@@ -748,8 +748,8 @@ const BoxesManagement = () => {
 
         {/* Pagination */}
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-gray-200">
-            <div className="text-sm text-gray-600 text-center lg:text-left">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-theme-border">
+            <div className="text-sm text-theme-text-secondary text-center lg:text-left">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
               {filteredBoxes.length} boxes
             </div>
@@ -774,7 +774,7 @@ const BoxesManagement = () => {
                   .map((page, idx, arr) => (
                     <React.Fragment key={page}>
                       {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span className="text-gray-400">...</span>
+                        <span className="text-theme-text-muted">...</span>
                       )}
                       <motion.button
                         onClick={() => setCurrentPage(page)}
