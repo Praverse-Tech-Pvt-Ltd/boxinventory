@@ -58,7 +58,10 @@ export const createChallan = async (req, res) => {
     const { auditIds, notes, terms, note, includeGST, clientDetails, manualItems, hsnCode, inventoryType } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
-    const invType = inventoryType === "add" ? "add" : "subtract"; // Default to subtract (dispatch)
+    
+    // Normalize inventory type: "add" means add stock, anything else means subtract/dispatch
+    const invType = String(inventoryType).toLowerCase().trim() === "add" ? "add" : "subtract";
+    console.log(`[createChallan] inventoryType received: "${inventoryType}", normalized to: "${invType}"`);
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
       return res
@@ -110,8 +113,9 @@ export const createChallan = async (req, res) => {
         }
       });
       
-      // Fetch boxes for inventory check
-      if (auditUsageByBox.size > 0) {
+      // Fetch boxes for inventory check - ONLY for SUBTRACT mode
+      if (invType === "subtract" && auditUsageByBox.size > 0) {
+        console.log(`[audit-validation] Running validation for SUBTRACT mode`);
         const boxIds = Array.from(auditUsageByBox.keys());
         const boxes = await Box.find({ _id: { $in: boxIds } });
         
@@ -124,12 +128,15 @@ export const createChallan = async (req, res) => {
           for (const [colorKey, usedQty] of colorUsage.entries()) {
             const currentQty = quantityByColor.get(colorKey) || 0;
             if (currentQty < usedQty) {
+              console.log(`[audit-validation-failed] Box: ${box.code}, Color: ${colorKey}, Available: ${currentQty}, Required: ${usedQty}`);
               return res.status(400).json({
                 message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
               });
             }
           }
         }
+      } else if (auditUsageByBox.size > 0) {
+        console.log(`[audit-update] Skipping validation for ADD mode`);
       }
     }
     
@@ -280,7 +287,9 @@ export const createChallan = async (req, res) => {
       const boxes = await Box.find({ _id: { $in: boxIds } });
 
       // First pass: validate (only for subtract/dispatch operations)
+      console.log(`[inventory-update] invType: "${invType}", checking validation: ${invType === "subtract"}`);
       if (invType === "subtract") {
+        console.log(`[inventory-validation] Running validation for SUBTRACT mode`);
         for (const box of boxes) {
           const boxIdStr = String(box._id);
           const colorUsage = usageByBox.get(boxIdStr);
@@ -290,12 +299,15 @@ export const createChallan = async (req, res) => {
           for (const [colorKey, usedQty] of colorUsage.entries()) {
             const currentQty = quantityByColor.get(colorKey) || 0;
             if (currentQty < usedQty) {
+              console.log(`[validation-failed] Box: ${box.code}, Color: ${colorKey}, Available: ${currentQty}, Required: ${usedQty}`);
               return res.status(400).json({
                 message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
               });
             }
           }
         }
+      } else {
+        console.log(`[inventory-update] Skipping validation for ADD mode`);
       }
 
       // Second pass: apply updates (add or subtract based on inventoryType)
