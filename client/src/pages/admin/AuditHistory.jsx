@@ -79,14 +79,14 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 8;
 
-    // Table configuration with proper column widths
+    // Table configuration with proper column widths - adjusted to fit page width (186mm content)
     const columns = [
-      { name: "Date", width: 18, align: "left" },
-      { name: "Client", width: 40, align: "left" },
-      { name: "Challan No.", width: 20, align: "left" },
-      { name: "Taxable (INR)", width: 28, align: "right" },
-      { name: "GST (INR)", width: 25, align: "right" },
-      { name: "Total (INR)", width: 29, align: "right" }
+      { name: "Date", width: 16, align: "left" },
+      { name: "Client", width: 35, align: "left" },
+      { name: "Challan No.", width: 18, align: "center" },
+      { name: "Taxable (INR)", width: 29, align: "right" },
+      { name: "GST (INR)", width: 26, align: "right" },
+      { name: "Total (INR)", width: 32, align: "right" }
     ];
 
     // Helper function to truncate and add ellipsis
@@ -110,10 +110,11 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
 
-    let xPos = margin + 1;
+    let xPos = margin + 2; // Add padding from left
+    const headerPadding = 1;
     columns.forEach((col) => {
-      doc.text(col.name, xPos, yPosition, {
-        maxWidth: col.width - 2,
+      doc.text(col.name, xPos + headerPadding, yPosition, {
+        maxWidth: col.width - 4,
         align: col.align
       });
       xPos += col.width;
@@ -134,10 +135,11 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
         doc.setFontSize(9);
         doc.setTextColor(255, 255, 255);
 
-        let xPos = margin + 1;
+        let xPos = margin + 2; // Add padding from left
+        const headerPadding = 1;
         columns.forEach((col) => {
-          doc.text(col.name, xPos, yPosition, {
-            maxWidth: col.width - 2,
+          doc.text(col.name, xPos + headerPadding, yPosition, {
+            maxWidth: col.width - 4,
             align: col.align
           });
           xPos += col.width;
@@ -159,32 +161,33 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
       doc.setFontSize(8);
       doc.setTextColor(0, 0, 0);
 
-      xPos = margin + 1;
+      xPos = margin + 2; // Add padding from left
+      const cellPadding = 1;
       
       // Date column
-      doc.text(data.date, xPos, yPosition, { maxWidth: columns[0].width - 2, align: columns[0].align });
+      doc.text(data.date, xPos + cellPadding, yPosition, { maxWidth: columns[0].width - 4, align: columns[0].align });
       xPos += columns[0].width;
 
       // Client column - truncate if needed
-      const clientText = truncateText(data.client, columns[1].width - 3, 8);
-      doc.text(clientText, xPos, yPosition, { maxWidth: columns[1].width - 2, align: columns[1].align });
+      const clientText = truncateText(data.client, columns[1].width - 4, 8);
+      doc.text(clientText, xPos + cellPadding, yPosition, { maxWidth: columns[1].width - 4, align: columns[1].align });
       xPos += columns[1].width;
 
       // Challan No. column - ensure no overflow
-      const challanText = truncateText(data.challan, columns[2].width - 3, 8);
-      doc.text(challanText, xPos, yPosition, { maxWidth: columns[2].width - 2, align: columns[2].align });
+      const challanText = truncateText(data.challan, columns[2].width - 4, 8);
+      doc.text(challanText, xPos + cellPadding, yPosition, { maxWidth: columns[2].width - 4, align: columns[2].align });
       xPos += columns[2].width;
 
       // Numeric columns - right aligned, bold
       doc.setFont("helvetica", isTotal ? "bold" : "bold");
       
-      doc.text(data.taxable, xPos, yPosition, { maxWidth: columns[3].width - 2, align: columns[3].align });
+      doc.text(data.taxable, xPos + cellPadding, yPosition, { maxWidth: columns[3].width - 4, align: columns[3].align });
       xPos += columns[3].width;
 
-      doc.text(data.gst, xPos, yPosition, { maxWidth: columns[4].width - 2, align: columns[4].align });
+      doc.text(data.gst, xPos + cellPadding, yPosition, { maxWidth: columns[4].width - 4, align: columns[4].align });
       xPos += columns[4].width;
 
-      doc.text(data.total, xPos, yPosition, { maxWidth: columns[5].width - 2, align: columns[5].align });
+      doc.text(data.total, xPos + cellPadding, yPosition, { maxWidth: columns[5].width - 4, align: columns[5].align });
 
       yPosition += 7;
     };
