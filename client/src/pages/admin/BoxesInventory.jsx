@@ -174,62 +174,79 @@ const BoxesInventory = () => {
   const skeletonRows = Array(3).fill(0);
 
   return (
-    <div className="space-y-6">
-      <div className="relative">
-        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
-        <input
-          type="text"
-          placeholder="Search by name, code, or category..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-        />
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-3xl font-bold text-slate-900">📦 Box Inventory</h1>
+          <p className="mt-1 text-sm text-slate-600">Manage and track your inventory stock levels</p>
+        </div>
       </div>
 
-      <motion.div
-        className="bg-white rounded-3xl shadow-2xl border-2 border-[#D4AF37]/30 p-6 md:p-8 relative overflow-hidden"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {skeletonRows.map((_, idx) => (
-              <div
-                key={idx}
-                className="animate-pulse rounded-2xl border-2 border-[#E8DCC6] p-4 bg-[#F9F7F4]"
-              >
-                <div className="h-40 w-full bg-[#E8DCC6] rounded-xl mb-4"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-[#E8DCC6] rounded w-2/3"></div>
-              </div>
-            ))}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Bar */}
+        <div className="mb-8">
+          <div className="relative">
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search by name, code, or category..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200"
+            />
           </div>
-        ) : currentBoxes.length === 0 ? (
-          <div className="text-center py-12 text-[#2D1B0E] poppins font-medium">
-            {searchQuery ? "No boxes found matching your search." : "No boxes found."}
-          </div>
+        </div>
+
+        {/* Content Container */}
+        <motion.div
+          className="bg-white rounded-xl shadow-sm border border-slate-200 p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {skeletonRows.map((_, idx) => (
+                <div
+                  key={idx}
+                  className="animate-pulse rounded-lg border border-slate-200 p-4 bg-slate-50"
+                >
+                  <div className="h-40 w-full bg-slate-300 rounded-lg mb-4"></div>
+                  <div className="h-4 bg-slate-300 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-slate-300 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-slate-300 rounded w-2/3"></div>
+                </div>
+              ))}
+            </div>
+          ) : currentBoxes.length === 0 ? (
+            <div className="text-center py-12 text-slate-600 font-medium">
+              {searchQuery ? "🔍 No boxes found matching your search." : "📦 No boxes found."}
+            </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentBoxes.map((box, index) => (
               <motion.div
                 key={box._id}
-                className="rounded-2xl border-2 border-[#D4AF37]/30 bg-white overflow-hidden shadow-lg hover:shadow-xl transition-shadow relative"
+                className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 relative group"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.02 }}
               >
-                <div className="relative group">
-                  <img src={box.image} alt={box.title} className="w-full h-44 object-cover" />
+                {/* Image Container */}
+                <div className="relative overflow-hidden bg-slate-100 h-48">
+                  <img src={box.image} alt={box.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   <button
                     onClick={() =>
                       setExpandedId((prev) => (prev === box._id ? null : box._id))
                     }
-                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#C1272D]/90 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-blue-700"
                   >
-                    {expandedId === box._id ? "Minimize" : "Expand"}
+                    {expandedId === box._id ? "Close" : "View"}
                   </button>
                 </div>
 
@@ -256,40 +273,47 @@ const BoxesInventory = () => {
                   )}
                 </AnimatePresence>
 
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="text-lg font-semibold playfair text-[#C1272D]">{box.title}</h4>
-                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#F4E4BC] text-[#2D1B0E]">
-                      {box.category || "uncategorized"}
+                {/* Card Content */}
+                <div className="p-5">
+                  {/* Title and Category */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <h3 className="text-lg font-bold text-slate-900 line-clamp-2">{box.title}</h3>
+                    <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+                      {box.category || "other"}
                     </span>
                   </div>
-                  <div className="mt-2 space-y-1 text-sm text-[#2D1B0E] poppins">
-                    <div>
-                      <span className="font-semibold">Code:</span>{" "}
-                      <span className="font-mono">{box.code}</span>
+
+                  {/* Product Info */}
+                  <div className="space-y-2 text-sm text-slate-600 mb-4">
+                    <div className="flex justify-between">
+                      <span className="font-medium text-slate-700">Code:</span>
+                      <span className="font-mono text-slate-900 font-semibold">{box.code}</span>
                     </div>
-                    <div>
-                      <span className="font-semibold">Price:</span> ₹
-                      {Number(box.price).toFixed(2)}
+                    <div className="flex justify-between">
+                      <span className="font-medium text-slate-700">Price:</span>
+                      <span className="text-slate-900 font-semibold">₹{Number(box.price).toFixed(2)}</span>
                     </div>
-                    <div>
-                      <span className="font-semibold">Available by Color:</span>
-                      <div className="ml-2 mt-1 space-y-1">
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="font-medium text-slate-700 block mb-2">Stock by Color:</span>
+                      <div className="space-y-1.5">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (
                           box.colours.map((color) => {
                             const qty =
                               box.quantityByColor?.[color] ||
                               box.quantityByColor?.get?.(color) ||
                               0;
+                            const outOfStock = qty === 0;
                             return (
-                              <div key={color} className="text-xs">
-                                <span className="font-mono">{color}:</span>{" "}
-                                <span className="font-semibold">{qty}</span>
+                              <div key={color} className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600">{color}</span>
+                                <span className={`font-semibold px-2 py-0.5 rounded ${outOfStock ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                  {qty} units
+                                </span>
                               </div>
                             );
                           })
                         ) : (
-                          <span className="text-xs text-gray-500">No colors available</span>
+                          <span className="text-xs text-slate-500 italic">No colors available</span>
                         )}
                       </div>
                     </div>
@@ -308,23 +332,21 @@ const BoxesInventory = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2">
+                  {/* Actions */}
+                  <div className="mt-5 pt-4 border-t border-slate-200 space-y-2">
                     <div className="flex flex-col gap-2">
-                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      {/* Color and Quantity Inputs */}
+                      <div className="flex gap-2 items-center">
                         <select
                           value={colorInputs[box._id] ?? ""}
                           onChange={(e) => handleColorChange(box._id, e.target.value)}
-                          className="w-full sm:flex-1 px-2 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] text-xs"
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="">Color</option>
+                          <option value="">Select color</option>
                           {Array.isArray(box.colours) &&
                             box.colours.map((color) => (
                               <option key={color} value={color}>
-                                {color} (
-                                {box.quantityByColor?.[color] ||
-                                  box.quantityByColor?.get?.(color) ||
-                                  0}
-                                )
+                                {color} ({box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0})
                               </option>
                             ))}
                         </select>
@@ -335,27 +357,27 @@ const BoxesInventory = () => {
                           placeholder="Qty"
                           value={qtyInputs[box._id] ?? ""}
                           onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                          className="w-full sm:w-16 px-2 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] text-xs"
-                        />
+                          className="w-14 px-2 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       </div>
-                      <div className="flex gap-2 w-full">
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-2">
                         <motion.button
                           onClick={() => submitSubtract(box)}
                           disabled={submittingId === box._id}
-                          className="flex-1 px-2 py-2 rounded-lg bg-[#C1272D] text-white font-semibold text-xs hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                          whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
-                          whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
+                          className="flex-1 px-3 py-2.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          whileHover={{ scale: submittingId === box._id ? 1 : 1.02 }}
+                          whileTap={{ scale: submittingId === box._id ? 1 : 0.98 }}
                         >
-                          {submittingId === box._id ? "..." : "Subtract"}
+                          {submittingId === box._id ? "..." : "➖ Out"}
                         </motion.button>
                         <motion.button
                           onClick={() => setShowAddModal(box._id)}
                           disabled={submittingId === box._id}
-                          className="flex-1 px-2 py-2 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                          whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
-                          whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
+                          className="flex-1 px-3 py-2.5 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          whileHover={{ scale: submittingId === box._id ? 1 : 1.02 }}
+                          whileTap={{ scale: submittingId === box._id ? 1 : 0.98 }}
                         >
-                          <FiPlus size={14} /> Add
+                          <FiPlus size={14} /> In
                         </motion.button>
                       </div>
                     </div>
@@ -367,22 +389,21 @@ const BoxesInventory = () => {
         )}
 
         {!loading && filteredBoxes.length > 0 && totalPages > 1 && (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-6 pt-6 border-t border-[#E8DCC6]">
-            <div className="text-sm text-[#2D1B0E] poppins font-medium text-center lg:text-left">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of{" "}
-              {filteredBoxes.length} boxes
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mt-8 pt-6 border-t border-slate-200">
+            <div className="text-sm text-slate-600 font-medium text-center lg:text-left">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredBoxes.length)} of {filteredBoxes.length} boxes
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
                 whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
               >
-                Previous
+                ← Previous
               </motion.button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(
                     (page) =>
@@ -393,14 +414,14 @@ const BoxesInventory = () => {
                   .map((page, idx, arr) => (
                     <React.Fragment key={page}>
                       {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span className="text-[#6B5B4F]">...</span>
+                        <span className="text-slate-400">...</span>
                       )}
                       <motion.button
                         onClick={() => setCurrentPage(page)}
-                        className={`px-4 py-2 rounded-lg font-semibold poppins transition-all duration-300 ${
+                        className={`px-3 py-2 rounded-lg font-semibold transition-all ${
                           currentPage === page
-                            ? "bg-[#C1272D] text-white"
-                            : "border-2 border-[#D4AF37] text-[#2D1B0E] hover:bg-[#D4AF37] hover:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                         }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -413,11 +434,11 @@ const BoxesInventory = () => {
               <motion.button
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold poppins disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D4AF37] hover:text-white transition-all duration-300"
+                className="px-3 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
                 whileHover={{ scale: currentPage === totalPages ? 1 : 1.05 }}
                 whileTap={{ scale: currentPage === totalPages ? 1 : 0.95 }}
               >
-                Next
+                Next →
               </motion.button>
             </div>
           </div>
@@ -427,40 +448,45 @@ const BoxesInventory = () => {
         <AnimatePresence>
           {showAddModal && boxes.find((b) => b._id === showAddModal) && (
             <motion.div
-              className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAddModal(null)}
             >
               <motion.div
-                className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border-2 border-[#D4AF37]/30"
+                className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm border border-slate-200"
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.95, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold playfair text-[#C1272D]">Add Boxes</h3>
+                {/* Modal Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900">Add Stock</h3>
+                    <p className="text-sm text-slate-600 mt-1">Increase inventory for selected box</p>
+                  </div>
                   <button
                     onClick={() => setShowAddModal(null)}
-                    className="text-[#6B5B4F] hover:text-[#2D1B0E] transition-colors"
+                    className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg"
                   >
                     <FiX size={24} />
                   </button>
                 </div>
 
+                {/* Form Fields */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
-                      Color
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Color <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={addFormData.color}
                       onChange={(e) => setAddFormData({ ...addFormData, color: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     >
-                      <option value="">Select Color</option>
+                      <option value="">Select a color</option>
                       {Array.isArray(boxes.find((b) => b._id === showAddModal)?.colours) &&
                         boxes
                           .find((b) => b._id === showAddModal)
@@ -473,8 +499,8 @@ const BoxesInventory = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
-                      Quantity
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Quantity <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -482,28 +508,29 @@ const BoxesInventory = () => {
                       min="1"
                       value={addFormData.quantity}
                       onChange={(e) => setAddFormData({ ...addFormData, quantity: e.target.value })}
-                      placeholder="Enter quantity"
-                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      placeholder="0"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
-                      Remarks (Optional)
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Remarks
                     </label>
                     <textarea
                       value={addFormData.note}
                       onChange={(e) => setAddFormData({ ...addFormData, note: e.target.value })}
-                      placeholder="e.g. New stock received from supplier"
+                      placeholder="e.g. New stock received"
                       rows="3"
-                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none"
                     />
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-6 border-t border-slate-200">
                     <motion.button
                       onClick={() => setShowAddModal(null)}
-                      className="flex-1 px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold hover:bg-[#F4E4BC] transition-colors"
+                      className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -512,11 +539,11 @@ const BoxesInventory = () => {
                     <motion.button
                       onClick={() => submitAdd(boxes.find((b) => b._id === showAddModal))}
                       disabled={submittingId === showAddModal}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       whileHover={{ scale: submittingId === showAddModal ? 1 : 1.02 }}
                       whileTap={{ scale: submittingId === showAddModal ? 1 : 0.98 }}
                     >
-                      {submittingId === showAddModal ? "Adding..." : "Add Boxes"}
+                      {submittingId === showAddModal ? "Adding..." : "✓ Add Stock"}
                     </motion.button>
                   </div>
                 </div>
@@ -524,7 +551,8 @@ const BoxesInventory = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };
