@@ -49,7 +49,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
       doc.setFont("helvetica", options.weight || "normal");
       doc.setFontSize(options.size || 12);
       doc.setTextColor(options.color ? options.color[0] : 0, options.color ? options.color[1] : 0, options.color ? options.color[2] : 0);
-      doc.text(text, x, y, { maxWidth: options.maxWidth || contentWidth });
+      doc.text(text, x, y, { maxWidth: options.maxWidth || contentWidth, align: options.align || "left" });
     };
 
     // Header Section
@@ -79,19 +79,27 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 8;
 
-    // Table Headers
+    // Table Headers with improved styling
     const columns = ["Date", "Client", "Challan No.", "Taxable (INR)", "GST (INR)", "Total (INR)"];
-    const colWidths = [25, 35, 25, 30, 25, 30];
+    const colWidths = [22, 32, 28, 32, 28, 32]; // Increased spacing for better readability
+    const headerStartY = yPosition;
 
+    // Draw header background with gold gradient effect (darker gold)
+    doc.setFillColor(217, 119, 6); // Gold
+    doc.rect(margin, yPosition - 6, contentWidth, 8, "F");
+
+    // Draw header text in bold white
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.setFillColor(217, 119, 6); // Gold color
     doc.setTextColor(255, 255, 255); // White text
 
-    let xPosition = margin;
+    let xPosition = margin + 1;
     columns.forEach((col, i) => {
-      doc.rect(xPosition, yPosition - 5, colWidths[i], 7, "F"); // Filled rectangle for header
-      doc.text(col, xPosition + 1, yPosition, { maxWidth: colWidths[i] - 2 });
+      const isNumeric = col.includes("INR") || col === "Challan No.";
+      doc.text(col, xPosition, yPosition, { 
+        maxWidth: colWidths[i] - 2,
+        align: isNumeric ? "right" : "left"
+      });
       xPosition += colWidths[i];
     });
 
@@ -107,20 +115,25 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
 
     salesData.forEach((item) => {
       // Check if we need a new page
-      if (yPosition > pageHeight - 30) {
+      if (yPosition > pageHeight - 40) {
         doc.addPage();
         yPosition = margin;
 
-        // Repeat headers on new page
+        // Repeat headers on new page with improved styling
+        doc.setFillColor(217, 119, 6); // Gold
+        doc.rect(margin, yPosition - 6, contentWidth, 8, "F");
+
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.setFillColor(217, 119, 6);
         doc.setTextColor(255, 255, 255);
 
-        xPosition = margin;
+        xPosition = margin + 1;
         columns.forEach((col, i) => {
-          doc.rect(xPosition, yPosition - 5, colWidths[i], 7, "F");
-          doc.text(col, xPosition + 1, yPosition, { maxWidth: colWidths[i] - 2 });
+          const isNumeric = col.includes("INR") || col === "Challan No.";
+          doc.text(col, xPosition, yPosition, { 
+            maxWidth: colWidths[i] - 2,
+            align: isNumeric ? "right" : "left"
+          });
           xPosition += colWidths[i];
         });
 
@@ -137,13 +150,14 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
       }
 
       xPosition = margin + 1;
+      doc.setFont("helvetica", "normal");
       doc.text(item.date, xPosition, yPosition, { maxWidth: colWidths[0] - 2 });
       xPosition += colWidths[0];
 
       doc.text(getClientDisplay(item.client), xPosition, yPosition, { maxWidth: colWidths[1] - 2 });
       xPosition += colWidths[1];
 
-      doc.text(item.challanNo, xPosition, yPosition, { maxWidth: colWidths[2] - 2 });
+      doc.text(item.challanNo, xPosition, yPosition, { maxWidth: colWidths[2] - 2, align: "right" });
       xPosition += colWidths[2];
 
       doc.setFont("helvetica", "bold");
@@ -157,17 +171,21 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
 
       yPosition += rowHeight;
       rowIndex++;
-      doc.setFont("helvetica", "normal");
     });
 
-    // Totals Row
-    yPosition += 2;
-    doc.setDrawColor(200, 200, 200);
+    // Totals Row - Bold and visually separated
+    yPosition += 3;
+    doc.setDrawColor(217, 119, 6); // Gold line
+    doc.setLineWidth(1);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 8;
 
+    // Bold TOTAL row with background
+    doc.setFillColor(245, 245, 245); // Light gray background
+    doc.rect(margin, yPosition - 5, contentWidth, 7, "F");
+
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
 
     xPosition = margin + 1;
@@ -182,9 +200,9 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
 
     doc.text(formatCurrencyForPDF(totals.totalAmount), xPosition, yPosition, { maxWidth: colWidths[5] - 2, align: "right" });
 
-    yPosition += 12;
+    yPosition += 14;
 
-    // Summary Cards
+    // Summary Cards Section - Separated from table
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 100, 100);
@@ -214,6 +232,16 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     doc.setTextColor(220, 38, 38);
     doc.setFontSize(11);
     doc.text(formatCurrencyForPDF(totals.totalAmount), margin + 70, yPosition);
+
+    // Add footer with date and company name
+    yPosition = pageHeight - margin - 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    
+    const generatedDate = new Date().toLocaleDateString();
+    const footerText = `Report generated on ${generatedDate} | Vishal Paper Product System`;
+    doc.text(footerText, margin, yPosition, { align: "center", maxWidth: contentWidth });
 
     // Save PDF
     const filename = `sales-report-${new Date().toISOString().split("T")[0]}.pdf`;
