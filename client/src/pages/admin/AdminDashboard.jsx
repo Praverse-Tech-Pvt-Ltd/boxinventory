@@ -11,6 +11,7 @@ import BoxesManagement from "./BoxesManagement";
 import AuditHistory from "./AuditHistory";
 import ChallanGeneration from "./ChallanGeneration";
 import BoxesInventory from "./BoxesInventory";
+import ThemeToggle from "../../components/ThemeToggle";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 dark:from-slate-900 dark:via-slate-800/50 dark:to-slate-800 relative overflow-hidden transition-colors duration-300">
       {/* Premium Multi-Layer Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Primary gradient base */}
@@ -97,7 +98,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-gradient-to-r from-white via-blue-50/40 to-white border-b border-slate-200/60 shadow-sm">
+      <div className="relative z-10 bg-gradient-to-r from-white via-blue-50/40 to-white border-b border-slate-200/60 shadow-sm dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -105,32 +106,35 @@ const AdminDashboard = () => {
             transition={{ duration: 0.5 }}
             className="text-center sm:text-left flex-1"
           >
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
               Vishal Paper Product
             </h1>
-            <p className="text-sm md:text-base text-slate-600 mt-2 font-medium tracking-wide">
+            <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-2 font-medium tracking-wide">
               Box Inventory & Challan Management System
             </p>
           </motion.div>
 
-          <motion.button
-            onClick={handleLogout}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "100%" }}
-              transition={{ duration: 0.6 }}
-            />
-            <FiLogOut className="relative z-10" size={18} />
-            <span className="relative z-10">Logout</span>
-          </motion.button>
+          <div className="flex items-center gap-3 sm:gap-4 justify-center sm:justify-end">
+            <ThemeToggle />
+            <motion.button
+              onClick={handleLogout}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-red-600 dark:to-red-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group w-full sm:w-auto"
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "100%" }}
+                transition={{ duration: 0.6 }}
+              />
+              <FiLogOut className="relative z-10" size={18} />
+              <span className="relative z-10">Logout</span>
+            </motion.button>
+          </div>
         </div>
       </div>
 
