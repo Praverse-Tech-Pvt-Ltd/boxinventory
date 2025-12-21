@@ -1668,10 +1668,10 @@ const ChallanGeneration = () => {
                     <td className="px-4 py-3 text-sm">
                       <button
                         onClick={() => downloadPdf(c._id, c.number)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-theme-primary text-white text-xs font-semibold shadow-sm hover:bg-theme-primary-dark transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-red-700 transition-all"
                         title="Download PDF"
                       >
-                        <FiDownload /> Download
+                        <FiDownload size={14} /> Download
                       </button>
                     </td>
                   </tr>
