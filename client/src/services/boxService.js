@@ -101,3 +101,9 @@ export const getAllAudits = async () => {
   return res.data;
 };
 
+// Admin: add a new color to a box
+export const addColorToBox = async (boxId, colorName) => {
+  const res = await axiosInstance.post(`/api/boxes/${boxId}/add-color`, { color: colorName });
+  return res.data;
+};
+

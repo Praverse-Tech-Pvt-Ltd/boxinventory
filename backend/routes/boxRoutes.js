@@ -9,6 +9,7 @@ import {
   addBoxQuantity,
   subtractBoxQuantity,
   getBoxAudits,
+  addColorToBox,
 } from "../controllers/boxController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { adminOnly } from "../middlewares/adminMiddleware.js";
@@ -28,6 +29,9 @@ router.get("/:id", getBoxById);
 // Authenticated user routes - add/subtract quantity
 router.post("/:id/add", protect, addBoxQuantity);
 router.post("/:id/subtract", protect, subtractBoxQuantity);
+
+// Admin: add color to box
+router.post("/:id/add-color", protect, adminOnly, addColorToBox);
 
 // Protected admin routes - only admins can create, update, delete
 router.use(protect, adminOnly);

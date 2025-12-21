@@ -89,6 +89,50 @@ export const createChallan = async (req, res) => {
         lineItemMap.set(String(item.auditId), item);
       }
     });
+    
+    // Validate audited items inventory (only for SUBTRACT/DISPATCH mode)
+    if (invType === "subtract" && audits.length > 0) {
+      // Collect usage from audited items
+      const auditUsageByBox = new Map(); // boxId -> Map<color, qty>
+      audits.forEach((a) => {
+        const lineItemOverride = lineItemMap.get(String(a._id));
+        const qty = Number(lineItemOverride?.quantity ?? a.quantity);
+        const color = lineItemOverride?.color || a.color || "";
+        const boxId = String(a.box._id);
+        
+        if (color && qty > 0) {
+          if (!auditUsageByBox.has(boxId)) {
+            auditUsageByBox.set(boxId, new Map());
+          }
+          const colorMap = auditUsageByBox.get(boxId);
+          const prev = colorMap.get(color) || 0;
+          colorMap.set(color, prev + qty);
+        }
+      });
+      
+      // Fetch boxes for inventory check
+      if (auditUsageByBox.size > 0) {
+        const boxIds = Array.from(auditUsageByBox.keys());
+        const boxes = await Box.find({ _id: { $in: boxIds } });
+        
+        for (const box of boxes) {
+          const boxIdStr = String(box._id);
+          const colorUsage = auditUsageByBox.get(boxIdStr);
+          if (!colorUsage) continue;
+          const quantityByColor = box.quantityByColor || new Map();
+          
+          for (const [colorKey, usedQty] of colorUsage.entries()) {
+            const currentQty = quantityByColor.get(colorKey) || 0;
+            if (currentQty < usedQty) {
+              return res.status(400).json({
+                message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
+              });
+            }
+          }
+        }
+      }
+    }
+    
     const auditedItems = audits.map((a) => ({
       audit: a._id,
       box: {
@@ -200,47 +244,43 @@ export const createChallan = async (req, res) => {
 
     const items = [...auditedItems, ...manualChallanItems];
 
-    // Update inventory for manual items, color-wise
-    if (manualChallanItems.length > 0) {
-      const usageByBox = new Map(); // boxId -> Map<color, qty>
-      manualChallanItems.forEach((item) => {
-        const boxId = String(item.box._id);
-        const colorKey = (item.color || "").trim();
-        if (!colorKey) {
-          return;
-        }
-        if (!usageByBox.has(boxId)) {
-          usageByBox.set(boxId, new Map());
-        }
-        const colorMap = usageByBox.get(boxId);
-        const prev = colorMap.get(colorKey) || 0;
-        colorMap.set(colorKey, prev + Number(item.quantity || 0));
-      });
+    // Update inventory for ALL items (audited + manual), color-wise
+    // Collect usage from both audited and manual items
+    const usageByBox = new Map(); // boxId -> Map<color, qty>
+    
+    auditedItems.forEach((item) => {
+      if (!item.color || !item.color.trim()) return;
+      const boxId = String(item.box._id);
+      const colorKey = item.color.trim();
+      
+      if (!usageByBox.has(boxId)) {
+        usageByBox.set(boxId, new Map());
+      }
+      const colorMap = usageByBox.get(boxId);
+      const prev = colorMap.get(colorKey) || 0;
+      colorMap.set(colorKey, prev + Number(item.quantity || 0));
+    });
+    
+    manualChallanItems.forEach((item) => {
+      if (!item.color || !item.color.trim()) return;
+      const boxId = String(item.box._id);
+      const colorKey = item.color.trim();
+      
+      if (!usageByBox.has(boxId)) {
+        usageByBox.set(boxId, new Map());
+      }
+      const colorMap = usageByBox.get(boxId);
+      const prev = colorMap.get(colorKey) || 0;
+      colorMap.set(colorKey, prev + Number(item.quantity || 0));
+    });
 
-      if (usageByBox.size > 0) {
-        const boxIds = Array.from(usageByBox.keys());
-        const boxes = await Box.find({ _id: { $in: boxIds } });
+    // Apply inventory updates
+    if (usageByBox.size > 0) {
+      const boxIds = Array.from(usageByBox.keys());
+      const boxes = await Box.find({ _id: { $in: boxIds } });
 
-        // First pass: validate (only for subtract/dispatch operations)
-        if (invType === "subtract") {
-          for (const box of boxes) {
-            const boxIdStr = String(box._id);
-            const colorUsage = usageByBox.get(boxIdStr);
-            if (!colorUsage) continue;
-            const quantityByColor = box.quantityByColor || new Map();
-
-            for (const [colorKey, usedQty] of colorUsage.entries()) {
-              const currentQty = quantityByColor.get(colorKey) || 0;
-              if (currentQty < usedQty) {
-                return res.status(400).json({
-                  message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
-                });
-              }
-            }
-          }
-        }
-
-        // Second pass: apply updates (add or subtract based on inventoryType)
+      // First pass: validate (only for subtract/dispatch operations)
+      if (invType === "subtract") {
         for (const box of boxes) {
           const boxIdStr = String(box._id);
           const colorUsage = usageByBox.get(boxIdStr);
@@ -249,16 +289,33 @@ export const createChallan = async (req, res) => {
 
           for (const [colorKey, usedQty] of colorUsage.entries()) {
             const currentQty = quantityByColor.get(colorKey) || 0;
-            if (invType === "add") {
-              quantityByColor.set(colorKey, currentQty + usedQty);
-            } else {
-              // subtract/dispatch
-              quantityByColor.set(colorKey, currentQty - usedQty);
+            if (currentQty < usedQty) {
+              return res.status(400).json({
+                message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
+              });
             }
           }
-          box.quantityByColor = quantityByColor;
-          await box.save();
         }
+      }
+
+      // Second pass: apply updates (add or subtract based on inventoryType)
+      for (const box of boxes) {
+        const boxIdStr = String(box._id);
+        const colorUsage = usageByBox.get(boxIdStr);
+        if (!colorUsage) continue;
+        const quantityByColor = box.quantityByColor || new Map();
+
+        for (const [colorKey, usedQty] of colorUsage.entries()) {
+          const currentQty = quantityByColor.get(colorKey) || 0;
+          if (invType === "add") {
+            quantityByColor.set(colorKey, currentQty + usedQty);
+          } else {
+            // subtract/dispatch
+            quantityByColor.set(colorKey, currentQty - usedQty);
+          }
+        }
+        box.quantityByColor = quantityByColor;
+        await box.save();
       }
     }
 

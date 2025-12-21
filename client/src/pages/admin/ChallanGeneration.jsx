@@ -4,7 +4,7 @@ import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import "../../styles/dashboard.css";
 import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients } from "../../services/challanService";
-import { getAllBoxes } from "../../services/boxService";
+import { getAllBoxes, addColorToBox } from "../../services/boxService";
 import {
   appendClientBatch as appendClientBatchApi,
   createClientBatch as createClientBatchApi,
@@ -42,6 +42,8 @@ const createManualRow = () => ({
   color: "",
   colours: [],
   coloursInput: "",
+  showAddColorInput: false,
+  newColorInput: "",
 });
 
 const DEFAULT_TERMS = `Terms & Conditions:
@@ -1057,13 +1059,83 @@ const ChallanGeneration = () => {
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
                           Primary Color
                         </label>
-                        <input
-                          type="text"
-                          value={row.color}
-                          onChange={(e) => updateManualRow(row.id, { color: e.target.value })}
-                          placeholder="e.g. Crimson"
-                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                        />
+                        {row.availableColours && row.availableColours.length > 0 ? (
+                          <div className="mt-1 space-y-2">
+                            <select
+                              value={row.color}
+                              onChange={(e) => {
+                                if (e.target.value === "__add_new__") {
+                                  updateManualRow(row.id, { color: "", showAddColorInput: true });
+                                } else {
+                                  updateManualRow(row.id, { color: e.target.value, showAddColorInput: false });
+                                }
+                              }}
+                              className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                            >
+                              <option value="">-- Select a color --</option>
+                              {row.availableColours.map((col) => (
+                                <option key={col} value={col}>
+                                  {col}
+                                </option>
+                              ))}
+                              <option value="__add_new__">+ Add new color</option>
+                            </select>
+                            {row.showAddColorInput && (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  autoComplete="off"
+                                  placeholder="Enter new color name"
+                                  value={row.newColorInput || ""}
+                                  onChange={(e) => updateManualRow(row.id, { newColorInput: e.target.value })}
+                                  className="flex-1 px-3 py-2 border border-theme-primary/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const newColor = (row.newColorInput || "").trim();
+                                    if (!newColor) {
+                                      toast.error("Color name cannot be empty");
+                                      return;
+                                    }
+                                    try {
+                                      // Call API to add color to box
+                                      await addColorToBox(row.boxId, newColor);
+                                      toast.success(`Color "${newColor}" added to product`);
+                                      updateManualRow(row.id, { 
+                                        color: newColor, 
+                                        availableColours: [...(row.availableColours || []), newColor],
+                                        showAddColorInput: false,
+                                        newColorInput: ""
+                                      });
+                                    } catch (error) {
+                                      const msg = error?.response?.data?.message || error.message || "Failed to add color";
+                                      toast.error(msg);
+                                    }
+                                  }}
+                                  className="px-3 py-2 bg-theme-primary text-white rounded-lg text-xs font-semibold hover:bg-theme-primary/80"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateManualRow(row.id, { showAddColorInput: false, newColorInput: "" })}
+                                  className="px-3 py-2 bg-theme-surface-2 text-theme-text-secondary rounded-lg text-xs font-semibold hover:bg-theme-surface-3"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            value={row.color}
+                            onChange={(e) => updateManualRow(row.id, { color: e.target.value })}
+                            placeholder="Enter color (no colors available for this product)"
+                            className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                          />
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">

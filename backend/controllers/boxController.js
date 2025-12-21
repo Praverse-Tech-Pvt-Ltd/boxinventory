@@ -401,3 +401,53 @@ export const deleteBox = async (req, res) => {
   }
 };
 
+// Add a new color to a box
+export const addColorToBox = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { color } = req.body;
+
+    if (!color || !color.trim()) {
+      return res.status(400).json({ message: "Color name is required" });
+    }
+
+    const box = await Box.findById(id);
+    if (!box) return res.status(404).json({ message: "Box not found" });
+
+    const trimmedColor = color.trim();
+    
+    // Check if color already exists
+    if (Array.isArray(box.colours) && box.colours.includes(trimmedColor)) {
+      return res.status(400).json({ message: `Color "${trimmedColor}" already exists for this product` });
+    }
+
+    // Add color to the box
+    if (!Array.isArray(box.colours)) {
+      box.colours = [];
+    }
+    box.colours.push(trimmedColor);
+
+    // Initialize color in quantityByColor map if it doesn't exist
+    if (!box.quantityByColor) {
+      box.quantityByColor = new Map();
+    }
+    if (!box.quantityByColor.has(trimmedColor)) {
+      box.quantityByColor.set(trimmedColor, 0);
+    }
+
+    await box.save();
+
+    res.status(200).json({
+      message: `Color "${trimmedColor}" added successfully`,
+      box: {
+        _id: box._id,
+        title: box.title,
+        code: box.code,
+        colours: box.colours,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
