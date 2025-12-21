@@ -77,10 +77,10 @@ const AdminDashboard = () => {
             className="text-center sm:text-left"
           >
             <h1 className="text-3xl md:text-4xl font-bold playfair text-[#C1272D]">
-              Admin Dashboard
+              Vishal Paper Product
             </h1>
             <p className="text-sm text-[#2D1B0E] poppins mt-1 font-medium">
-              Xclusive Folding Boxes Management
+              Box Inventory & Challan Management System
             </p>
           </motion.div>
 

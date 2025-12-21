@@ -60,30 +60,40 @@ const drawTableBorders = (doc, startX, startY, headerHeight, rowHeights, colWidt
 };
 
 const addHeader = (doc, challanNumber, hsnCode) => {
+  // Header: Company name and details centered
   doc.font("Helvetica-Bold").fontSize(10).text("DELIVERY CHALLAN", { align: "center" });
-  doc.moveDown(0.2);
+  doc.moveDown(0.25);
   doc.fontSize(18).text(COMPANY.name, { align: "center" });
-  doc.moveDown(0.1);
-  doc.font("Helvetica").fontSize(10).text(COMPANY.address, { align: "center" });
-  doc.text(COMPANY.contact, { align: "center" });
-  doc.moveDown(0.1);
-  doc.font("Helvetica-Bold").text(COMPANY.gst, { align: "center" });
+  doc.moveDown(0.15);
+  doc.font("Helvetica").fontSize(9.5).text(COMPANY.address, { align: "center" });
+  doc.fontSize(9).text(COMPANY.contact, { align: "center" });
+  doc.moveDown(0.15);
+  doc.font("Helvetica-Bold").fontSize(9).text(COMPANY.gst, { align: "center" });
 
-  doc.moveDown(0.3);
-  const yStart = doc.y;
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(11)
-    .text(`Challan No.: ${challanNumber}`, 50, yStart, {
-      align: "left",
-    });
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .text(`HSN Code: ${hsnCode || "-"}`, 0, yStart, {
-      align: "right",
-    });
-  doc.moveDown(0.2);
+  // Challan Number & HSN Code section with proper spacing
+  doc.moveDown(0.4);
+  const pageWidth = doc.page.width;
+  const leftMargin = doc.page.margins.left;
+  const rightMargin = doc.page.margins.right;
+  const contentWidth = pageWidth - leftMargin - rightMargin;
+  
+  // Split into two columns: left 50% for Challan No, right 50% for HSN Code
+  const columnWidth = contentWidth / 2;
+  const currentY = doc.y;
+  
+  doc.font("Helvetica-Bold").fontSize(11);
+  doc.text(`Challan No.: ${challanNumber}`, leftMargin, currentY, {
+    width: columnWidth - 10,
+    align: "left",
+  });
+  
+  doc.font("Helvetica-Bold").fontSize(11);
+  doc.text(`HSN Code: ${hsnCode || "-"}`, leftMargin + columnWidth + 10, currentY, {
+    width: columnWidth - 20,
+    align: "left",
+  });
+  
+  doc.moveDown(0.35);
 };
 
 const addClientDetails = (doc, clientDetails = {}) => {
@@ -95,30 +105,41 @@ const addClientDetails = (doc, clientDetails = {}) => {
   ];
 
   const hasValue = entries.some((entry) => entry.value);
-  doc.moveDown(0.2);
-  doc.font("Helvetica-Bold").fontSize(10).text("Client Details:");
-  doc.moveDown(0.1);
-  doc.font("Helvetica").fontSize(10);
+  doc.moveDown(0.3);
+  doc.font("Helvetica-Bold").fontSize(10).text("Prepared By & Client Details:");
+  doc.moveDown(0.15);
+  doc.font("Helvetica").fontSize(9.5);
+  
+  // Add proper left margin for readability
+  const labelWidth = 100;
+  const leftPadding = 20;
+  
   entries.forEach((entry) => {
-    doc.text(`${entry.label}: ${entry.value?.trim() ? entry.value : "-"}`);
+    const text = `${entry.label}: ${entry.value?.trim() ? entry.value : "-"}`;
+    doc.text(text, leftPadding, undefined, {
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right - leftPadding,
+      align: "left",
+    });
   });
 
   if (!hasValue) {
     doc.moveDown(0.1);
+  } else {
+    doc.moveDown(0.2);
   }
 };
 
 const addTable = (doc, items, startY) => {
-  const startX = 40;
-  const headerHeight = 26;
+  const startX = 50;
+  const headerHeight = 28;
   let currentY = startY;
 
-  doc.lineWidth(0.6);
-  doc.font("Helvetica-Bold").fontSize(10);
+  doc.lineWidth(0.7);
+  doc.font("Helvetica-Bold").fontSize(9.5);
 
   // Compute dynamic widths based on available width
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const tableWidth = contentWidth - (startX - doc.page.margins.left) * 2 + (doc.page.margins.left - 40);
+  const tableWidth = contentWidth - (startX - doc.page.margins.left) - 10;
   const totalFactor = columnConfig.reduce((s, c) => s + c.factor, 0);
   const colWidths = columnConfig.map((c) => Math.floor((c.factor / totalFactor) * tableWidth));
 
@@ -130,15 +151,15 @@ const addTable = (doc, items, startY) => {
 
   // Draw header row background
   doc.save();
-  doc.rect(startX, currentY, tableWidth, headerHeight).fill("#f5f1e8");
+  doc.rect(startX, currentY, tableWidth, headerHeight).fill("#E8DCC6");
   doc.restore();
   doc.fillColor("#000");
 
-  // Header row
+  // Header row with better spacing
   let cursorX = startX;
   columnConfig.forEach((col, idx) => {
     const w = colWidths[idx];
-    doc.text(col.label, cursorX + 4, currentY + 6, {
+    doc.text(col.label, cursorX + 4, currentY + 7, {
       width: w - 8,
       align: col.align,
     });
@@ -146,7 +167,7 @@ const addTable = (doc, items, startY) => {
   });
   currentY += headerHeight;
 
-  doc.font("Helvetica").fontSize(10);
+  doc.font("Helvetica").fontSize(9);
 
   // Expand items into rows - one row per color-quantity pair
   const expandedRows = [];
@@ -221,7 +242,7 @@ const addTable = (doc, items, startY) => {
 
   const rowHeights = [];
 
-  rowsData.forEach((row, idx) => {
+    rowsData.forEach((row, idx) => {
     let rowHeight = 0;
     let x = startX;
     columnConfig.forEach((col, cIdx) => {
@@ -231,21 +252,21 @@ const addTable = (doc, items, startY) => {
       const cellHeight = doc.heightOfString(cellText || " ", {
         width: w - 8,
         align: col.align,
-        lineGap: 2,
+        lineGap: 3,
       });
-      rowHeight = Math.max(rowHeight, cellHeight + 12);
+      rowHeight = Math.max(rowHeight, cellHeight + 14);
     });
-    rowHeight = Math.max(rowHeight, 24);
+    rowHeight = Math.max(rowHeight, 26);
     rowHeights.push(rowHeight);
 
     x = startX;
     columnConfig.forEach((col, cIdx) => {
       const w = colWidths[cIdx];
       const value = row[col.key] ?? "";
-      doc.text(String(value), x + 4, currentY + 6, {
+      doc.text(String(value), x + 4, currentY + 7, {
         width: w - 8,
         align: col.align,
-        lineGap: 2,
+        lineGap: 3,
       });
       x += w;
     });
@@ -267,8 +288,8 @@ const addTable = (doc, items, startY) => {
 const addSummary = (doc, summary, includeGST, yTopOverride) => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
-  const labelWidth = tableWidth * 0.7;
-  const valueWidth = tableWidth * 0.3;
+  const labelWidth = tableWidth * 0.65;
+  const valueWidth = tableWidth * 0.35;
   const gstAmount = subtotal * 0.05;
   const totalBeforeRound = subtotal + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
@@ -278,50 +299,53 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
   const roundOffValue =
     roundOff === 0 ? formatCurrency(0) : `${roundOff > 0 ? "+" : "-"}${formatCurrency(Math.abs(roundOff))}`;
 
+  doc.lineWidth(0.7);
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
-  doc.font("Helvetica-Bold").fontSize(10);
-  doc.text("GST (5%)", startX + 4, baseY + 6, { width: labelWidth - 8, align: "right" });
-  doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 6, {
+  doc.font("Helvetica-Bold").fontSize(9.5);
+  doc.text("GST (5%)", startX + 4, baseY + 8, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 8, {
     width: valueWidth - 8,
     align: "right",
   });
 
-  doc.text(roundOffLabel, startX + 4, baseY + 24, { width: labelWidth - 8, align: "right" });
-  doc.text(roundOffValue, startX + labelWidth, baseY + 24, {
+  doc.text(roundOffLabel, startX + 4, baseY + 26, { width: labelWidth - 8, align: "right" });
+  doc.text(roundOffValue, startX + labelWidth, baseY + 26, {
     width: valueWidth - 8,
     align: "right",
   });
 
-  doc.moveTo(startX, baseY + 36).lineTo(startX + tableWidth, baseY + 36).stroke();
+  doc.moveTo(startX, baseY + 38).lineTo(startX + tableWidth, baseY + 38).stroke();
 
-  doc.text("TOTAL (Rounded)", startX + 4, baseY + 42, { width: labelWidth - 8, align: "right" });
-  doc.text(formatCurrency(roundedTotal), startX + labelWidth, baseY + 42, {
+  doc.font("Helvetica-Bold").fontSize(11);
+  doc.text("TOTAL (Rounded)", startX + 4, baseY + 46, { width: labelWidth - 8, align: "right" });
+  doc.text(`₹ ${formatCurrency(roundedTotal)}`, startX + labelWidth, baseY + 46, {
     width: valueWidth - 8,
     align: "right",
   });
 
-  return baseY + 78;
+  return baseY + 80;
 };
 
 const addFooter = (doc, startY, terms) => {
-  const footerY = Math.max(startY, doc.page.height - 160);
-  doc.moveTo(40, footerY).lineTo(doc.page.width - 40, footerY).stroke();
+  const footerY = Math.max(startY, doc.page.height - 165);
+  doc.lineWidth(0.7);
+  doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).stroke();
 
-  doc.font("Helvetica-Bold").fontSize(11).text("Terms & Conditions:", 40, footerY + 12);
-  doc.font("Helvetica").fontSize(10).text(terms || DEFAULT_TERMS, {
-    width: doc.page.width / 2,
+  doc.font("Helvetica-Bold").fontSize(10).text("Terms & Conditions:", 50, footerY + 12);
+  doc.font("Helvetica").fontSize(9).text(terms || DEFAULT_TERMS, 50, footerY + 28, {
+    width: doc.page.width / 2 - 70,
     align: "left",
   });
 
   doc.font("Helvetica-Bold")
-    .fontSize(11)
-    .text("VISHAL PAPER PRODUCT", 0, footerY + 12, {
-      width: doc.page.width - 80,
+    .fontSize(10)
+    .text("VISHAL PAPER PRODUCT", 50, footerY + 12, {
+      width: doc.page.width - 100,
       align: "right",
     });
-  doc.font("Helvetica").fontSize(10).text("PRO.", 0, footerY + 28, {
-    width: doc.page.width - 80,
+  doc.font("Helvetica").fontSize(9).text("PRO.", 50, footerY + 28, {
+    width: doc.page.width - 100,
     align: "right",
   });
 };

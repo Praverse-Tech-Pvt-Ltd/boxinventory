@@ -6,6 +6,7 @@ import {
   createBox,
   updateBox,
   deleteBox,
+  addBoxQuantity,
   subtractBoxQuantity,
   getBoxAudits,
 } from "../controllers/boxController.js";
@@ -24,7 +25,8 @@ router.get("/audits", protect, adminOnly, getAllAudits);
 // Public route to get single box by id
 router.get("/:id", getBoxById);
 
-// Authenticated user route - subtract quantity
+// Authenticated user routes - add/subtract quantity
+router.post("/:id/add", protect, addBoxQuantity);
 router.post("/:id/subtract", protect, subtractBoxQuantity);
 
 // Protected admin routes - only admins can create, update, delete

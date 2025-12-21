@@ -37,6 +37,12 @@ const boxAuditSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    action: {
+      type: String,
+      enum: ["add", "subtract", "dispatch"],
+      default: "subtract",
+      index: true,
+    },
   },
   { timestamps: true }
 );

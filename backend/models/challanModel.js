@@ -36,6 +36,12 @@ const challanSchema = new mongoose.Schema(
     includeGST: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     hsnCode: { type: String, trim: true },
+    inventoryType: { 
+      type: String, 
+      enum: ["add", "subtract", "dispatch"], 
+      default: "dispatch",
+      required: true 
+    },
     clientDetails: {
       name: { type: String, trim: true },
       address: { type: String, trim: true },

@@ -3,24 +3,33 @@ import { motion } from "framer-motion";
 import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
-import { downloadChallanPdf } from "../../services/challanService";
+import { downloadChallanPdf, listChallans } from "../../services/challanService";
 
 const AuditHistory = () => {
   const [audits, setAudits] = useState([]);
+  const [challans, setChallans] = useState([]);
   const [loadingAudits, setLoadingAudits] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClient, setSelectedClient] = useState(""); // Client name filter
 
   useEffect(() => {
-    const loadAudits = async () => {
+    const loadData = async () => {
       try {
         setLoadingAudits(true);
-        const data = await getAllAudits();
-        setAudits(data);
+        const [auditData, challanData] = await Promise.all([
+          getAllAudits(),
+          listChallans(),
+        ]);
+        setAudits(auditData);
+        setChallans(challanData);
+      } catch (e) {
+        console.error("Failed to load audits or challans", e);
+        toast.error("Failed to load audit history");
       } finally {
         setLoadingAudits(false);
       }
     };
-    loadAudits();
+    loadData();
   }, []);
 
   const handleDownload = async (challanId) => {
@@ -40,26 +49,62 @@ const AuditHistory = () => {
     }
   };
 
-  const filteredAudits = useMemo(() => {
-    if (!searchQuery.trim()) return audits;
-    const q = searchQuery.toLowerCase();
-    return audits.filter((a) => {
-      const userNameOrEmail = (a.user?.name || a.user?.email || "").toLowerCase();
-      const qty = String(a.quantity || "").toLowerCase();
-      const color = (a.color || "").toLowerCase();
-      const title = (a.box?.title || "").toLowerCase();
-      const category = (a.box?.category || "").toLowerCase();
-      const code = (a.box?.code || "").toLowerCase();
-      return (
-        userNameOrEmail.includes(q) ||
-        qty.includes(q) ||
-        color.includes(q) ||
-        title.includes(q) ||
-        category.includes(q) ||
-        code.includes(q)
-      );
+  // Get unique client names from challans with clientDetails
+  const clientsList = useMemo(() => {
+    const clients = new Set();
+    challans.forEach((c) => {
+      if (c.clientDetails?.name) {
+        clients.add(c.clientDetails.name);
+      }
     });
-  }, [audits, searchQuery]);
+    return Array.from(clients).sort();
+  }, [challans]);
+
+  // Create a map of challan IDs to client names for quick lookup
+  const challanToClientMap = useMemo(() => {
+    const map = new Map();
+    challans.forEach((c) => {
+      if (c._id) {
+        map.set(String(c._id), c.clientDetails?.name || null);
+      }
+    });
+    return map;
+  }, [challans]);
+
+  const filteredAudits = useMemo(() => {
+    let result = audits;
+
+    // Filter by client if selected
+    if (selectedClient) {
+      result = result.filter((a) => {
+        const clientName = challanToClientMap.get(String(a.challan));
+        return clientName === selectedClient;
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((a) => {
+        const userNameOrEmail = (a.user?.name || a.user?.email || "").toLowerCase();
+        const qty = String(a.quantity || "").toLowerCase();
+        const color = (a.color || "").toLowerCase();
+        const title = (a.box?.title || "").toLowerCase();
+        const category = (a.box?.category || "").toLowerCase();
+        const code = (a.box?.code || "").toLowerCase();
+        return (
+          userNameOrEmail.includes(q) ||
+          qty.includes(q) ||
+          color.includes(q) ||
+          title.includes(q) ||
+          category.includes(q) ||
+          code.includes(q)
+        );
+      });
+    }
+
+    return result;
+  }, [audits, searchQuery, selectedClient, challanToClientMap]);
 
   return (
     <div className="w-full space-y-6">
@@ -67,15 +112,33 @@ const AuditHistory = () => {
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         <h3 className="text-2xl font-bold playfair text-[#C1272D] mb-6">Audit History</h3>
 
-        <div className="relative">
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
-          <input
-            type="text"
-            placeholder="Search by user, quantity, color, box name, category, or code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
-          />
+        <div className="grid gap-4 md:grid-cols-2 mb-6">
+          <div className="relative">
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#6B5B4F]" size={20} />
+            <input
+              type="text"
+              placeholder="Search by user, quantity, color, box name, category, or code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] placeholder:text-[#8B7355] transition-all duration-300"
+            />
+          </div>
+
+          <div className="relative">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F] mb-2">Filter by Client</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] transition-all duration-300"
+            >
+              <option value="">All Clients</option>
+              {clientsList.map((client) => (
+                <option key={client} value={client}>
+                  {client}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="mt-6">
@@ -95,6 +158,7 @@ const AuditHistory = () => {
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Box</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Category</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Code</th>
+                    <th className="px-4 py-3 font-semibold whitespace-nowrap">Client</th>
                     <th className="px-4 py-3 font-semibold whitespace-nowrap">Challan</th>
                   </tr>
                 </thead>
@@ -116,6 +180,9 @@ const AuditHistory = () => {
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.title || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E]">{a.box?.category || "-"}</td>
                       <td className="px-4 py-3 text-[#2D1B0E] font-mono whitespace-nowrap">{a.box?.code || "-"}</td>
+                      <td className="px-4 py-3 text-[#2D1B0E]">
+                        {challanToClientMap.get(String(a.challan)) || "-"}
+                      </td>
                       <td className="px-4 py-3 text-[#2D1B0E]">
                         {a.challan ? (
                           <button

@@ -261,6 +261,50 @@ export const updateBox = async (req, res) => {
 };
 
 // Subtract quantity from a box (user action) and create audit
+export const addBoxQuantity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity, color, note } = req.body;
+
+    const parsedQty = parseInt(quantity, 10);
+    if (!Number.isInteger(parsedQty) || parsedQty <= 0) {
+      return res.status(400).json({ message: "Quantity must be a positive integer" });
+    }
+
+    if (!color || typeof color !== 'string' || color.trim().length === 0) {
+      return res.status(400).json({ message: "Color is required" });
+    }
+
+    const box = await Box.findById(id);
+    if (!box) {
+      return res.status(404).json({ message: "Box not found" });
+    }
+
+    // Get current quantity by color map
+    const quantityByColor = box.quantityByColor || new Map();
+    const colorKey = color.trim();
+    const currentQty = quantityByColor.get(colorKey) || 0;
+
+    // Add quantity for the specific color
+    quantityByColor.set(colorKey, currentQty + parsedQty);
+    box.quantityByColor = quantityByColor;
+    await box.save();
+
+    const audit = await BoxAudit.create({
+      box: box._id,
+      user: req.user._id,
+      quantity: parsedQty,
+      color: colorKey,
+      note: note || undefined,
+      action: "add",
+    });
+
+    res.status(200).json({ message: "Quantity added", box, audit });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 export const subtractBoxQuantity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -302,6 +346,7 @@ export const subtractBoxQuantity = async (req, res) => {
       quantity: parsedQty,
       color: colorKey,
       note: note || undefined,
+      action: "subtract",
     });
 
     res.status(200).json({ message: "Quantity subtracted", box, audit });

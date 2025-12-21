@@ -58,4 +58,11 @@ export const downloadChallanPdf = async (id) => {
   return res.data;
 };
 
+export const searchClients = async (query) => {
+  const res = await axiosInstance.get('/api/challans/search/clients', {
+    params: { query },
+  });
+  return res.data;
+};
+
 

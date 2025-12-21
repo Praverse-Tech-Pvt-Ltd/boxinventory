@@ -55,9 +55,10 @@ async function generateChallanNumber(includeGST) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, includeGST, clientDetails, manualItems, hsnCode } = req.body;
+    const { auditIds, notes, terms, includeGST, clientDetails, manualItems, hsnCode, inventoryType } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
+    const invType = inventoryType === "add" ? "add" : "subtract"; // Default to subtract (dispatch)
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
       return res
@@ -220,24 +221,26 @@ export const createChallan = async (req, res) => {
         const boxIds = Array.from(usageByBox.keys());
         const boxes = await Box.find({ _id: { $in: boxIds } });
 
-        // First pass: validate
-        for (const box of boxes) {
-          const boxIdStr = String(box._id);
-          const colorUsage = usageByBox.get(boxIdStr);
-          if (!colorUsage) continue;
-          const quantityByColor = box.quantityByColor || new Map();
+        // First pass: validate (only for subtract/dispatch operations)
+        if (invType === "subtract") {
+          for (const box of boxes) {
+            const boxIdStr = String(box._id);
+            const colorUsage = usageByBox.get(boxIdStr);
+            if (!colorUsage) continue;
+            const quantityByColor = box.quantityByColor || new Map();
 
-          for (const [colorKey, usedQty] of colorUsage.entries()) {
-            const currentQty = quantityByColor.get(colorKey) || 0;
-            if (currentQty < usedQty) {
-              return res.status(400).json({
-                message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
-              });
+            for (const [colorKey, usedQty] of colorUsage.entries()) {
+              const currentQty = quantityByColor.get(colorKey) || 0;
+              if (currentQty < usedQty) {
+                return res.status(400).json({
+                  message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
+                });
+              }
             }
           }
         }
 
-        // Second pass: apply updates
+        // Second pass: apply updates (add or subtract based on inventoryType)
         for (const box of boxes) {
           const boxIdStr = String(box._id);
           const colorUsage = usageByBox.get(boxIdStr);
@@ -246,7 +249,12 @@ export const createChallan = async (req, res) => {
 
           for (const [colorKey, usedQty] of colorUsage.entries()) {
             const currentQty = quantityByColor.get(colorKey) || 0;
-            quantityByColor.set(colorKey, currentQty - usedQty);
+            if (invType === "add") {
+              quantityByColor.set(colorKey, currentQty + usedQty);
+            } else {
+              // subtract/dispatch
+              quantityByColor.set(colorKey, currentQty - usedQty);
+            }
           }
           box.quantityByColor = quantityByColor;
           await box.save();
@@ -268,6 +276,7 @@ export const createChallan = async (req, res) => {
       notes: typeof terms === "string" ? terms : notes || "",
       includeGST: includeGSTFlag,
       createdBy: req.user._id,
+      inventoryType: invType,
     };
 
     if (hsnCode && typeof hsnCode === "string") {
@@ -369,6 +378,66 @@ export const downloadChallanPdf = async (req, res) => {
         .unlink(pdfPath)
         .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Search for existing clients by name, mobile, or address
+export const searchClients = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || query.trim().length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const searchTerm = query.trim();
+    const regex = new RegExp(searchTerm, "i"); // case-insensitive
+
+    // Find unique clients from past challans matching search term
+    const clients = await Challan.aggregate([
+      {
+        $match: {
+          $or: [
+            { "clientDetails.name": regex },
+            { "clientDetails.mobile": regex },
+            { "clientDetails.address": regex },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: {
+            name: "$clientDetails.name",
+            mobile: "$clientDetails.mobile",
+            address: "$clientDetails.address",
+            gstNumber: "$clientDetails.gstNumber",
+          },
+          count: { $sum: 1 },
+          lastUsed: { $max: "$updatedAt" },
+        },
+      },
+      {
+        $sort: { lastUsed: -1 },
+      },
+      {
+        $limit: 10,
+      },
+      {
+        $project: {
+          _id: 0,
+          name: "$_id.name",
+          mobile: "$_id.mobile",
+          address: "$_id.address",
+          gstNumber: "$_id.gstNumber",
+          usageCount: "$count",
+          lastUsed: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(clients);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

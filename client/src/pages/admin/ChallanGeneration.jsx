@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans } from "../../services/challanService";
+import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients } from "../../services/challanService";
 import { getAllBoxes } from "../../services/boxService";
 import {
   appendClientBatch as appendClientBatchApi,
@@ -56,6 +56,7 @@ const ChallanGeneration = () => {
    const [editRows, setEditRows] = useState({});
   const [clientDetails, setClientDetails] = useState(() => createEmptyClientDetails());
   const [hsnCode, setHsnCode] = useState("");
+  const [inventoryType, setInventoryType] = useState("subtract"); // 'add' or 'subtract'
   const [manualRows, setManualRows] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [boxesLoading, setBoxesLoading] = useState(false);
@@ -63,6 +64,12 @@ const ChallanGeneration = () => {
   const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [appendTargetBatchId, setAppendTargetBatchId] = useState("");
   const [loadingBatches, setLoadingBatches] = useState(false);
+  
+  // Client autosuggest
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const [clientSearchResults, setClientSearchResults] = useState([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   const loadData = async () => {
     try {
@@ -161,6 +168,18 @@ const ChallanGeneration = () => {
      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [selected, candidates]);
 
+   // Close client dropdown when clicking outside
+   useEffect(() => {
+     const handleClickOutside = (e) => {
+       if (showClientDropdown && !e.target.closest(".client-search-container")) {
+         setShowClientDropdown(false);
+       }
+     };
+
+     document.addEventListener("mousedown", handleClickOutside);
+     return () => document.removeEventListener("mousedown", handleClickOutside);
+   }, [showClientDropdown]);
+
    const updateRow = (id, patch) => {
      setEditRows(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
    };
@@ -252,6 +271,7 @@ const ChallanGeneration = () => {
     setEditRows({});
     setClientDetails(createEmptyClientDetails());
     setHsnCode("");
+    setInventoryType("subtract");
     setManualRows([]);
   };
 
@@ -365,6 +385,46 @@ const ChallanGeneration = () => {
 
   const updateClientDetails = (field, value) => {
     setClientDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Search for existing clients by name
+  const handleClientSearch = useCallback(
+    async (query) => {
+      setClientSearchQuery(query);
+      
+      if (!query || query.trim().length < 2) {
+        setClientSearchResults([]);
+        setShowClientDropdown(false);
+        return;
+      }
+
+      try {
+        setSearchingClients(true);
+        const results = await searchClients(query.trim());
+        setClientSearchResults(Array.isArray(results) ? results : []);
+        setShowClientDropdown(true);
+      } catch (error) {
+        console.error("Error searching clients:", error);
+        toast.error("Failed to search clients");
+        setClientSearchResults([]);
+      } finally {
+        setSearchingClients(false);
+      }
+    },
+    []
+  );
+
+  // Select a client from search results
+  const selectClientFromSearch = (client) => {
+    setClientDetails({
+      name: client.name || "",
+      address: client.address || "",
+      mobile: client.mobile || "",
+      gstNumber: client.gstNumber || "",
+    });
+    setClientSearchQuery(client.name || "");
+    setShowClientDropdown(false);
+    toast.success(`Client "${client.name}" selected`);
   };
 
   const selectedRows = useMemo(() => {
@@ -564,6 +624,7 @@ const ChallanGeneration = () => {
       manualItems: manualItemsPayload,
       terms,
       hsnCode,
+      inventoryType,
       clientDetails: hasClientInfo ? clientDetails : undefined,
     };
   };
@@ -1028,6 +1089,17 @@ const ChallanGeneration = () => {
                   className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Inventory Type</label>
+                <select
+                  value={inventoryType}
+                  onChange={(e) => setInventoryType(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                >
+                  <option value="subtract">Dispatch / Subtract from Inventory</option>
+                  <option value="add">Add to Inventory (New Stock)</option>
+                </select>
+              </div>
             </div>
           </div>
           <div className="mt-4 rounded-2xl border border-[#E8DCC6] bg-white px-5 py-4 shadow-sm">
@@ -1038,13 +1110,57 @@ const ChallanGeneration = () => {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Client Name</label>
-                <input
-                  type="text"
-                  value={clientDetails.name}
-                  onChange={(e) => updateClientDetails("name", e.target.value)}
-                  placeholder="e.g. ABC Pvt. Ltd."
-                  className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
-                />
+                <div className="relative client-search-container">
+                  <input
+                    type="text"
+                    value={clientSearchQuery || clientDetails.name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setClientSearchQuery(val);
+                      updateClientDetails("name", val);
+                      handleClientSearch(val);
+                    }}
+                    onFocus={() => {
+                      if (clientSearchResults.length > 0) {
+                        setShowClientDropdown(true);
+                      }
+                    }}
+                    placeholder="e.g. ABC Pvt. Ltd. (Start typing to search)"
+                    className="w-full px-4 py-2.5 border border-[#E8DCC6] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 focus:border-[#D4AF37] bg-white text-sm shadow-sm"
+                  />
+                  {searchingClients && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6B5B4F]">Searching...</span>
+                  )}
+                </div>
+
+                {/* Client suggestions dropdown */}
+                <AnimatePresence>
+                  {showClientDropdown && clientSearchResults.length > 0 && (
+                    <motion.div
+                      className="absolute z-50 w-full mt-1 bg-white border-2 border-[#D4AF37] rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      {clientSearchResults.map((client, idx) => (
+                        <motion.button
+                          key={idx}
+                          onClick={() => selectClientFromSearch(client)}
+                          className="w-full px-4 py-2.5 text-left hover:bg-[#FDF9EE] transition-colors border-b border-[#E8DCC6] last:border-b-0"
+                          whileHover={{ paddingLeft: 20 }}
+                        >
+                          <div className="text-sm font-semibold text-[#2D1B0E]">{client.name}</div>
+                          {client.mobile && (
+                            <div className="text-xs text-[#6B5B4F]">📞 {client.mobile}</div>
+                          )}
+                          {client.usageCount && (
+                            <div className="text-xs text-[#B8860B]">Used {client.usageCount} times</div>
+                          )}
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-[#6B5B4F]">Mobile Number</label>

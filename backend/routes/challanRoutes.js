@@ -7,12 +7,16 @@ import {
   listChallans,
   getChallanById,
   downloadChallanPdf,
+  searchClients,
 } from "../controllers/challanController.js";
 
 const router = express.Router();
 
 // Admin only
 router.use(protect, adminOnly);
+
+// Search existing clients
+router.get("/search/clients", searchClients);
 
 // List unused audits as candidates
 router.get("/candidates", getChallanCandidates);

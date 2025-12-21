@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiPlus, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { getAllBoxes, subtractBoxQuantity } from "../../services/boxService";
+import { getAllBoxes, addBoxQuantity, subtractBoxQuantity } from "../../services/boxService";
 
 const ITEMS_PER_PAGE = 18;
 
@@ -28,6 +28,8 @@ const BoxesInventory = () => {
   const [qtyInputs, setQtyInputs] = useState({});
   const [colorInputs, setColorInputs] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(null); // boxId or null
+  const [addFormData, setAddFormData] = useState({ quantity: "", color: "", note: "" });
 
   useEffect(() => {
     const loadBoxes = async () => {
@@ -125,6 +127,45 @@ const BoxesInventory = () => {
       setColorInputs((prev) => ({ ...prev, [box._id]: "" }));
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to subtract quantity");
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  const submitAdd = async (box) => {
+    const val = parseInt(addFormData.quantity, 10);
+    const selectedColor = addFormData.color?.trim();
+
+    if (!Number.isInteger(val) || val <= 0) {
+      toast.error("Enter a valid positive quantity");
+      return;
+    }
+
+    if (!selectedColor) {
+      toast.error("Please select a color");
+      return;
+    }
+
+    try {
+      setSubmittingId(box._id);
+      const res = await addBoxQuantity(box._id, {
+        quantity: val,
+        color: selectedColor,
+        note: addFormData.note || undefined,
+      });
+      const updatedQtyByColor = normalizeQuantityMap(
+        res.box.quantityByColor || {}
+      );
+      setBoxes((prev) =>
+        prev.map((b) =>
+          b._id === box._id ? { ...b, quantityByColor: updatedQtyByColor } : b
+        )
+      );
+      toast.success(`Added ${val} ${selectedColor} ${box.code} boxes`);
+      setAddFormData({ quantity: "", color: "", note: "" });
+      setShowAddModal(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add quantity");
     } finally {
       setSubmittingId(null);
     }
@@ -267,43 +308,56 @@ const BoxesInventory = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <select
-                        value={colorInputs[box._id] ?? ""}
-                        onChange={(e) => handleColorChange(box._id, e.target.value)}
-                        className="w-full sm:w-32 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
-                      >
-                        <option value="">Select Color</option>
-                        {Array.isArray(box.colours) &&
-                          box.colours.map((color) => (
-                            <option key={color} value={color}>
-                              {color} (
-                              {box.quantityByColor?.[color] ||
-                                box.quantityByColor?.get?.(color) ||
-                                0}
-                              )
-                            </option>
-                          ))}
-                      </select>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="1"
-                        placeholder="Qty"
-                        value={qtyInputs[box._id] ?? ""}
-                        onChange={(e) => handleQtyChange(box._id, e.target.value)}
-                        className="w-full sm:w-24 px-3 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
-                      />
-                      <motion.button
-                        onClick={() => submitSubtract(box)}
-                        disabled={submittingId === box._id}
-                        className="px-4 py-2 rounded-lg bg-[#C1272D] text-white font-semibold hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto text-center"
-                        whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
-                        whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
-                      >
-                        {submittingId === box._id ? "Updating..." : "Subtract"}
-                      </motion.button>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                        <select
+                          value={colorInputs[box._id] ?? ""}
+                          onChange={(e) => handleColorChange(box._id, e.target.value)}
+                          className="w-full sm:flex-1 px-2 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] text-xs"
+                        >
+                          <option value="">Color</option>
+                          {Array.isArray(box.colours) &&
+                            box.colours.map((color) => (
+                              <option key={color} value={color}>
+                                {color} (
+                                {box.quantityByColor?.[color] ||
+                                  box.quantityByColor?.get?.(color) ||
+                                  0}
+                                )
+                              </option>
+                            ))}
+                        </select>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          placeholder="Qty"
+                          value={qtyInputs[box._id] ?? ""}
+                          onChange={(e) => handleQtyChange(box._id, e.target.value)}
+                          className="w-full sm:w-16 px-2 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E] text-xs"
+                        />
+                      </div>
+                      <div className="flex gap-2 w-full">
+                        <motion.button
+                          onClick={() => submitSubtract(box)}
+                          disabled={submittingId === box._id}
+                          className="flex-1 px-2 py-2 rounded-lg bg-[#C1272D] text-white font-semibold text-xs hover:bg-[#A01F24] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
+                          whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
+                        >
+                          {submittingId === box._id ? "..." : "Subtract"}
+                        </motion.button>
+                        <motion.button
+                          onClick={() => setShowAddModal(box._id)}
+                          disabled={submittingId === box._id}
+                          className="flex-1 px-2 py-2 rounded-lg bg-green-600 text-white font-semibold text-xs hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          whileHover={{ scale: submittingId === box._id ? 1 : 1.05 }}
+                          whileTap={{ scale: submittingId === box._id ? 1 : 0.95 }}
+                        >
+                          <FiPlus size={14} /> Add
+                        </motion.button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -368,6 +422,108 @@ const BoxesInventory = () => {
             </div>
           </div>
         )}
+
+        {/* Add Box Modal */}
+        <AnimatePresence>
+          {showAddModal && boxes.find((b) => b._id === showAddModal) && (
+            <motion.div
+              className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddModal(null)}
+            >
+              <motion.div
+                className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border-2 border-[#D4AF37]/30"
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold playfair text-[#C1272D]">Add Boxes</h3>
+                  <button
+                    onClick={() => setShowAddModal(null)}
+                    className="text-[#6B5B4F] hover:text-[#2D1B0E] transition-colors"
+                  >
+                    <FiX size={24} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
+                      Color
+                    </label>
+                    <select
+                      value={addFormData.color}
+                      onChange={(e) => setAddFormData({ ...addFormData, color: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                    >
+                      <option value="">Select Color</option>
+                      {Array.isArray(boxes.find((b) => b._id === showAddModal)?.colours) &&
+                        boxes
+                          .find((b) => b._id === showAddModal)
+                          .colours.map((color) => (
+                            <option key={color} value={color}>
+                              {color}
+                            </option>
+                          ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      value={addFormData.quantity}
+                      onChange={(e) => setAddFormData({ ...addFormData, quantity: e.target.value })}
+                      placeholder="Enter quantity"
+                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-[#6B5B4F] mb-2">
+                      Remarks (Optional)
+                    </label>
+                    <textarea
+                      value={addFormData.note}
+                      onChange={(e) => setAddFormData({ ...addFormData, note: e.target.value })}
+                      placeholder="e.g. New stock received from supplier"
+                      rows="3"
+                      className="w-full px-4 py-2 border-2 border-[#E8DCC6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] bg-white poppins text-[#2D1B0E]"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <motion.button
+                      onClick={() => setShowAddModal(null)}
+                      className="flex-1 px-4 py-2 border-2 border-[#D4AF37] text-[#2D1B0E] rounded-lg font-semibold hover:bg-[#F4E4BC] transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      onClick={() => submitAdd(boxes.find((b) => b._id === showAddModal))}
+                      disabled={submittingId === showAddModal}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      whileHover={{ scale: submittingId === showAddModal ? 1 : 1.02 }}
+                      whileTap={{ scale: submittingId === showAddModal ? 1 : 0.98 }}
+                    >
+                      {submittingId === showAddModal ? "Adding..." : "Add Boxes"}
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

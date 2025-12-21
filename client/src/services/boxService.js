@@ -75,6 +75,13 @@ export const deleteBox = async (boxId) => {
   return res.data;
 };
 
+// Add quantity to a box (authenticated users)
+export const addBoxQuantity = async (boxId, payload) => {
+  // payload: { quantity: number, color: string, note?: string }
+  const res = await axiosInstance.post(`/api/boxes/${boxId}/add`, payload);
+  return res.data;
+};
+
 // Subtract quantity from a box (authenticated users)
 export const subtractBoxQuantity = async (boxId, payload) => {
   // payload: { quantity: number, note?: string }
