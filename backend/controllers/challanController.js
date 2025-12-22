@@ -3,6 +3,7 @@ import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
 import Counter from "../models/counterModel.js";
 import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
+import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import fsPromises from "fs/promises";
 
 // Admin: list audits available to generate a challan (unused audits)
@@ -419,97 +420,71 @@ export const getChallanById = async (req, res) => {
   }
 };
 
-// Admin: download challan as PDF or stock receipt
+// Admin: download challan as PDF or stock receipt based on inventoryType
 export const downloadChallanPdf = async (req, res) => {
   try {
-    // First, try to find as challan
-    let challan = await Challan.findById(req.params.id).populate("createdBy", "name email");
+    const document = await Challan.findById(req.params.id).populate("createdBy", "name email");
     
-    if (challan) {
-      // Generate challan PDF
-      const includeGST = true;
-      const pdfPath = await generateChallanPdf(
-        {
-          number: challan.number,
-          items: (challan.items || []).map((item) => ({
-            item: item.item || item.box?.title || "",
-            cavity: item.cavity || "",
-            code: item.code || item.box?.code || "",
-            color: item.color || "",
-            colours:
-              item.colours && item.colours.length
-                ? item.colours
-                : item.color
-                ? [item.color]
-                : item.box?.colours || [],
-            quantity: item.quantity || 0,
-            rate: item.rate || 0,
-            assemblyCharge: item.assemblyCharge || 0,
-            packagingCharge: item.packagingCharge || 0,
-          })),
-          terms: challan.notes,
-          createdBy: challan.createdBy
-            ? { name: challan.createdBy.name || challan.createdBy.email || "" }
-            : {},
-          clientDetails: challan.clientDetails || {},
-          hsnCode: challan.hsnCode || "",
-        },
-        includeGST
-      );
-
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${challan.number}.pdf"`);
-
-      return res.download(pdfPath, (err) => {
-        if (err) {
-          console.error("Error sending challan PDF:", err);
-        }
-        fsPromises
-          .unlink(pdfPath)
-          .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
-      });
+    if (!document) {
+      return res.status(404).json({ message: "Document not found" });
     }
 
-    // Otherwise, try to find as stock receipt
-    const receipt = await StockReceipt.findById(req.params.id).populate("createdBy", "name email");
-    
-    if (receipt) {
-      // Generate stock receipt PDF
-      const pdfPath = await generateStockReceiptPdf({
-        number: receipt.number,
-        items: (receipt.items || []).map((item) => ({
-          item: item.item || item.box?.title || "",
-          cavity: item.cavity || "",
-          code: item.code || item.box?.code || "",
-          color: item.color || "",
-          colours:
-            item.colours && item.colours.length
-              ? item.colours
-              : item.color
-              ? [item.color]
-              : item.box?.colours || [],
-          quantity: item.quantity || 0,
-        })),
-        createdBy: receipt.createdBy
-          ? { name: receipt.createdBy.name || receipt.createdBy.email || "" }
-          : {},
-        clientDetails: receipt.clientDetails || {},
-      });
+    // Determine if this is a stock receipt (inbound/add) or outward challan (outbound/dispatch)
+    const isStockReceipt = document.inventoryType === "add";
 
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${receipt.number}.pdf"`);
+    const itemsForPdf = (document.items || []).map((item) => ({
+      item: item.item || item.box?.title || "",
+      cavity: item.cavity || "",
+      code: item.code || item.box?.code || "",
+      color: item.color || "",
+      colours:
+        item.colours && item.colours.length
+          ? item.colours
+          : item.color
+          ? [item.color]
+          : item.box?.colours || [],
+      quantity: item.quantity || 0,
+      rate: item.rate || 0,
+      assemblyCharge: item.assemblyCharge || 0,
+      packagingCharge: item.packagingCharge || 0,
+    }));
 
-      return res.download(pdfPath, (err) => {
-        if (err) {
-          console.error("Error sending receipt PDF:", err);
-        }
-        fsPromises
-          .unlink(pdfPath)
-          .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
-      });
+    const commonData = {
+      number: document.number,
+      items: itemsForPdf,
+      createdBy: document.createdBy
+        ? { name: document.createdBy.name || document.createdBy.email || "" }
+        : {},
+      clientDetails: document.clientDetails || {},
+    };
+
+    let pdfPath;
+
+    if (isStockReceipt) {
+      // Generate stock receipt PDF for inbound (add) operations
+      pdfPath = await generateStockReceiptPdf(commonData);
+    } else {
+      // Generate challan PDF for outbound (dispatch/subtract) operations
+      const challanData = {
+        ...commonData,
+        terms: document.notes,
+        hsnCode: document.hsnCode || "",
+      };
+      const includeGST = document.includeGST !== false;
+      pdfPath = await generateChallanPdf(challanData, includeGST);
     }
 
-    res.status(404).json({ message: "Challan or receipt not found" });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${document.number}.pdf"`);
+
+    return res.download(pdfPath, (err) => {
+      if (err) {
+        console.error("Error sending PDF:", err);
+      }
+      fsPromises
+        .unlink(pdfPath)
+        .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
