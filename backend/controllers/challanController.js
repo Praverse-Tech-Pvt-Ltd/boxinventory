@@ -1,8 +1,10 @@
 import BoxAudit from "../models/boxAuditModel.js";
 import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
+import StockReceipt from "../models/stockReceiptModel.js";
 import Counter from "../models/counterModel.js";
 import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
+import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import fsPromises from "fs/promises";
 
 // Admin: list audits available to generate a challan (unused audits)
@@ -20,6 +22,7 @@ export const getChallanCandidates = async (req, res) => {
 
 const GST_COUNTER_KEY = "challan_with_gst";
 const NONGST_COUNTER_KEY = "challan_without_gst";
+const STOCK_RECEIPT_COUNTER_KEY = "stock_receipt";
 const CHALLAN_SEQUENCE_PADDING = 5;
 
 function getDateFragment() {
@@ -43,6 +46,15 @@ async function getNextChallanSequence(includeGST) {
   return counter.value;
 }
 
+async function getNextStockReceiptSequence() {
+  const counter = await Counter.findOneAndUpdate(
+    { name: STOCK_RECEIPT_COUNTER_KEY },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  return counter.value;
+}
+
 async function generateChallanNumber(includeGST) {
   const prefix = includeGST ? "1" : "2";
   const dateFrag = getDateFragment();
@@ -50,6 +62,14 @@ async function generateChallanNumber(includeGST) {
   const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
   const randFrag = getRandomFragment();
   return `${prefix}${dateFrag}${randFrag}${paddedSequence}`;
+}
+
+async function generateStockReceiptNumber() {
+  const dateFrag = getDateFragment();
+  const sequence = await getNextStockReceiptSequence();
+  const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
+  const randFrag = getRandomFragment();
+  return `SR${dateFrag}${randFrag}${paddedSequence}`;
 }
 
 // Admin: create challan from selected audit IDs and/or manual items
@@ -62,6 +82,11 @@ export const createChallan = async (req, res) => {
     // Normalize inventory type: "add" means add stock, anything else means subtract/dispatch
     const invType = String(inventoryType).toLowerCase().trim() === "add" ? "add" : "subtract";
     console.log(`[createChallan] inventoryType received: "${inventoryType}", normalized to: "${invType}"`);
+
+    // If ADD mode, create a Stock Receipt instead of a Challan
+    if (invType === "add") {
+      return await createStockReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails);
+    }
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
       return res
@@ -508,5 +533,222 @@ export const searchClients = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Create Stock Receipt for ADD mode (instead of Challan)
+async function createStockReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails) {
+  try {
+    if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Provide at least one audited item or add manual rows" });
+    }
+
+    // Fetch audits
+    let audits = [];
+    if (auditIdsArray.length > 0) {
+      audits = await BoxAudit.find({ _id: { $in: auditIdsArray }, used: false })
+        .populate("user", "name email")
+        .populate("box", "title code category colours price");
+
+      if (audits.length !== auditIdsArray.length) {
+        return res.status(400).json({ message: "Some audits are invalid or already used" });
+      }
+    }
+
+    const receiptNumber = await generateStockReceiptNumber();
+    const lineItems = Array.isArray(req.body.lineItems) ? req.body.lineItems : [];
+    const lineItemMap = new Map();
+    lineItems.forEach((item) => {
+      if (item && item.auditId) {
+        lineItemMap.set(String(item.auditId), item);
+      }
+    });
+
+    const auditedItems = audits.map((a) => ({
+      audit: a._id,
+      box: {
+        _id: a.box._id,
+        title: a.box.title,
+        code: a.box.code,
+        category: a.box.category,
+        colours: Array.isArray(a.box.colours) ? a.box.colours : [],
+      },
+      cavity: lineItemMap.get(String(a._id))?.cavity || "",
+      quantity: (() => {
+        const val = Number(lineItemMap.get(String(a._id))?.quantity ?? a.quantity);
+        return Number.isFinite(val) && val > 0 ? val : a.quantity;
+      })(),
+      color: lineItemMap.get(String(a._id))?.color || a.color || "",
+      colours: (() => {
+        const lineColours = lineItemMap.get(String(a._id))?.colours;
+        if (Array.isArray(lineColours) && lineColours.length > 0) return lineColours;
+        const auditColor = lineItemMap.get(String(a._id))?.color || a.color;
+        if (auditColor) return [auditColor];
+        if (Array.isArray(a.box.colours)) return a.box.colours;
+        return [];
+      })(),
+      user: { _id: a.user._id, name: a.user.name, email: a.user.email },
+      auditedAt: a.createdAt,
+    }));
+
+    const manualBoxIds = [];
+    manualItemsInput.forEach((item) => {
+      if (item?.boxId) {
+        manualBoxIds.push(item.boxId);
+      }
+    });
+
+    let manualBoxes = [];
+    if (manualBoxIds.length > 0) {
+      manualBoxes = await Box.find({ _id: { $in: manualBoxIds } }).select(
+        "_id title code category colours price boxInnerSize"
+      );
+    }
+
+    const boxById = new Map();
+    manualBoxes.forEach((box) => {
+      boxById.set(String(box._id), box);
+    });
+
+    const manualReceiptItems = [];
+    for (let i = 0; i < manualItemsInput.length; i++) {
+      const manualItem = manualItemsInput[i];
+      if (!manualItem) continue;
+      if (!manualItem.boxId) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} must include a product selection` });
+      }
+
+      const idKey = String(manualItem.boxId);
+      const matchedBox = boxById.get(idKey);
+
+      if (!matchedBox) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} references an unknown product` });
+      }
+
+      const qty = Number(manualItem.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        return res
+          .status(400)
+          .json({ message: `Manual item ${i + 1} must include a valid quantity` });
+      }
+
+      const manualColours = (() => {
+        if (Array.isArray(manualItem.colours) && manualItem.colours.length > 0) {
+          const cleaned = manualItem.colours.map((c) => String(c).trim()).filter(Boolean);
+          if (cleaned.length > 0) return cleaned;
+        }
+        if (manualItem.color) return [manualItem.color];
+        if (Array.isArray(matchedBox.colours)) return matchedBox.colours;
+        return [];
+      })();
+
+      manualReceiptItems.push({
+        audit: null,
+        box: {
+          _id: matchedBox._id,
+          title: matchedBox.title,
+          code: matchedBox.code,
+          category: matchedBox.category,
+          colours: Array.isArray(matchedBox.colours) ? matchedBox.colours : [],
+        },
+        cavity: manualItem.cavity || matchedBox.boxInnerSize || "",
+        quantity: qty,
+        color: manualItem.color || "",
+        colours: manualColours,
+        user: manualItem.user || undefined,
+        auditedAt: null,
+        manualEntry: true,
+      });
+    }
+
+    const items = [...auditedItems, ...manualReceiptItems];
+
+    // Update inventory - ADD mode always succeeds (no validation)
+    const usageByBox = new Map();
+
+    auditedItems.forEach((item) => {
+      if (!item.color || !item.color.trim()) return;
+      const boxId = String(item.box._id);
+      const colorKey = item.color.trim();
+
+      if (!usageByBox.has(boxId)) {
+        usageByBox.set(boxId, new Map());
+      }
+      const colorMap = usageByBox.get(boxId);
+      const prev = colorMap.get(colorKey) || 0;
+      colorMap.set(colorKey, prev + Number(item.quantity || 0));
+    });
+
+    manualReceiptItems.forEach((item) => {
+      if (!item.color || !item.color.trim()) return;
+      const boxId = String(item.box._id);
+      const colorKey = item.color.trim();
+
+      if (!usageByBox.has(boxId)) {
+        usageByBox.set(boxId, new Map());
+      }
+      const colorMap = usageByBox.get(boxId);
+      const prev = colorMap.get(colorKey) || 0;
+      colorMap.set(colorKey, prev + Number(item.quantity || 0));
+    });
+
+    // Apply inventory additions (ADD mode)
+    if (usageByBox.size > 0) {
+      const boxIds = Array.from(usageByBox.keys());
+      const boxes = await Box.find({ _id: { $in: boxIds } });
+
+      for (const box of boxes) {
+        const boxIdStr = String(box._id);
+        const colorUsage = usageByBox.get(boxIdStr);
+        if (!colorUsage) continue;
+        const quantityByColor = box.quantityByColor || new Map();
+
+        for (const [colorKey, usedQty] of colorUsage.entries()) {
+          const currentQty = quantityByColor.get(colorKey) || 0;
+          quantityByColor.set(colorKey, currentQty + usedQty);
+        }
+        box.quantityByColor = quantityByColor;
+        await box.save();
+      }
+    }
+
+    const normalizedClientDetails = {
+      name: clientDetails?.name?.trim() || "",
+      address: clientDetails?.address?.trim() || "",
+      mobile: clientDetails?.mobile?.trim() || "",
+      gstNumber: clientDetails?.gstNumber?.trim() || "",
+    };
+    const hasClientDetails = Object.values(normalizedClientDetails).some((val) => Boolean(val));
+
+    const receiptPayload = {
+      number: receiptNumber,
+      items,
+      createdBy: req.user._id,
+      totalAmount: 0, // No amount for stock receipts
+    };
+
+    if (hasClientDetails) {
+      receiptPayload.clientDetails = normalizedClientDetails;
+    }
+
+    const receipt = await StockReceipt.create(receiptPayload);
+
+    // Mark audits as used and link to receipt (for tracking)
+    if (auditIdsArray.length > 0) {
+      await BoxAudit.updateMany(
+        { _id: { $in: auditIdsArray } },
+        { $set: { used: true } }
+      );
+    }
+
+    res.status(201).json(receipt);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+}
 
 
