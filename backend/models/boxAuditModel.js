@@ -43,6 +43,12 @@ const boxAuditSchema = new mongoose.Schema(
       default: "subtract",
       index: true,
     },
+    doc_type: {
+      type: String,
+      enum: ["OUTWARD_CHALLAN", "STOCK_INWARD_RECEIPT"],
+      default: "OUTWARD_CHALLAN",
+      index: true,
+    },
   },
   { timestamps: true }
 );

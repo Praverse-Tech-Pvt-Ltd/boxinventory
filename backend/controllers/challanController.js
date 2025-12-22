@@ -1,10 +1,8 @@
 import BoxAudit from "../models/boxAuditModel.js";
 import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
-import StockReceipt from "../models/stockReceiptModel.js";
 import Counter from "../models/counterModel.js";
 import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
-import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import fsPromises from "fs/promises";
 
 // Admin: list audits available to generate a challan (unused audits)
@@ -83,9 +81,9 @@ export const createChallan = async (req, res) => {
     const invType = String(inventoryType).toLowerCase().trim() === "add" ? "add" : "subtract";
     console.log(`[createChallan] inventoryType received: "${inventoryType}", normalized to: "${invType}"`);
 
-    // If ADD mode, create a Stock Receipt instead of a Challan
+    // If ADD mode, create a Stock Inward Receipt instead of Outward Challan
     if (invType === "add") {
-      return await createStockReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails);
+      return await createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails);
     }
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
@@ -397,35 +395,14 @@ export const createChallan = async (req, res) => {
   }
 };
 
-// Admin: list challans AND stock receipts
+// Admin: list challans AND stock receipts (all documents)
 export const listChallans = async (req, res) => {
   try {
-    const [challans, receipts] = await Promise.all([
-      Challan.find({})
-        .populate("createdBy", "name email")
-        .sort({ createdAt: -1 }),
-      StockReceipt.find({})
-        .populate("createdBy", "name email")
-        .sort({ createdAt: -1 }),
-    ]);
+    const documents = await Challan.find({})
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
 
-    // Mark receipts with type and combine with challans
-    const receiptsWithType = receipts.map((r) => ({
-      ...r.toObject(),
-      type: "stock-receipt",
-    }));
-
-    const challansWithType = challans.map((c) => ({
-      ...c.toObject(),
-      type: "challan",
-    }));
-
-    // Combine and sort by creation date
-    const all = [...challansWithType, ...receiptsWithType].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-
-    res.status(200).json(all);
+    res.status(200).json(documents);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -598,8 +575,8 @@ export const searchClients = async (req, res) => {
   }
 };
 
-// Create Stock Receipt for ADD mode (instead of Challan)
-async function createStockReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails) {
+// Create Stock Inward Receipt for ADD mode (stored in Challan model with doc_type = "STOCK_INWARD_RECEIPT")
+async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails) {
   try {
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
       return res
@@ -790,22 +767,29 @@ async function createStockReceipt(req, res, auditIdsArray, manualItemsInput, cli
 
     const receiptPayload = {
       number: receiptNumber,
+      doc_type: "STOCK_INWARD_RECEIPT",
       items,
       createdBy: req.user._id,
-      totalAmount: 0, // No amount for stock receipts
+      inventoryType: "add",
+      includeGST: false,
     };
 
     if (hasClientDetails) {
       receiptPayload.clientDetails = normalizedClientDetails;
     }
 
-    const receipt = await StockReceipt.create(receiptPayload);
+    const receipt = await Challan.create(receiptPayload);
 
     // Mark audits as used and link to receipt (for tracking)
     if (auditIdsArray.length > 0) {
       await BoxAudit.updateMany(
         { _id: { $in: auditIdsArray } },
-        { $set: { used: true } }
+        { 
+          $set: { 
+            used: true,
+            doc_type: "STOCK_INWARD_RECEIPT",
+          } 
+        }
       );
     }
 

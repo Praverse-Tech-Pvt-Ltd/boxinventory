@@ -31,6 +31,12 @@ const challanItemSchema = new mongoose.Schema(
 const challanSchema = new mongoose.Schema(
   {
     number: { type: String, required: true, unique: true }, // human readable id
+    doc_type: {
+      type: String,
+      enum: ["OUTWARD_CHALLAN", "STOCK_INWARD_RECEIPT"],
+      default: "OUTWARD_CHALLAN",
+      index: true,
+    },
     items: { type: [challanItemSchema], default: [] },
     notes: { type: String, trim: true },
     includeGST: { type: Boolean, default: true },
