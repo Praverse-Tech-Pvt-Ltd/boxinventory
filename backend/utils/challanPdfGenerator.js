@@ -132,14 +132,24 @@ const addClientDetails = (doc, clientDetails = {}) => {
   doc.moveDown(0.15);
   doc.font("Helvetica").fontSize(9.5);
   
-  // Add proper left margin for readability
-  const labelWidth = 100;
-  const leftPadding = 20;
+  // Use fixed column widths for proper alignment
+  const labelWidth = 70;
+  const startX = 20;
   
   entries.forEach((entry) => {
-    const text = `${entry.label}: ${entry.value?.trim() ? entry.value : "-"}`;
-    doc.text(text, leftPadding, undefined, {
-      width: doc.page.width - doc.page.margins.left - doc.page.margins.right - leftPadding,
+    const label = entry.label + ":";
+    const value = entry.value?.trim() ? entry.value : "-";
+    
+    // Draw label in fixed width column
+    doc.text(label, startX, undefined, {
+      width: labelWidth,
+      align: "left",
+    });
+    
+    // Draw value next to label on same line
+    const labelHeight = doc.heightOfString(label, { width: labelWidth });
+    doc.text(value, startX + labelWidth, doc.y - labelHeight, {
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right - startX - labelWidth - 10,
       align: "left",
     });
   });
