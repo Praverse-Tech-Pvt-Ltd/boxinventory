@@ -360,7 +360,10 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
 };
 
 const addFooter = (doc, startY, terms) => {
-  const footerY = Math.max(startY, doc.page.height - 280);
+  // Start the footer section right after the summary (with minimal gap)
+  const footerStartY = startY + 10;
+  const footerY = footerStartY;
+  
   doc.lineWidth(0.7);
   doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).stroke();
 
@@ -441,7 +444,9 @@ export const generateChallanPdf = async (challanData, includeGST = true) => {
 
   addSummary(doc, tableInfo, includeGST, summaryTop);
 
-  addFooter(doc, targetFooterY, challanData.terms);
+  // Footer position is right after the summary, not at a fixed position
+  const summaryEndY = summaryTop + 80;
+  addFooter(doc, summaryEndY, challanData.terms);
 
   doc.end();
 
