@@ -54,7 +54,7 @@ const DEFAULT_TERMS = `Terms & Conditions:
 • Delivery timeline: 2–6 working days, depending on location.`;
 
 const DEFAULT_NOTE = `Note:
-~ Prices are without GST. GST @ 18% applicable.
+~ Prices are without GST. GST @ 5% applicable.
 ~ Shipping & packaging charges are additional.
 ~ Shipping charges depend on weight and dimensions.
 ~ Goods once sold will not be taken back / exchanged / refunded.

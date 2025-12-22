@@ -556,6 +556,16 @@ const AuditHistory = () => {
               Audit Logs
             </button>
             <button
+              onClick={() => setActiveTab("challans")}
+              className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${
+                activeTab === "challans"
+                  ? "border-red-600 text-red-600"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All Challans
+            </button>
+            <button
               onClick={() => setActiveTab("sales")}
               className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${
                 activeTab === "sales"
@@ -681,6 +691,92 @@ const AuditHistory = () => {
               )}
             </div>
           </>
+        )}
+
+        {/* All Challans Tab */}
+        {activeTab === "challans" && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-slate-900">All Generated Challans</h3>
+              <div className="text-sm text-slate-600">
+                Total: {challans.length} {challans.length === 1 ? "challan" : "challans"}
+              </div>
+            </div>
+
+            {challans.length > 0 ? (
+              <div className="table-container">
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Challan No.</th>
+                      <th>Client</th>
+                      <th>Items</th>
+                      <th>Total Amount</th>
+                      <th>Type</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {challans.map((challan, idx) => (
+                      <tr
+                        key={challan._id}
+                        className={`border-b border-slate-200 transition-colors ${
+                          idx % 2 === 0 ? "bg-white" : "bg-slate-50"
+                        } hover:bg-slate-100`}
+                      >
+                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
+                          {challan.createdAt ? new Date(challan.createdAt).toLocaleDateString() : "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 font-mono font-semibold text-sm">
+                          {challan.challanNo || "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 text-sm">
+                          {challan.clientDetails?.name || challan.clientName || "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 text-sm">
+                          {challan.items ? challan.items.length : 0} item(s)
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 font-semibold text-sm">
+                          {formatCurrencyUI(challan.totalAmount || 0)}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              challan.inventoryType === "add"
+                                ? "bg-green-100 text-green-800"
+                                : challan.inventoryType === "subtract"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {challan.inventoryType === "add"
+                              ? "ADD"
+                              : challan.inventoryType === "subtract"
+                              ? "DISPATCH"
+                              : "MANUAL"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          <button
+                            onClick={() => handleDownload(challan._id)}
+                            className="text-blue-600 hover:text-blue-800 font-semibold text-sm transition-colors"
+                            title="Download PDF"
+                          >
+                            📄 PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-500">
+                <p className="font-medium">No challans generated yet</p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Total Sales Tab */}
