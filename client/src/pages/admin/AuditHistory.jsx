@@ -669,15 +669,17 @@ const AuditHistory = () => {
                             {a.box?.code || "-"}
                           </td>
                           <td className="px-4 py-3 text-slate-700 text-sm">
-                            {challanToClientMap.get(String(a.challan)) || "-"}
+                            {a.challan && a.challan._id
+                              ? challanToClientMap.get(String(a.challan._id)) || "-"
+                              : "-"}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             {a.challan ? (
                               <button
-                                onClick={() => handleDownload(a.challan)}
+                                onClick={() => handleDownload(a.challan._id)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-sm hover:bg-red-700 transition-colors"
                               >
-                                <FiDownload /> Download
+                                <FiDownload /> {a.challan.number || "Download"}
                               </button>
                             ) : (
                               <span className="text-xs text-slate-500">No challan</span>

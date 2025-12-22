@@ -18,6 +18,7 @@ export const getAllAudits = async (req, res) => {
     const audits = await BoxAudit.find({})
       .populate("user", "name email role")
       .populate("box", "title code category")
+      .populate("challan", "challanNo number totalAmount")
       .sort({ createdAt: -1 });
     res.status(200).json(audits);
   } catch (error) {
