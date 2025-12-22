@@ -397,13 +397,35 @@ export const createChallan = async (req, res) => {
   }
 };
 
-// Admin: list challans
+// Admin: list challans AND stock receipts
 export const listChallans = async (req, res) => {
   try {
-    const challans = await Challan.find({})
-      .populate("createdBy", "name email")
-      .sort({ createdAt: -1 });
-    res.status(200).json(challans);
+    const [challans, receipts] = await Promise.all([
+      Challan.find({})
+        .populate("createdBy", "name email")
+        .sort({ createdAt: -1 }),
+      StockReceipt.find({})
+        .populate("createdBy", "name email")
+        .sort({ createdAt: -1 }),
+    ]);
+
+    // Mark receipts with type and combine with challans
+    const receiptsWithType = receipts.map((r) => ({
+      ...r.toObject(),
+      type: "stock-receipt",
+    }));
+
+    const challansWithType = challans.map((c) => ({
+      ...c.toObject(),
+      type: "challan",
+    }));
+
+    // Combine and sort by creation date
+    const all = [...challansWithType, ...receiptsWithType].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json(all);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -420,19 +442,65 @@ export const getChallanById = async (req, res) => {
   }
 };
 
-// Admin: download challan as PDF
+// Admin: download challan as PDF or stock receipt
 export const downloadChallanPdf = async (req, res) => {
   try {
-    const challan = await Challan.findById(req.params.id).populate("createdBy", "name email");
-    if (!challan) return res.status(404).json({ message: "Challan not found" });
+    // First, try to find as challan
+    let challan = await Challan.findById(req.params.id).populate("createdBy", "name email");
+    
+    if (challan) {
+      // Generate challan PDF
+      const includeGST = true;
+      const pdfPath = await generateChallanPdf(
+        {
+          number: challan.number,
+          items: (challan.items || []).map((item) => ({
+            item: item.item || item.box?.title || "",
+            cavity: item.cavity || "",
+            code: item.code || item.box?.code || "",
+            color: item.color || "",
+            colours:
+              item.colours && item.colours.length
+                ? item.colours
+                : item.color
+                ? [item.color]
+                : item.box?.colours || [],
+            quantity: item.quantity || 0,
+            rate: item.rate || 0,
+            assemblyCharge: item.assemblyCharge || 0,
+            packagingCharge: item.packagingCharge || 0,
+          })),
+          terms: challan.notes,
+          createdBy: challan.createdBy
+            ? { name: challan.createdBy.name || challan.createdBy.email || "" }
+            : {},
+          clientDetails: challan.clientDetails || {},
+          hsnCode: challan.hsnCode || "",
+        },
+        includeGST
+      );
 
-    // GST is fixed at 5%; ignore query param
-    const includeGST = true;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${challan.number}.pdf"`);
 
-    const pdfPath = await generateChallanPdf(
-      {
-        number: challan.number,
-        items: (challan.items || []).map((item) => ({
+      return res.download(pdfPath, (err) => {
+        if (err) {
+          console.error("Error sending challan PDF:", err);
+        }
+        fsPromises
+          .unlink(pdfPath)
+          .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
+      });
+    }
+
+    // Otherwise, try to find as stock receipt
+    const receipt = await StockReceipt.findById(req.params.id).populate("createdBy", "name email");
+    
+    if (receipt) {
+      // Generate stock receipt PDF
+      const pdfPath = await generateStockReceiptPdf({
+        number: receipt.number,
+        items: (receipt.items || []).map((item) => ({
           item: item.item || item.box?.title || "",
           cavity: item.cavity || "",
           code: item.code || item.box?.code || "",
@@ -444,31 +512,27 @@ export const downloadChallanPdf = async (req, res) => {
               ? [item.color]
               : item.box?.colours || [],
           quantity: item.quantity || 0,
-          rate: item.rate || 0,
-          assemblyCharge: item.assemblyCharge || 0,
-          packagingCharge: item.packagingCharge || 0,
         })),
-        terms: challan.notes,
-        createdBy: challan.createdBy
-          ? { name: challan.createdBy.name || challan.createdBy.email || "" }
+        createdBy: receipt.createdBy
+          ? { name: receipt.createdBy.name || receipt.createdBy.email || "" }
           : {},
-        clientDetails: challan.clientDetails || {},
-        hsnCode: challan.hsnCode || "",
-      },
-      includeGST
-    );
+        clientDetails: receipt.clientDetails || {},
+      });
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${challan.number}.pdf"`);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${receipt.number}.pdf"`);
 
-    return res.download(pdfPath, (err) => {
-      if (err) {
-        console.error("Error sending challan PDF:", err);
-      }
-      fsPromises
-        .unlink(pdfPath)
-        .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
-    });
+      return res.download(pdfPath, (err) => {
+        if (err) {
+          console.error("Error sending receipt PDF:", err);
+        }
+        fsPromises
+          .unlink(pdfPath)
+          .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
+      });
+    }
+
+    res.status(404).json({ message: "Challan or receipt not found" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
