@@ -30,7 +30,15 @@ const challanItemSchema = new mongoose.Schema(
 
 const challanSchema = new mongoose.Schema(
   {
-    number: { type: String, required: true, unique: true }, // human readable id
+    number: { type: String, required: true, unique: true }, // human readable id (e.g., GST-000001, NGST-000002)
+    sequence: { type: Number, required: true, index: true }, // numeric sequence for sorting
+    challan_tax_type: {
+      type: String,
+      enum: ["GST", "NON_GST"],
+      default: "GST",
+      required: true,
+      index: true,
+    },
     doc_type: {
       type: String,
       enum: ["OUTWARD_CHALLAN", "STOCK_INWARD_RECEIPT"],

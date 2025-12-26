@@ -1,4 +1,9 @@
 import User from "../models/User.js";
+import Box from "../models/boxModel.js";
+import BoxAudit from "../models/boxAuditModel.js";
+import Challan from "../models/challanModel.js";
+import Counter from "../models/counterModel.js";
+import ClientBatch from "../models/clientBatchModel.js";
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -61,5 +66,77 @@ export const deleteUser = async (req, res) => {
     res.status(200).json({ message: "User deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Admin: Reset system to production state
+// Only works in development mode or with correct admin secret
+export const resetToProduction = async (req, res) => {
+  try {
+    // Safety check: only allow in development or with admin secret
+    const isDevelopment = process.env.NODE_ENV !== "production";
+    const adminSecret = process.env.ADMIN_RESET_SECRET;
+    const providedSecret = req.body?.adminSecret;
+
+    if (!isDevelopment && (!adminSecret || providedSecret !== adminSecret)) {
+      return res.status(403).json({ message: "Unauthorized: Reset only allowed in development or with valid admin secret" });
+    }
+
+    // Step 1: Clear all transactional data
+    console.log("[RESET] Clearing transactional data...");
+    await Challan.deleteMany({});
+    await BoxAudit.deleteMany({});
+    await Box.deleteMany({});
+    await ClientBatch.deleteMany({});
+    
+    // Step 2: Reset counters to initial values
+    console.log("[RESET] Resetting counters...");
+    await Counter.findOneAndUpdate(
+      { name: "gst_challan_counter" },
+      { value: 1 },
+      { upsert: true }
+    );
+    await Counter.findOneAndUpdate(
+      { name: "nongst_challan_counter" },
+      { value: 2 },
+      { upsert: true }
+    );
+    await Counter.findOneAndUpdate(
+      { name: "stock_receipt_counter" },
+      { value: 1 },
+      { upsert: true }
+    );
+
+    // Step 3: Keep only the two production admin users
+    const adminEmails = ["test@gmail.com", "savlavaibhav99@gmail.com"];
+    const adminUsers = await User.find({ email: { $in: adminEmails } });
+    
+    if (adminUsers.length < 2) {
+      console.warn("[RESET] Warning: Could not find both admin users. Proceeding with reset...");
+    }
+
+    // Delete all users except the two admins
+    await User.deleteMany({ email: { $nin: adminEmails } });
+
+    // Ensure the two admin users have admin role
+    await User.updateMany(
+      { email: { $in: adminEmails } },
+      { $set: { role: "admin" } }
+    );
+
+    console.log("[RESET] System reset to production state complete");
+    
+    res.status(200).json({
+      message: "System reset to production state successfully",
+      details: {
+        transactionalDataCleared: true,
+        countersReset: true,
+        adminUsersRetained: 2,
+        retainedAdmins: adminEmails,
+      },
+    });
+  } catch (error) {
+    console.error("[RESET] Error during reset:", error);
+    res.status(500).json({ message: "Server error during reset", error: error.message });
   }
 };

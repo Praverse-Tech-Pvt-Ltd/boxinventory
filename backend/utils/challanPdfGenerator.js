@@ -317,12 +317,15 @@ const addTable = (doc, items, startY) => {
   };
 };
 
-const addSummary = (doc, summary, includeGST, yTopOverride) => {
+const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST") => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.65;
   const valueWidth = tableWidth * 0.35;
-  const gstAmount = subtotal * 0.05;
+  
+  // For NON-GST, always show 0; for GST, show 5%
+  const gstRate = taxType === "NON_GST" ? 0 : 0.05;
+  const gstAmount = subtotal * gstRate;
   const totalBeforeRound = subtotal + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
@@ -334,8 +337,10 @@ const addSummary = (doc, summary, includeGST, yTopOverride) => {
   doc.lineWidth(0.7);
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
+  // Show GST line with appropriate label and amount
+  const gstLabel = taxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST (5%)";
   doc.font("Helvetica-Bold").fontSize(9.5);
-  doc.text("GST (5%)", startX + 4, baseY + 8, { width: labelWidth - 8, align: "right" });
+  doc.text(gstLabel, startX + 4, baseY + 8, { width: labelWidth - 8, align: "right" });
   doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 8, {
     width: valueWidth - 8,
     align: "right",
@@ -401,7 +406,7 @@ const addFooter = (doc, startY, terms) => {
   });
 };
 
-export const generateChallanPdf = async (challanData, includeGST = true) => {
+export const generateChallanPdf = async (challanData, includeGST = true, taxType = "GST") => {
   if (!challanData) {
     throw new Error("Challan data is required to generate PDF");
   }
@@ -442,7 +447,7 @@ export const generateChallanPdf = async (challanData, includeGST = true) => {
     summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
   }
 
-  addSummary(doc, tableInfo, includeGST, summaryTop);
+  addSummary(doc, tableInfo, includeGST, summaryTop, taxType);
 
   // Footer position is right after the summary, not at a fixed position
   const summaryEndY = summaryTop + 80;

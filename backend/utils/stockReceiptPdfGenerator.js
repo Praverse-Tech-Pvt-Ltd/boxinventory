@@ -56,9 +56,10 @@ const drawTableBorders = (doc, startX, startY, headerHeight, rowHeights, colWidt
   });
 };
 
-const addHeader = (doc, receiptNumber) => {
+const addHeader = (doc, receiptNumber, taxType = "GST") => {
   // Header: Company name and details centered
-  doc.font("Helvetica-Bold").fontSize(10).text("STOCK ADDITION RECEIPT", { align: "center" });
+  const headerText = taxType === "NON_GST" ? "STOCK ADDITION RECEIPT (NON-GST)" : "STOCK ADDITION RECEIPT";
+  doc.font("Helvetica-Bold").fontSize(10).text(headerText, { align: "center" });
   doc.moveDown(0.25);
   doc.fontSize(18).text(COMPANY.name, { align: "center" });
   doc.moveDown(0.15);
@@ -299,7 +300,9 @@ export const generateStockReceiptPdf = async (receiptData) => {
   const writeStream = fs.createWriteStream(filePath);
   doc.pipe(writeStream);
 
-  addHeader(doc, receiptData.number || "");
+  // Pass tax type to addHeader for display
+  const taxType = receiptData.taxType || "GST";
+  addHeader(doc, receiptData.number || "", taxType);
 
   doc.moveDown(0.5);
   doc.font("Helvetica").fontSize(10).text(`Prepared By: ${receiptData.createdBy?.name || "-"}`);
@@ -322,4 +325,4 @@ export const generateStockReceiptPdf = async (receiptData) => {
   });
 
   return filePath;
-};
+}

@@ -19,10 +19,10 @@ export const getChallanCandidates = async (req, res) => {
   }
 };
 
-const GST_COUNTER_KEY = "challan_with_gst";
-const NONGST_COUNTER_KEY = "challan_without_gst";
-const STOCK_RECEIPT_COUNTER_KEY = "stock_receipt";
-const CHALLAN_SEQUENCE_PADDING = 5;
+const GST_COUNTER_KEY = "gst_challan_counter";
+const NONGST_COUNTER_KEY = "nongst_challan_counter";
+const STOCK_RECEIPT_COUNTER_KEY = "stock_receipt_counter";
+const CHALLAN_SEQUENCE_PADDING = 6;
 
 function getDateFragment() {
   const now = new Date();
@@ -36,9 +36,10 @@ function getRandomFragment() {
   return String(Math.floor(Math.random() * 90) + 10);
 }
 
-async function getNextChallanSequence(includeGST) {
+async function getNextChallanSequence(taxType = "GST") {
+  const counterKey = taxType === "GST" ? GST_COUNTER_KEY : NONGST_COUNTER_KEY;
   const counter = await Counter.findOneAndUpdate(
-    { name: includeGST ? GST_COUNTER_KEY : NONGST_COUNTER_KEY },
+    { name: counterKey },
     { $inc: { value: 1 } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
@@ -54,13 +55,21 @@ async function getNextStockReceiptSequence() {
   return counter.value;
 }
 
-async function generateChallanNumber(includeGST) {
-  const prefix = includeGST ? "1" : "2";
-  const dateFrag = getDateFragment();
-  const sequence = await getNextChallanSequence(includeGST);
+// Generate challan number based on tax type: GST-000001, NGST-000002, etc.
+async function generateChallanNumber(taxType = "GST") {
+  const prefix = taxType === "GST" ? "GST" : "NGST";
+  const sequence = await getNextChallanSequence(taxType);
   const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
-  const randFrag = getRandomFragment();
-  return `${prefix}${dateFrag}${randFrag}${paddedSequence}`;
+  return `${prefix}-${paddedSequence}`;
+}
+
+// Generate challan number and return both number and sequence
+async function generateChallanNumberWithSequence(taxType = "GST") {
+  const prefix = taxType === "GST" ? "GST" : "NGST";
+  const sequence = await getNextChallanSequence(taxType);
+  const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
+  const number = `${prefix}-${paddedSequence}`;
+  return { number, sequence };
 }
 
 async function generateStockReceiptNumber() {
@@ -74,9 +83,13 @@ async function generateStockReceiptNumber() {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, includeGST, clientDetails, manualItems, hsnCode, inventoryType } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventoryType, challanTaxType } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
+    
+    // Normalize tax type: default to GST, accept GST or NON_GST
+    const taxType = (String(challanTaxType).toUpperCase().trim() === "NON_GST" || String(challanTaxType).toUpperCase().trim() === "NONGST") ? "NON_GST" : "GST";
+    console.log(`[createChallan] challanTaxType received: "${challanTaxType}", normalized to: "${taxType}"`);
     
     // Normalize inventory type: "add" means add stock, anything else means subtract/dispatch
     const invType = String(inventoryType).toLowerCase().trim() === "add" ? "add" : "subtract";
@@ -84,7 +97,7 @@ export const createChallan = async (req, res) => {
 
     // If ADD mode, create a Stock Inward Receipt instead of Outward Challan
     if (invType === "add") {
-      return await createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails);
+      return await createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails, taxType);
     }
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
@@ -92,9 +105,6 @@ export const createChallan = async (req, res) => {
         .status(400)
         .json({ message: "Provide at least one audited item or add manual challan rows" });
     }
-
-    // GST is fixed at 5% for all challans; keep includeGST flag true for legacy data
-    const includeGSTFlag = true;
 
     // Fetch audits and validate
     let audits = [];
@@ -108,7 +118,8 @@ export const createChallan = async (req, res) => {
       }
     }
 
-    const challanNumber = await generateChallanNumber(true);
+    // Generate challan number - this internally calls getNextChallanSequence
+    const { number: challanNumber, sequence } = await generateChallanNumberWithSequence(taxType);
     const lineItems = Array.isArray(req.body.lineItems) ? req.body.lineItems : [];
     const lineItemMap = new Map();
     lineItems.forEach((item) => {
@@ -363,11 +374,16 @@ export const createChallan = async (req, res) => {
     };
     const hasClientDetails = Object.values(normalizedClientDetails).some((val) => Boolean(val));
 
+    // For GST challans, includeGST is always true; for NON-GST, it's always false
+    const shouldIncludeGST = taxType === "GST";
+
     const challanPayload = {
       number: challanNumber,
+      sequence: sequence, // numeric sequence for sorting (already obtained from generateChallanNumberWithSequence)
+      challan_tax_type: taxType,
       items,
       notes: typeof terms === "string" ? terms : notes || "",
-      includeGST: includeGSTFlag,
+      includeGST: shouldIncludeGST,
       createdBy: req.user._id,
       inventoryType: invType,
       hsnCode: "481920", // Fixed HSN Code for Paper Products
@@ -462,16 +478,21 @@ export const downloadChallanPdf = async (req, res) => {
 
     if (isStockReceipt) {
       // Generate stock receipt PDF for inbound (add) operations
-      pdfPath = await generateStockReceiptPdf(commonData);
+      const stockReceiptData = {
+        ...commonData,
+        taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
+      };
+      pdfPath = await generateStockReceiptPdf(stockReceiptData);
     } else {
       // Generate challan PDF for outbound (dispatch/subtract) operations
       const challanData = {
         ...commonData,
         terms: document.notes,
         hsnCode: document.hsnCode || "",
+        taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
       };
       const includeGST = document.includeGST !== false;
-      pdfPath = await generateChallanPdf(challanData, includeGST);
+      pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);
     }
 
     res.setHeader("Content-Type", "application/pdf");
@@ -551,7 +572,7 @@ export const searchClients = async (req, res) => {
 };
 
 // Create Stock Inward Receipt for ADD mode (stored in Challan model with doc_type = "STOCK_INWARD_RECEIPT")
-async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails) {
+async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails, taxType = "GST") {
   try {
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
       return res
@@ -740,13 +761,21 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
     };
     const hasClientDetails = Object.values(normalizedClientDetails).some((val) => Boolean(val));
 
+    // Stock receipts always use tax type (GST or NON-GST based on parameter)
+    const shouldIncludeGST = taxType === "GST";
+    
+    // Get sequence for stock receipt (they use independent counter)
+    const receiptSequence = await getNextStockReceiptSequence();
+
     const receiptPayload = {
       number: receiptNumber,
+      sequence: receiptSequence,
+      challan_tax_type: taxType,
       doc_type: "STOCK_INWARD_RECEIPT",
       items,
       createdBy: req.user._id,
       inventoryType: "add",
-      includeGST: false,
+      includeGST: shouldIncludeGST,
     };
 
     if (hasClientDetails) {

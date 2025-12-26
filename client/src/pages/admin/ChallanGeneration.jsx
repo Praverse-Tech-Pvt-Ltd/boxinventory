@@ -90,6 +90,7 @@ const ChallanGeneration = () => {
   const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [appendTargetBatchId, setAppendTargetBatchId] = useState("");
   const [loadingBatches, setLoadingBatches] = useState(false);
+  const [challanTaxType, setChallanTaxType] = useState("GST"); // GST or NON_GST
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -301,6 +302,7 @@ const ChallanGeneration = () => {
     setClientDetails(createEmptyClientDetails());
     setHsnCode("481920");
     setInventoryType("subtract");
+    setChallanTaxType("GST"); // Reset to default GST
     setManualRows([]);
   };
 
@@ -655,6 +657,7 @@ const ChallanGeneration = () => {
       note,
       hsnCode,
       inventoryType: inventoryType || "subtract", // Ensure it has a value, default to subtract
+      challanTaxType: challanTaxType || "GST", // Ensure it has a value, default to GST
       clientDetails: hasClientInfo ? clientDetails : undefined,
     };
   };
@@ -662,7 +665,7 @@ const ChallanGeneration = () => {
   const handleGenerate = async () => {
     try {
       const payload = buildCurrentClientPayload();
-      console.log("[Frontend] Sending payload with inventoryType:", payload.inventoryType);
+      console.log("[Frontend] Sending payload with inventoryType:", payload.inventoryType, "taxType:", payload.challanTaxType);
       setSubmitting(true);
       const challan = await createChallan(payload);
       toast.success(`Challan ${challan.number} created`);
@@ -1236,6 +1239,17 @@ const ChallanGeneration = () => {
                 >
                   <option value="subtract">Dispatch / Subtract from Inventory</option>
                   <option value="add">Add to Inventory (New Stock)</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Challan Tax Type</label>
+                <select
+                  value={challanTaxType}
+                  onChange={(e) => setChallanTaxType(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                >
+                  <option value="GST">GST Challan (5% GST Applied)</option>
+                  <option value="NON_GST">Non-GST Challan (No GST)</option>
                 </select>
               </div>
             </div>
