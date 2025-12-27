@@ -1,9 +1,15 @@
 import BoxAudit from "../models/boxAuditModel.js";
 import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
-import Counter from "../models/counterModel.js";
+import ChallanCounter from "../models/challanCounterModel.js";
 import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
 import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
+import { 
+  getFinancialYear, 
+  generateGSTChallanNumber, 
+  generateNonGSTChallanNumber,
+  formatChallanSequence 
+} from "../utils/financialYearUtils.js";
 import fsPromises from "fs/promises";
 
 // Admin: list audits available to generate a challan (unused audits)
@@ -19,65 +25,46 @@ export const getChallanCandidates = async (req, res) => {
   }
 };
 
-const GST_COUNTER_KEY = "gst_challan_counter";
-const NONGST_COUNTER_KEY = "nongst_challan_counter";
-const STOCK_RECEIPT_COUNTER_KEY = "stock_receipt_counter";
-const CHALLAN_SEQUENCE_PADDING = 6;
-
-function getDateFragment() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return yy + mm + dd;
+/**
+ * Generate GST challan number with FY-based numbering
+ * Format: VPP/25-26/0001
+ * 
+ * @param {Date} challanDate - Date of challan (used to determine FY)
+ * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
+ */
+async function generateGSTChallanNumber(challanDate) {
+  const fy = getFinancialYear(challanDate);
+  const seq = await ChallanCounter.getNextSequence(fy, "gst");
+  const number = generateGSTChallanNumber(fy, seq);
+  
+  return { number, fy, seq };
 }
 
-function getRandomFragment() {
-  return String(Math.floor(Math.random() * 90) + 10);
+/**
+ * Generate Non-GST challan number with FY-based numbering
+ * Format: NGST/25-26/0001
+ * 
+ * @param {Date} challanDate - Date of challan (used to determine FY)
+ * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
+ */
+async function generateNonGSTChallanNumber(challanDate) {
+  const fy = getFinancialYear(challanDate);
+  const seq = await ChallanCounter.getNextSequence(fy, "nongst");
+  const number = generateNonGSTChallanNumber(fy, seq);
+  
+  return { number, fy, seq };
 }
 
-async function getNextChallanSequence(taxType = "GST") {
-  const counterKey = taxType === "GST" ? GST_COUNTER_KEY : NONGST_COUNTER_KEY;
-  const counter = await Counter.findOneAndUpdate(
-    { name: counterKey },
-    { $inc: { value: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
-  return counter.value;
-}
-
-async function getNextStockReceiptSequence() {
-  const counter = await Counter.findOneAndUpdate(
-    { name: STOCK_RECEIPT_COUNTER_KEY },
-    { $inc: { value: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
-  return counter.value;
-}
-
-// Generate challan number based on tax type: GST-000001, NGST-000002, etc.
-async function generateChallanNumber(taxType = "GST") {
-  const prefix = taxType === "GST" ? "GST" : "NGST";
-  const sequence = await getNextChallanSequence(taxType);
-  const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
-  return `${prefix}-${paddedSequence}`;
-}
-
-// Generate challan number and return both number and sequence
-async function generateChallanNumberWithSequence(taxType = "GST") {
-  const prefix = taxType === "GST" ? "GST" : "NGST";
-  const sequence = await getNextChallanSequence(taxType);
-  const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
-  const number = `${prefix}-${paddedSequence}`;
-  return { number, sequence };
-}
-
-async function generateStockReceiptNumber() {
-  const dateFrag = getDateFragment();
-  const sequence = await getNextStockReceiptSequence();
-  const paddedSequence = String(sequence).padStart(CHALLAN_SEQUENCE_PADDING, "0");
-  const randFrag = getRandomFragment();
-  return `SR${dateFrag}${randFrag}${paddedSequence}`;
+/**
+ * Generate Stock Receipt number (independent numbering, format: SR/25-26/0001)
+ */
+async function generateStockReceiptNumberHelper(receiptDate) {
+  const fy = getFinancialYear(receiptDate);
+  const seq = await ChallanCounter.getNextSequence(fy, "stock_receipt");
+  const paddedSeq = formatChallanSequence(seq);
+  const number = `SR/${fy}/${paddedSeq}`;
+  
+  return { number, fy, seq };
 }
 
 // Admin: create challan from selected audit IDs and/or manual items
@@ -118,8 +105,13 @@ export const createChallan = async (req, res) => {
       }
     }
 
-    // Generate challan number - this internally calls getNextChallanSequence
-    const { number: challanNumber, sequence } = await generateChallanNumberWithSequence(taxType);
+    // Generate challan number with FY-based numbering
+    const challanDetails = taxType === "GST"
+      ? await generateGSTChallanNumber(new Date())
+      : await generateNonGSTChallanNumber(new Date());
+    
+    const { number: challanNumber, fy: challanFY, seq: challanSeq } = challanDetails;
+    
     const lineItems = Array.isArray(req.body.lineItems) ? req.body.lineItems : [];
     const lineItemMap = new Map();
     lineItems.forEach((item) => {
@@ -379,7 +371,8 @@ export const createChallan = async (req, res) => {
 
     const challanPayload = {
       number: challanNumber,
-      sequence: sequence, // numeric sequence for sorting (already obtained from generateChallanNumberWithSequence)
+      challan_seq: challanSeq, // Sequence within FY
+      challan_fy: challanFY, // Financial Year
       challan_tax_type: taxType,
       items,
       notes: typeof terms === "string" ? terms : notes || "",
@@ -592,7 +585,8 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
       }
     }
 
-    const receiptNumber = await generateStockReceiptNumber();
+    const receiptDetails = await generateStockReceiptNumberHelper(new Date());
+    const { number: receiptNumber, fy: receiptFY, seq: receiptSeq } = receiptDetails;
     const lineItems = Array.isArray(req.body.lineItems) ? req.body.lineItems : [];
     const lineItemMap = new Map();
     lineItems.forEach((item) => {
@@ -763,13 +757,11 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
 
     // Stock receipts always use tax type (GST or NON-GST based on parameter)
     const shouldIncludeGST = taxType === "GST";
-    
-    // Get sequence for stock receipt (they use independent counter)
-    const receiptSequence = await getNextStockReceiptSequence();
 
     const receiptPayload = {
       number: receiptNumber,
-      sequence: receiptSequence,
+      challan_seq: receiptSeq, // Sequence within FY
+      challan_fy: receiptFY, // Financial Year
       challan_tax_type: taxType,
       doc_type: "STOCK_INWARD_RECEIPT",
       items,

@@ -30,8 +30,9 @@ const challanItemSchema = new mongoose.Schema(
 
 const challanSchema = new mongoose.Schema(
   {
-    number: { type: String, required: true, unique: true }, // human readable id (e.g., GST-000001, NGST-000002)
-    sequence: { type: Number, required: true, index: true }, // numeric sequence for sorting
+    number: { type: String, required: true, unique: true }, // Format: VPP/25-26/0001 or NGST/25-26/0001
+    challan_seq: { type: Number, required: true, index: true }, // Sequence within FY (1-9999)
+    challan_fy: { type: String, required: true, index: true }, // Financial Year (e.g., "25-26")
     challan_tax_type: {
       type: String,
       enum: ["GST", "NON_GST"],
