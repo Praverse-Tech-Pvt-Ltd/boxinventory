@@ -2,7 +2,7 @@ import BoxAudit from "../models/boxAuditModel.js";
 import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
 import ChallanCounter from "../models/challanCounterModel.js";
-import { generateChallanPdf } from "../utils/challanPdfGenerator.js";
+import { generateChallanPdf } from "../utils/pdfRenderer.js";
 import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import { 
   getFinancialYear, 
@@ -10,6 +10,7 @@ import {
   generateNonGSTChallanNumber,
   formatChallanSequence 
 } from "../utils/financialYearUtils.js";
+import { normalizeColor, normalizeQuantityMap } from "../utils/colorNormalization.js";
 import fsPromises from "fs/promises";
 
 /**
@@ -66,7 +67,7 @@ async function generateStockReceiptNumberHelper(receiptDate) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventoryType, challanTaxType, payment_mode, remarks } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -74,12 +75,20 @@ export const createChallan = async (req, res) => {
     const taxType = (String(challanTaxType).toUpperCase().trim() === "NON_GST" || String(challanTaxType).toUpperCase().trim() === "NONGST") ? "NON_GST" : "GST";
     console.log(`[createChallan] challanTaxType received: "${challanTaxType}", normalized to: "${taxType}"`);
     
-    // Normalize inventory type: "add" means add stock, anything else means subtract/dispatch
-    const invType = String(inventoryType).toLowerCase().trim() === "add" ? "add" : "subtract";
-    console.log(`[createChallan] inventoryType received: "${inventoryType}", normalized to: "${invType}"`);
+    // Normalize and validate inventory mode: dispatch, inward, record_only
+    const invMode = (() => {
+      const input = String(inventory_mode).toLowerCase().trim();
+      if (input === "dispatch") return "dispatch";
+      if (input === "inward") return "inward";
+      if (input === "record_only") return "record_only";
+      // Default to record_only for safety
+      console.log(`[createChallan] Unknown inventory_mode "${inventory_mode}", defaulting to record_only`);
+      return "record_only";
+    })();
+    console.log(`[createChallan] inventory_mode received: "${inventory_mode}", normalized to: "${invMode}"`);
 
-    // If ADD mode, create a Stock Inward Receipt instead of Outward Challan
-    if (invType === "add") {
+    // If INWARD mode, create a Stock Inward Receipt instead of Outward Challan
+    if (invMode === "inward") {
       return await createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails, taxType);
     }
 
@@ -89,7 +98,7 @@ export const createChallan = async (req, res) => {
         .json({ message: "Provide at least one audited item or add manual challan rows" });
     }
 
-    // Fetch audits and validate
+    // Fetch and prepare audited items
     let audits = [];
     if (auditIdsArray.length > 0) {
       audits = await BoxAudit.find({ _id: { $in: auditIdsArray }, used: false })
@@ -101,7 +110,7 @@ export const createChallan = async (req, res) => {
       }
     }
 
-    // Generate challan number with year-based numbering
+    // Generate challan number
     const challanDetails = taxType === "GST"
       ? await getGSTChallanDetails(new Date())
       : await getNonGSTChallanDetails(new Date());
@@ -116,29 +125,30 @@ export const createChallan = async (req, res) => {
       }
     });
     
-    // Validate audited items inventory (only for SUBTRACT/DISPATCH mode)
-    if (invType === "subtract" && audits.length > 0) {
-      // Collect usage from audited items
-      const auditUsageByBox = new Map(); // boxId -> Map<color, qty>
+    // DISPATCH MODE: Validate inventory BEFORE any modifications
+    if (invMode === "dispatch" && audits.length > 0) {
+      console.log(`[createChallan] DISPATCH mode: validating inventory`);
+      const auditUsageByBox = new Map(); // boxId -> Map<normalizedColor, qty>
+      
       audits.forEach((a) => {
         const lineItemOverride = lineItemMap.get(String(a._id));
         const qty = Number(lineItemOverride?.quantity ?? a.quantity);
-        const color = lineItemOverride?.color || a.color || "";
+        const rawColor = lineItemOverride?.color || a.color || "";
+        const normalizedColor = normalizeColor(rawColor);
         const boxId = String(a.box._id);
         
-        if (color && qty > 0) {
+        if (normalizedColor && qty > 0) {
           if (!auditUsageByBox.has(boxId)) {
             auditUsageByBox.set(boxId, new Map());
           }
           const colorMap = auditUsageByBox.get(boxId);
-          const prev = colorMap.get(color) || 0;
-          colorMap.set(color, prev + qty);
+          const prev = colorMap.get(normalizedColor) || 0;
+          colorMap.set(normalizedColor, prev + qty);
         }
       });
       
-      // Fetch boxes for inventory check - ONLY for SUBTRACT mode
-      if (invType === "subtract" && auditUsageByBox.size > 0) {
-        console.log(`[audit-validation] Running validation for SUBTRACT mode`);
+      // Fetch boxes and validate availability
+      if (auditUsageByBox.size > 0) {
         const boxIds = Array.from(auditUsageByBox.keys());
         const boxes = await Box.find({ _id: { $in: boxIds } });
         
@@ -146,23 +156,28 @@ export const createChallan = async (req, res) => {
           const boxIdStr = String(box._id);
           const colorUsage = auditUsageByBox.get(boxIdStr);
           if (!colorUsage) continue;
-          const quantityByColor = box.quantityByColor || new Map();
           
-          for (const [colorKey, usedQty] of colorUsage.entries()) {
-            const currentQty = quantityByColor.get(colorKey) || 0;
-            if (currentQty < usedQty) {
-              console.log(`[audit-validation-failed] Box: ${box.code}, Color: ${colorKey}, Available: ${currentQty}, Required: ${usedQty}`);
+          // Normalize the box's quantity map
+          const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
+          
+          for (const [normalizedColor, requestedQty] of colorUsage.entries()) {
+            const availableQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
+            const reqQty = Number(requestedQty || 0);
+            
+            console.log(`[inventory-check] Box: ${box.code}, Color: ${normalizedColor}, Available: ${availableQty}, Requested: ${reqQty}`);
+            
+            if (availableQty < reqQty) {
+              console.log(`[validation-FAILED] Box: ${box.code}, Color: ${normalizedColor}, Available: ${availableQty}, Required: ${reqQty}`);
               return res.status(400).json({
-                message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
+                message: `Insufficient stock for box "${box.code}" color "${normalizedColor}". Available: ${availableQty}, Required: ${reqQty}`,
               });
             }
           }
         }
-      } else if (auditUsageByBox.size > 0) {
-        console.log(`[audit-update] Skipping validation for ADD mode`);
       }
     }
     
+    // Build audited items
     const auditedItems = audits.map((a) => ({
       audit: a._id,
       box: {
@@ -193,6 +208,7 @@ export const createChallan = async (req, res) => {
       auditedAt: a.createdAt,
     }));
 
+    // Build manual items
     const manualBoxIds = [];
     manualItemsInput.forEach((item) => {
       if (item?.boxId) {
@@ -274,84 +290,59 @@ export const createChallan = async (req, res) => {
 
     const items = [...auditedItems, ...manualChallanItems];
 
-    // Update inventory for ALL items (audited + manual), color-wise
-    // Collect usage from both audited and manual items
-    const usageByBox = new Map(); // boxId -> Map<color, qty>
-    
-    auditedItems.forEach((item) => {
-      if (!item.color || !item.color.trim()) return;
-      const boxId = String(item.box._id);
-      const colorKey = item.color.trim();
+    // INVENTORY UPDATES: Only for DISPATCH mode
+    // RECORD_ONLY mode: skip entirely
+    if (invMode === "dispatch") {
+      console.log(`[inventory-update] DISPATCH mode: applying inventory updates`);
       
-      if (!usageByBox.has(boxId)) {
-        usageByBox.set(boxId, new Map());
-      }
-      const colorMap = usageByBox.get(boxId);
-      const prev = colorMap.get(colorKey) || 0;
-      colorMap.set(colorKey, prev + Number(item.quantity || 0));
-    });
-    
-    manualChallanItems.forEach((item) => {
-      if (!item.color || !item.color.trim()) return;
-      const boxId = String(item.box._id);
-      const colorKey = item.color.trim();
+      const usageByBox = new Map(); // boxId -> Map<normalizedColor, qty>
       
-      if (!usageByBox.has(boxId)) {
-        usageByBox.set(boxId, new Map());
-      }
-      const colorMap = usageByBox.get(boxId);
-      const prev = colorMap.get(colorKey) || 0;
-      colorMap.set(colorKey, prev + Number(item.quantity || 0));
-    });
+      // Collect usage from all items (normalized colors)
+      items.forEach((item) => {
+        const rawColor = item.color || "";
+        const normalizedColor = normalizeColor(rawColor);
+        if (!normalizedColor) return;
+        
+        const boxId = String(item.box._id);
+        const qty = Number(item.quantity || 0);
+        
+        if (!usageByBox.has(boxId)) {
+          usageByBox.set(boxId, new Map());
+        }
+        const colorMap = usageByBox.get(boxId);
+        const prev = colorMap.get(normalizedColor) || 0;
+        colorMap.set(normalizedColor, prev + qty);
+      });
 
-    // Apply inventory updates
-    if (usageByBox.size > 0) {
-      const boxIds = Array.from(usageByBox.keys());
-      const boxes = await Box.find({ _id: { $in: boxIds } });
+      // Apply updates to database
+      if (usageByBox.size > 0) {
+        const boxIds = Array.from(usageByBox.keys());
+        const boxes = await Box.find({ _id: { $in: boxIds } });
 
-      // First pass: validate (only for subtract/dispatch operations)
-      console.log(`[inventory-update] invType: "${invType}", checking validation: ${invType === "subtract"}`);
-      if (invType === "subtract") {
-        console.log(`[inventory-validation] Running validation for SUBTRACT mode`);
         for (const box of boxes) {
           const boxIdStr = String(box._id);
           const colorUsage = usageByBox.get(boxIdStr);
           if (!colorUsage) continue;
-          const quantityByColor = box.quantityByColor || new Map();
+          
+          // Normalize existing inventory
+          const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
 
-          for (const [colorKey, usedQty] of colorUsage.entries()) {
-            const currentQty = quantityByColor.get(colorKey) || 0;
-            if (currentQty < usedQty) {
-              console.log(`[validation-failed] Box: ${box.code}, Color: ${colorKey}, Available: ${currentQty}, Required: ${usedQty}`);
-              return res.status(400).json({
-                message: `Insufficient stock for box "${box.code}" color "${colorKey}". Available: ${currentQty}, Required: ${usedQty}`,
-              });
-            }
+          for (const [normalizedColor, changeQty] of colorUsage.entries()) {
+            const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
+            const changeAmount = Number(changeQty || 0);
+            
+            // Subtract from inventory
+            normalizedQuantityMap.set(normalizedColor, Math.max(0, currentQty - changeAmount));
+            console.log(`[inventory-subtract] Box: ${box.code}, Color: ${normalizedColor}, Before: ${currentQty}, After: ${Math.max(0, currentQty - changeAmount)}`);
           }
-        }
-      } else {
-        console.log(`[inventory-update] Skipping validation for ADD mode`);
-      }
 
-      // Second pass: apply updates (add or subtract based on inventoryType)
-      for (const box of boxes) {
-        const boxIdStr = String(box._id);
-        const colorUsage = usageByBox.get(boxIdStr);
-        if (!colorUsage) continue;
-        const quantityByColor = box.quantityByColor || new Map();
-
-        for (const [colorKey, usedQty] of colorUsage.entries()) {
-          const currentQty = quantityByColor.get(colorKey) || 0;
-          if (invType === "add") {
-            quantityByColor.set(colorKey, currentQty + usedQty);
-          } else {
-            // subtract/dispatch
-            quantityByColor.set(colorKey, currentQty - usedQty);
-          }
+          // Update box with new normalized map
+          box.quantityByColor = normalizedQuantityMap;
+          await box.save();
         }
-        box.quantityByColor = quantityByColor;
-        await box.save();
       }
+    } else {
+      console.log(`[inventory-update] Mode: ${invMode}: skipping all inventory updates`);
     }
 
     const normalizedClientDetails = {
@@ -367,23 +358,21 @@ export const createChallan = async (req, res) => {
 
     const challanPayload = {
       number: challanNumber,
-      challan_seq: challanSeq, // Sequence within FY
-      challan_fy: challanFY, // Financial Year
+      challan_seq: challanSeq,
+      challan_fy: challanFY,
       challan_tax_type: taxType,
       items,
       notes: typeof terms === "string" ? terms : notes || "",
       includeGST: shouldIncludeGST,
       createdBy: req.user._id,
-      inventoryType: invType,
-      hsnCode: "481920", // Fixed HSN Code for Paper Products
+      inventory_mode: invMode,
+      hsnCode: "481920",
     };
 
-    // Add payment mode if provided
     if (payment_mode && String(payment_mode).trim()) {
       challanPayload.payment_mode = String(payment_mode).trim();
     }
 
-    // Add remarks if provided
     if (remarks && String(remarks).trim()) {
       challanPayload.remarks = String(remarks).trim();
     }
@@ -394,7 +383,7 @@ export const createChallan = async (req, res) => {
 
     const challan = await Challan.create(challanPayload);
 
-    // Mark audits as used and link to challan
+    // Mark audits as used
     if (auditIdsArray.length > 0) {
       await BoxAudit.updateMany(
         { _id: { $in: auditIdsArray } },
@@ -402,22 +391,23 @@ export const createChallan = async (req, res) => {
       );
     }
 
-    // Log audit event for challan creation
+    // Log audit event
     try {
       const challanType = taxType === "GST" ? "GST Challan" : "Non-GST Challan";
+      const modeLabel = invMode === "dispatch" ? "Dispatch" : "Record";
       await BoxAudit.create({
         challan: challan._id,
         user: req.user._id,
-        note: `${challanType} created: ${challan.number}`,
+        note: `${challanType} created (${modeLabel}): ${challan.number}`,
         action: 'create_challan',
       });
     } catch (auditError) {
       console.error('Audit log error for challan creation:', auditError);
-      // Continue even if audit logging fails
     }
 
     res.status(201).json(challan);
   } catch (error) {
+    console.error("[createChallan] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

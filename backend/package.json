@@ -29,6 +29,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.10",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "puppeteer": "^24.34.0"
   }
 }

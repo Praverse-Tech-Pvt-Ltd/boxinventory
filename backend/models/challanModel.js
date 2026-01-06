@@ -51,11 +51,12 @@ const challanSchema = new mongoose.Schema(
     includeGST: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     hsnCode: { type: String, trim: true },
-    inventoryType: { 
+    inventory_mode: { 
       type: String, 
-      enum: ["add", "subtract", "dispatch"], 
-      default: "dispatch",
-      required: true 
+      enum: ["dispatch", "inward", "record_only"],
+      default: "record_only",
+      required: true,
+      index: true
     },
     clientDetails: {
       name: { type: String, trim: true },

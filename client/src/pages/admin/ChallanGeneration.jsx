@@ -84,7 +84,7 @@ const ChallanGeneration = () => {
    const [editRows, setEditRows] = useState({});
   const [clientDetails, setClientDetails] = useState(() => createEmptyClientDetails());
   const [hsnCode, setHsnCode] = useState("481920");
-  const [inventoryType, setInventoryType] = useState("subtract"); // 'add' or 'subtract'
+  const [inventoryMode, setInventoryMode] = useState("record_only"); // 'dispatch', 'inward', or 'record_only'
   const [manualRows, setManualRows] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [boxesLoading, setBoxesLoading] = useState(false);
@@ -352,7 +352,7 @@ const ChallanGeneration = () => {
     setEditRows({});
     setClientDetails(createEmptyClientDetails());
     setHsnCode("481920");
-    setInventoryType("subtract");
+    setInventoryMode("record_only");
     setChallanTaxType("GST"); // Reset to default GST
     setManualRows([]);
     setPaymentMode("");
@@ -709,7 +709,7 @@ const ChallanGeneration = () => {
       terms,
       note,
       hsnCode,
-      inventoryType: inventoryType || "subtract", // Ensure it has a value, default to subtract
+      inventory_mode: inventoryMode || "record_only", // Ensure it has a value, default to record_only
       challanTaxType: challanTaxType || "GST", // Ensure it has a value, default to GST
       clientDetails: hasClientInfo ? clientDetails : undefined,
       payment_mode: paymentMode || null,
@@ -720,7 +720,7 @@ const ChallanGeneration = () => {
   const handleGenerate = async () => {
     try {
       const payload = buildCurrentClientPayload();
-      console.log("[Frontend] Sending payload with inventoryType:", payload.inventoryType, "taxType:", payload.challanTaxType);
+      console.log("[Frontend] Sending payload with inventory_mode:", payload.inventory_mode, "taxType:", payload.challanTaxType);
       setSubmitting(true);
       const challan = await createChallan(payload);
       toast.success(`Challan ${challan.number} created`);
@@ -1361,15 +1361,19 @@ const ChallanGeneration = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Inventory Type</label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Inventory Mode</label>
                 <select
-                  value={inventoryType}
-                  onChange={(e) => setInventoryType(e.target.value)}
+                  value={inventoryMode}
+                  onChange={(e) => setInventoryMode(e.target.value)}
                   className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                 >
-                  <option value="subtract">Dispatch / Subtract from Inventory</option>
-                  <option value="add">Add to Inventory (New Stock)</option>
+                  <option value="record_only">Record Only (No Inventory Change)</option>
+                  <option value="dispatch">Dispatch / Subtract from Inventory</option>
+                  <option value="inward">Stock Inward / Add to Inventory</option>
                 </select>
+                {inventoryMode === "dispatch" && (
+                  <p className="text-xs text-orange-600 font-medium mt-1">⚠️ This will subtract stock from inventory</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Challan Tax Type</label>
@@ -1749,7 +1753,7 @@ const ChallanGeneration = () => {
 
         {/* Action */}
         <div className="mt-4 flex flex-col md:flex-row gap-3 md:items-center">
-          {inventoryType === "add" ? (
+          {inventoryMode === "inward" ? (
             <motion.button
               onClick={handleGenerate}
               disabled={submitting}
