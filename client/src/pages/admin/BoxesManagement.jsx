@@ -194,7 +194,8 @@ const BoxesManagement = () => {
       formDataToSend.append("title", formData.title);
       formDataToSend.append("code", formData.code);
       formDataToSend.append("category", formData.category);
-      formDataToSend.append("price", formData.price);
+      // Ensure price is sent as numeric value
+      formDataToSend.append("price", parseFloat(formData.price) || 0);
       formDataToSend.append("bagSize", formattedBagSize);
       formDataToSend.append("boxInnerSize", formattedBoxInnerSize);
       formDataToSend.append("boxOuterSize", formattedBoxOuterSize);
@@ -215,7 +216,7 @@ const BoxesManagement = () => {
             title: formData.title,
             code: formData.code,
             category: formData.category,
-            price: parseFloat(formData.price),
+            price: parseFloat(formData.price) || 0,
             bagSize: formattedBagSize,
             boxInnerSize: formattedBoxInnerSize,
             boxOuterSize: formattedBoxOuterSize,
@@ -481,9 +482,17 @@ const BoxesManagement = () => {
                   <label className="form-label">
                     Color-Quantity Pairs *
                   </label>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
+                    {/* Header for table-like display */}
+                    <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-theme-text-muted mb-2">
+                      <div className="col-span-5">Color</div>
+                      <div className="col-span-4 text-right">Quantity</div>
+                      <div className="col-span-3 text-right">Action</div>
+                    </div>
+                    
+                    {/* Color-Quantity rows */}
                     {Object.entries(formData.quantityByColor).map(([color, qty], index) => (
-                      <div key={index} className="flex items-center gap-3">
+                      <div key={index} className="grid grid-cols-12 gap-2 items-center">
                         <input
                           type="text"
                           value={color}
@@ -497,11 +506,11 @@ const BoxesManagement = () => {
                             setFormData(prev => ({
                               ...prev,
                               quantityByColor: updatedQtyByColor,
-                              colours: Object.keys(updatedQtyByColor).join(", ")
+                              colours: Object.keys(updatedQtyByColor).filter(c => c.length > 0).join(", ")
                             }));
                           }}
-                          placeholder="Color name"
-                          className="w-40 form-input"
+                          placeholder="e.g., Red, Blue..."
+                          className="col-span-5 px-3 py-2 rounded-lg text-sm border border-theme-input-border bg-theme-input-bg text-theme-text-primary placeholder-theme-text-muted focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
                         />
                         <input
                           type="number"
@@ -517,8 +526,8 @@ const BoxesManagement = () => {
                               }
                             }));
                           }}
-                          placeholder="Quantity"
-                          className="flex-1 form-input"
+                          placeholder="0"
+                          className="col-span-4 px-3 py-2 rounded-lg text-sm border border-theme-input-border bg-theme-input-bg text-theme-text-primary placeholder-theme-text-muted focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary text-right"
                         />
                         <motion.button
                           type="button"
@@ -528,30 +537,39 @@ const BoxesManagement = () => {
                             setFormData(prev => ({
                               ...prev,
                               quantityByColor: updatedQtyByColor,
-                              colours: Object.keys(updatedQtyByColor).join(", ")
+                              colours: Object.keys(updatedQtyByColor).filter(c => c.length > 0).join(", ")
                             }));
                           }}
-                          className="btn btn-danger btn-sm"
+                          className="col-span-3 px-3 py-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors text-sm font-medium flex items-center justify-center gap-1"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          <FiTrash2 size={16} />
-                          Remove
+                          <FiTrash2 size={14} />
+                          <span>Remove</span>
                         </motion.button>
                       </div>
                     ))}
+                    
+                    {/* Add new pair button */}
                     <motion.button
                       type="button"
                       onClick={() => {
+                        // Find a unique key for the new empty pair
+                        let newColorKey = "";
+                        let counter = 0;
+                        while (newColorKey === "" || formData.quantityByColor.hasOwnProperty(newColorKey)) {
+                          newColorKey = `__new_${counter}__`;
+                          counter++;
+                        }
                         setFormData(prev => ({
                           ...prev,
                           quantityByColor: {
                             ...prev.quantityByColor,
-                            "": 0
+                            [newColorKey]: 0
                           }
                         }));
                       }}
-                      className="w-full btn btn-secondary"
+                      className="w-full mt-2 px-4 py-2.5 rounded-lg border-2 border-theme-primary/50 bg-theme-primary/5 text-theme-primary hover:bg-theme-primary/10 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -560,7 +578,7 @@ const BoxesManagement = () => {
                     </motion.button>
                   </div>
                   <p className="mt-2 text-xs text-theme-text-muted">
-                    Add color-quantity pairs. At least one pair with quantity &gt; 0 is required.
+                    Add color-quantity pairs. Colors saved here will appear in the product and challan forms.
                   </p>
                 </div>
               </div>

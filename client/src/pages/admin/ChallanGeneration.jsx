@@ -29,6 +29,8 @@ const generateManualRowId = () =>
 const createManualRow = () => ({
   id: generateManualRowId(),
   searchCode: "",
+  searchName: "",
+  searchMode: "code", // "code" or "name"
   boxId: "",
   boxTitle: "",
   boxCode: "",
@@ -91,6 +93,8 @@ const ChallanGeneration = () => {
   const [appendTargetBatchId, setAppendTargetBatchId] = useState("");
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [challanTaxType, setChallanTaxType] = useState("GST"); // GST or NON_GST
+  const [paymentMode, setPaymentMode] = useState(""); // Cash, GPay, Bank Account, Credit
+  const [remarks, setRemarks] = useState("");
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -247,6 +251,16 @@ const ChallanGeneration = () => {
     return map;
   }, [boxes]);
 
+  const boxLookupByName = useMemo(() => {
+    const map = new Map();
+    boxes.forEach((box) => {
+      if (box?.title) {
+        map.set(String(box.title).trim().toLowerCase(), box);
+      }
+    });
+    return map;
+  }, [boxes]);
+
   const handleManualCodeLookup = (rowId, rawCode) => {
     const cleaned = (rawCode || "").trim().toUpperCase();
     if (!cleaned) {
@@ -284,6 +298,43 @@ const ChallanGeneration = () => {
     });
   };
 
+  const handleManualNameLookup = (rowId, rawName) => {
+    const cleaned = (rawName || "").trim().toLowerCase();
+    if (!cleaned) {
+      updateManualRow(rowId, {
+        searchName: "",
+        boxId: "",
+        boxTitle: "",
+        boxCode: "",
+        boxCategory: "",
+        availableColours: [],
+      });
+      return;
+    }
+    const matched = boxLookupByName.get(cleaned);
+    if (!matched) {
+      toast.error(`Product name not found: "${rawName}". Please enter a valid product name.`);
+      updateManualRow(rowId, {
+        boxId: "",
+        boxTitle: "",
+        boxCode: "",
+        boxCategory: "",
+        availableColours: [],
+      });
+      return;
+    }
+    updateManualRow(rowId, {
+      boxId: matched._id,
+      searchName: matched.title,
+      boxTitle: matched.title,
+      boxCode: matched.code || "",
+      boxCategory: matched.category,
+      cavity: matched.boxInnerSize || "",
+      rate: Number(matched.price || 0),
+      availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+    });
+  };
+
   const handleManualColoursInput = (rowId, value) => {
     const parsed = value
       .split(",")
@@ -304,6 +355,8 @@ const ChallanGeneration = () => {
     setInventoryType("subtract");
     setChallanTaxType("GST"); // Reset to default GST
     setManualRows([]);
+    setPaymentMode("");
+    setRemarks("");
   };
 
   const upsertBatch = (nextBatch) => {
@@ -659,6 +712,8 @@ const ChallanGeneration = () => {
       inventoryType: inventoryType || "subtract", // Ensure it has a value, default to subtract
       challanTaxType: challanTaxType || "GST", // Ensure it has a value, default to GST
       clientDetails: hasClientInfo ? clientDetails : undefined,
+      payment_mode: paymentMode || null,
+      remarks: remarks.trim() || null,
     };
   };
 
@@ -956,45 +1011,120 @@ const ChallanGeneration = () => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Product Code *
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary mb-2">
+                          Search Mode
                         </label>
-                        <div className="flex gap-2 mt-1">
-                          <input
-                            type="text"
-                            value={row.searchCode || ""}
-                            onChange={(e) =>
-                              updateManualRow(row.id, { searchCode: e.target.value.toUpperCase() })
-                            }
-                            onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
-                            placeholder="e.g. BOX001"
-                            autoComplete="off"
-                            className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm font-mono uppercase"
-                          />
+                        <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => handleManualCodeLookup(row.id, row.searchCode)}
-                            className="px-3 py-2 rounded-lg border border-theme-primary text-theme-primary text-xs font-semibold hover:bg-theme-primary hover:text-white transition-colors"
+                            onClick={() => {
+                              updateManualRow(row.id, { searchMode: "code", searchCode: "", searchName: "", boxId: "", boxTitle: "", boxCode: "", boxCategory: "", availableColours: [] });
+                            }}
+                            className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                              row.searchMode === "code"
+                                ? "bg-theme-primary text-white"
+                                : "border border-theme-input-border text-theme-text-secondary hover:bg-theme-surface-2"
+                            }`}
                           >
-                            Fetch
+                            By Code
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateManualRow(row.id, { searchMode: "name", searchCode: "", searchName: "", boxId: "", boxTitle: "", boxCode: "", boxCategory: "", availableColours: [] });
+                            }}
+                            className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                              row.searchMode === "name"
+                                ? "bg-theme-primary text-white"
+                                : "border border-theme-input-border text-theme-text-secondary hover:bg-theme-surface-2"
+                            }`}
+                          >
+                            By Name
                           </button>
                         </div>
+                      </div>
+                      <div>
+                        {row.searchMode === "code" ? (
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
+                              Product Code *
+                            </label>
+                            <div className="flex gap-2 mt-1">
+                              <input
+                                type="text"
+                                value={row.searchCode || ""}
+                                onChange={(e) =>
+                                  updateManualRow(row.id, { searchCode: e.target.value.toUpperCase() })
+                                }
+                                onBlur={(e) => handleManualCodeLookup(row.id, e.target.value)}
+                                placeholder="e.g. BOX001"
+                                autoComplete="off"
+                                className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm font-mono uppercase"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleManualCodeLookup(row.id, row.searchCode)}
+                                className="px-3 py-2 rounded-lg border border-theme-primary text-theme-primary text-xs font-semibold hover:bg-theme-primary hover:text-white transition-colors"
+                              >
+                                Fetch
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
+                              Product Name *
+                            </label>
+                            <div className="flex gap-2 mt-1">
+                              <input
+                                type="text"
+                                value={row.searchName || ""}
+                                onChange={(e) =>
+                                  updateManualRow(row.id, { searchName: e.target.value })
+                                }
+                                onBlur={(e) => handleManualNameLookup(row.id, e.target.value)}
+                                placeholder="e.g. Luxury Gift Box"
+                                autoComplete="off"
+                                className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleManualNameLookup(row.id, row.searchName)}
+                                className="px-3 py-2 rounded-lg border border-theme-primary text-theme-primary text-xs font-semibold hover:bg-theme-primary hover:text-white transition-colors"
+                              >
+                                Fetch
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {row.boxTitle && (
                           <p className="mt-2 text-xs text-theme-text-secondary">
                             <span className="font-semibold">Product:</span> {row.boxTitle}
                           </p>
                         )}
                       </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Cavity / Size
+                          Product Name (Auto-filled)
                         </label>
                         <input
                           type="text"
-                          value={row.cavity}
-                          onChange={(e) => updateManualRow(row.id, { cavity: e.target.value })}
-                          autoComplete="off"
-                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                          value={row.boxTitle}
+                          disabled
+                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg bg-theme-surface-2 text-theme-text-muted text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
+                          Product Code (Auto-filled)
+                        </label>
+                        <input
+                          type="text"
+                          value={row.boxCode}
+                          disabled
+                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg bg-theme-surface-2 text-theme-text-muted text-sm"
                         />
                       </div>
                     </div>
@@ -1251,6 +1381,38 @@ const ChallanGeneration = () => {
                   <option value="GST">GST Challan (5% GST Applied)</option>
                   <option value="NON_GST">Non-GST Challan (No GST)</option>
                 </select>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+              <p className="text-sm font-semibold text-theme-text-primary">Payment & Additional Info (optional)</p>
+              <span className="text-xs text-theme-text-secondary">Included in the challan footer</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Payment Mode</label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                >
+                  <option value="">Not Specified</option>
+                  <option value="Cash">Cash</option>
+                  <option value="GPay">GPay</option>
+                  <option value="Bank Account">Bank Account</option>
+                  <option value="Credit">Credit</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Remarks</label>
+                <textarea
+                  rows={2}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Add any additional remarks for this challan (optional)"
+                  className="w-full px-4 py-3 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                />
               </div>
             </div>
           </div>

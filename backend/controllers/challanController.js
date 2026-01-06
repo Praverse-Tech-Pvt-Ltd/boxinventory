@@ -12,6 +12,36 @@ import {
 } from "../utils/financialYearUtils.js";
 import fsPromises from "fs/promises";
 
+/**
+ * Wrapper to generate GST challan number with FY-based numbering
+ * Format: VPP/26-27/0001
+ * 
+ * @param {Date} challanDate - Date of challan (used to determine year)
+ * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
+ */
+async function getGSTChallanDetails(challanDate) {
+  const fy = getFinancialYear(challanDate);
+  const seq = await ChallanCounter.getNextSequence(fy, "gst");
+  const number = generateGSTChallanNumber(fy, seq);
+  
+  return { number, fy, seq };
+}
+
+/**
+ * Wrapper to generate Non-GST challan number with FY-based numbering
+ * Format: VPP-NG/26-27/0002
+ * 
+ * @param {Date} challanDate - Date of challan (used to determine year)
+ * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
+ */
+async function getNonGSTChallanDetails(challanDate) {
+  const fy = getFinancialYear(challanDate);
+  const seq = await ChallanCounter.getNextSequence(fy, "nongst");
+  const number = generateNonGSTChallanNumber(fy, seq);
+  
+  return { number, fy, seq };
+}
+
 // Admin: list audits available to generate a challan (unused audits)
 export const getChallanCandidates = async (req, res) => {
   try {
@@ -24,40 +54,6 @@ export const getChallanCandidates = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-/**
- * Generate GST challan number with FY-based numbering
- * Format: VPP/25-26/0001
- * 
- * @param {Date} challanDate - Date of challan (used to determine FY)
- * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
- */
-async function generateGSTChallanNumber(challanDate) {
-  const fy = getFinancialYear(challanDate);
-  const seq = await ChallanCounter.getNextSequence(fy, "gst");
-  const number = generateGSTChallanNumber(fy, seq);
-  
-  return { number, fy, seq };
-}
-
-/**
- * Generate Non-GST challan number with FY-based numbering
- * Format: NGST/25-26/0001
- * 
- * @param {Date} challanDate - Date of challan (used to determine FY)
- * @returns {Promise<{number: string, fy: string, seq: number}>} Challan details
- */
-async function generateNonGSTChallanNumber(challanDate) {
-  const fy = getFinancialYear(challanDate);
-  const seq = await ChallanCounter.getNextSequence(fy, "nongst");
-  const number = generateNonGSTChallanNumber(fy, seq);
-  
-  return { number, fy, seq };
-}
-
-/**
- * Generate Stock Receipt number (independent numbering, format: SR/25-26/0001)
- */
 async function generateStockReceiptNumberHelper(receiptDate) {
   const fy = getFinancialYear(receiptDate);
   const seq = await ChallanCounter.getNextSequence(fy, "stock_receipt");
@@ -70,7 +66,7 @@ async function generateStockReceiptNumberHelper(receiptDate) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventoryType, challanTaxType } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventoryType, challanTaxType, payment_mode, remarks } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -105,10 +101,10 @@ export const createChallan = async (req, res) => {
       }
     }
 
-    // Generate challan number with FY-based numbering
+    // Generate challan number with year-based numbering
     const challanDetails = taxType === "GST"
-      ? await generateGSTChallanNumber(new Date())
-      : await generateNonGSTChallanNumber(new Date());
+      ? await getGSTChallanDetails(new Date())
+      : await getNonGSTChallanDetails(new Date());
     
     const { number: challanNumber, fy: challanFY, seq: challanSeq } = challanDetails;
     
@@ -382,8 +378,15 @@ export const createChallan = async (req, res) => {
       hsnCode: "481920", // Fixed HSN Code for Paper Products
     };
 
-    // HSN Code is now fixed to 481920 and handled in PDF generator
-    // No longer accepting user input for HSN Code
+    // Add payment mode if provided
+    if (payment_mode && String(payment_mode).trim()) {
+      challanPayload.payment_mode = String(payment_mode).trim();
+    }
+
+    // Add remarks if provided
+    if (remarks && String(remarks).trim()) {
+      challanPayload.remarks = String(remarks).trim();
+    }
 
     if (hasClientDetails) {
       challanPayload.clientDetails = normalizedClientDetails;
@@ -397,6 +400,20 @@ export const createChallan = async (req, res) => {
         { _id: { $in: auditIdsArray } },
         { $set: { used: true, challan: challan._id } }
       );
+    }
+
+    // Log audit event for challan creation
+    try {
+      const challanType = taxType === "GST" ? "GST Challan" : "Non-GST Challan";
+      await BoxAudit.create({
+        challan: challan._id,
+        user: req.user._id,
+        note: `${challanType} created: ${challan.number}`,
+        action: 'create_challan',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for challan creation:', auditError);
+      // Continue even if audit logging fails
     }
 
     res.status(201).json(challan);
@@ -432,11 +449,16 @@ export const getChallanById = async (req, res) => {
 // Admin: download challan as PDF or stock receipt based on inventoryType
 export const downloadChallanPdf = async (req, res) => {
   try {
+    console.log(`[Download] Request for document ID: ${req.params.id}`);
+    
     const document = await Challan.findById(req.params.id).populate("createdBy", "name email");
     
     if (!document) {
+      console.log(`[Download] Document not found for ID: ${req.params.id}`);
       return res.status(404).json({ message: "Document not found" });
     }
+
+    console.log(`[Download] Found document: ${document.number}, inventoryType: ${document.inventoryType}`);
 
     // Determine if this is a stock receipt (inbound/add) or outward challan (outbound/dispatch)
     const isStockReceipt = document.inventoryType === "add";
@@ -469,37 +491,60 @@ export const downloadChallanPdf = async (req, res) => {
 
     let pdfPath;
 
-    if (isStockReceipt) {
-      // Generate stock receipt PDF for inbound (add) operations
-      const stockReceiptData = {
-        ...commonData,
-        taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
-      };
-      pdfPath = await generateStockReceiptPdf(stockReceiptData);
-    } else {
-      // Generate challan PDF for outbound (dispatch/subtract) operations
-      const challanData = {
-        ...commonData,
-        terms: document.notes,
-        hsnCode: document.hsnCode || "",
-        taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
-      };
-      const includeGST = document.includeGST !== false;
-      pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);
+    try {
+      console.log(`[Download] Generating ${isStockReceipt ? "stock receipt" : "challan"} PDF...`);
+      
+      if (isStockReceipt) {
+        // Generate stock receipt PDF for inbound (add) operations
+        const stockReceiptData = {
+          ...commonData,
+          taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
+        };
+        pdfPath = await generateStockReceiptPdf(stockReceiptData);
+      } else {
+        // Generate challan PDF for outbound (dispatch/subtract) operations
+        const challanData = {
+          ...commonData,
+          terms: document.notes,
+          hsnCode: document.hsnCode || "",
+          taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
+          payment_mode: document.payment_mode || null,
+          remarks: document.remarks || null,
+        };
+        const includeGST = document.includeGST !== false;
+        pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);
+      }
+      
+      console.log(`[Download] PDF generated at: ${pdfPath}`);
+    } catch (pdfError) {
+      console.error("[Download] PDF generation error:", pdfError.message);
+      console.error("[Download] Error stack:", pdfError.stack);
+      return res.status(500).json({ message: "Failed to generate PDF", error: pdfError.message });
     }
 
+    if (!pdfPath) {
+      console.error("[Download] PDF path is empty/null after generation");
+      return res.status(500).json({ message: "PDF file path not generated" });
+    }
+
+    console.log(`[Download] Sending PDF file: ${pdfPath}`);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${document.number}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${document.number.replace(/\//g, "_")}.pdf"`);
 
     return res.download(pdfPath, (err) => {
       if (err) {
-        console.error("Error sending PDF:", err);
+        console.error("[Download] Error sending PDF:", err.message);
+      } else {
+        console.log(`[Download] PDF sent successfully to client`);
       }
       fsPromises
         .unlink(pdfPath)
-        .catch((unlinkErr) => console.error("Error deleting temp pdf:", unlinkErr));
+        .then(() => console.log(`[Download] Temp file deleted: ${pdfPath}`))
+        .catch((unlinkErr) => console.error("[Download] Error deleting temp pdf:", unlinkErr));
     });
   } catch (error) {
+    console.error("[Download] Unexpected error:", error.message);
+    console.error("[Download] Error stack:", error.stack);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -787,6 +832,20 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
           } 
         }
       );
+    }
+
+    // Log audit event for stock inward receipt creation
+    try {
+      const receiptType = taxType === "GST" ? "GST Stock Inward Receipt" : "Non-GST Stock Inward Receipt";
+      await BoxAudit.create({
+        challan: receipt._id,
+        user: req.user._id,
+        note: `${receiptType} created: ${receipt.number}`,
+        action: 'create_stock_receipt',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for stock receipt creation:', auditError);
+      // Continue even if audit logging fails
     }
 
     res.status(201).json(receipt);

@@ -5,7 +5,8 @@ const boxAuditSchema = new mongoose.Schema(
     box: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Box",
-      required: true,
+      required: false,
+      default: null,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -14,12 +15,12 @@ const boxAuditSchema = new mongoose.Schema(
     },
     quantity: {
       type: Number,
-      required: true,
-      min: 1,
+      required: false,
+      default: 0,
     },
     color: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     note: {
@@ -39,7 +40,7 @@ const boxAuditSchema = new mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ["add", "subtract", "dispatch"],
+      enum: ["add", "subtract", "dispatch", "password_change", "create_challan", "create_stock_receipt", "create_box", "update_box"],
       default: "subtract",
       index: true,
     },

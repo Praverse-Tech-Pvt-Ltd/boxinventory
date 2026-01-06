@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { getAllUsers, deleteUser as deleteUserAPI, updateUser as updateUserAPI } from "../../services/userService";
+import { getAllUsers, deleteUser as deleteUserAPI, updateUser as updateUserAPI, changeUserPassword } from "../../services/userService";
 import { toast } from "react-hot-toast";
-import { FiTrash2, FiCheck } from "react-icons/fi";
-import { FaRegEdit } from "react-icons/fa";
+import { FiTrash2, FiCheck, FiX, FiEye, FiEyeOff } from "react-icons/fi";
+import { FaRegEdit, FaLock } from "react-icons/fa";
 import { motion } from "framer-motion";
 import "../../styles/dashboard.css";
 
@@ -11,6 +11,11 @@ const Users = () => {
   const [editingId, setEditingId] = useState(null);
   const [formState, setFormState] = useState({ name: "", email: "", role: "user" });
   const [loading, setLoading] = useState(true);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordModalUser, setPasswordModalUser] = useState(null);
+  const [passwordForm, setPasswordForm] = useState({ newPassword: "", confirmPassword: "" });
+  const [showPassword, setShowPassword] = useState({ new: false, confirm: false });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -68,6 +73,58 @@ const Users = () => {
       toast.success("🕊️ User removed");
     } catch (error) {
       toast.error("Failed to delete user");
+    }
+  };
+
+  const openPasswordModal = (user) => {
+    setPasswordModalUser(user);
+    setPasswordForm({ newPassword: "", confirmPassword: "" });
+    setShowPassword({ new: false, confirm: false });
+    setPasswordModalOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setPasswordModalUser(null);
+    setPasswordForm({ newPassword: "", confirmPassword: "" });
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitPasswordChange = async () => {
+    if (!passwordForm.newPassword) {
+      toast.error("New password is required");
+      return;
+    }
+    if (!passwordForm.confirmPassword) {
+      toast.error("Confirm password is required");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      await changeUserPassword(passwordModalUser._id, {
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      toast.success("✅ Password changed successfully");
+      closePasswordModal();
+      loadUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to change password");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -204,6 +261,15 @@ const Users = () => {
                         ) : (
                           <>
                             <motion.button
+                              onClick={() => openPasswordModal(u)}
+                              className="btn btn-info btn-sm"
+                              title="Change password"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <FaLock size={14} />
+                            </motion.button>
+                            <motion.button
                               onClick={() => startEdit(u)}
                               className="btn btn-warning btn-sm"
                               title="Edit user"
@@ -234,9 +300,113 @@ const Users = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Password Change Modal */}
+      {passwordModalOpen && passwordModalUser && (
+        <motion.div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-8 border border-theme-border dark:border-slate-700"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-theme-text-primary dark:text-white flex items-center gap-2">
+                <FaLock /> Change Password
+              </h2>
+              <button
+                onClick={closePasswordModal}
+                className="text-theme-text-muted hover:text-theme-text-primary dark:text-slate-400 dark:hover:text-white transition-colors p-1 hover:bg-theme-surface-2 dark:hover:bg-slate-700 rounded"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <p className="text-sm text-theme-text-secondary dark:text-slate-300 mb-6 bg-theme-surface-2 dark:bg-slate-700 p-3 rounded-lg">
+              User: <span className="font-semibold text-theme-text-primary dark:text-white">{passwordModalUser.email}</span>
+            </p>
+
+            <div className="space-y-5">
+              {/* New Password */}
+              <div>
+                <label className="block text-sm font-semibold text-theme-text-primary dark:text-white mb-2">
+                  New Password (min 8 characters)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword.new ? "text" : "password"}
+                    name="newPassword"
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter new password"
+                    className="w-full px-4 py-3 border-2 border-theme-input-border rounded-lg bg-theme-input-bg text-theme-text-primary placeholder-theme-text-muted focus:outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/30 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => ({ ...prev, new: !prev.new }))}
+                    className="absolute right-3 top-3.5 text-theme-text-muted hover:text-theme-text-primary dark:text-slate-400 dark:hover:text-white transition-colors"
+                  >
+                    {showPassword.new ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-semibold text-theme-text-primary dark:text-white mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword.confirm ? "text" : "password"}
+                    name="confirmPassword"
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordChange}
+                    placeholder="Confirm password"
+                    className="w-full px-4 py-3 border-2 border-theme-input-border rounded-lg bg-theme-input-bg text-theme-text-primary placeholder-theme-text-muted focus:outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/30 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:placeholder-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => ({ ...prev, confirm: !prev.confirm }))}
+                    className="absolute right-3 top-3.5 text-theme-text-muted hover:text-theme-text-primary dark:text-slate-400 dark:hover:text-white transition-colors"
+                  >
+                    {showPassword.confirm ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mt-8 pt-6 border-t border-theme-border dark:border-slate-700">
+              <motion.button
+                onClick={closePasswordModal}
+                disabled={changingPassword}
+                className="flex-1 px-4 py-3 border-2 border-theme-border text-theme-text-primary dark:text-white dark:border-slate-600 rounded-lg font-semibold hover:bg-theme-surface-2 dark:hover:bg-slate-700 transition-colors disabled:opacity-60"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                onClick={submitPasswordChange}
+                disabled={changingPassword}
+                className="flex-1 px-4 py-3 bg-theme-primary text-white rounded-lg font-semibold hover:bg-theme-primary-dark transition-colors disabled:opacity-60"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {changingPassword ? "..." : "Change Password"}
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };
 
 export default Users;
-

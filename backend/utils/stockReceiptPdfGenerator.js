@@ -290,39 +290,52 @@ export const generateStockReceiptPdf = async (receiptData) => {
     throw new Error("Receipt data is required to generate PDF");
   }
 
-  const tempDir = process.env.CHALAN_PDF_DIR || path.join(os.tmpdir(), "receipts");
-  await ensureDirectory(tempDir);
+  try {
+    const tempDir = process.env.CHALAN_PDF_DIR || path.join(os.tmpdir(), "receipts");
+    await ensureDirectory(tempDir);
 
-  const filename = `${receiptData.number || `receipt-${Date.now()}`}.pdf`;
-  const filePath = path.join(tempDir, filename);
+    // Replace slashes in filename to avoid directory creation issues
+    const safeFilename = `${(receiptData.number || `receipt-${Date.now()}`).replace(/\//g, "_")}`;
+    const filename = `${safeFilename}.pdf`;
+    const filePath = path.join(tempDir, filename);
 
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-  const writeStream = fs.createWriteStream(filePath);
-  doc.pipe(writeStream);
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    const writeStream = fs.createWriteStream(filePath);
+    doc.pipe(writeStream);
 
-  // Pass tax type to addHeader for display
-  const taxType = receiptData.taxType || "GST";
-  addHeader(doc, receiptData.number || "", taxType);
+    // Pass tax type to addHeader for display
+    const taxType = receiptData.taxType || "GST";
+    addHeader(doc, receiptData.number || "", taxType);
 
-  doc.moveDown(0.5);
-  doc.font("Helvetica").fontSize(10).text(`Prepared By: ${receiptData.createdBy?.name || "-"}`);
+    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(10).text(`Prepared By: ${receiptData.createdBy?.name || "-"}`);
 
-  if (receiptData.clientDetails) {
-    addClientDetails(doc, receiptData.clientDetails);
+    if (receiptData.clientDetails) {
+      addClientDetails(doc, receiptData.clientDetails);
+    }
+
+    doc.moveDown(0.5);
+    const tableInfo = addTable(doc, receiptData.items || [], doc.y + 10);
+
+    const footerStartY = tableInfo.endY + 20;
+    addFooter(doc, footerStartY);
+
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      writeStream.on("finish", () => {
+        console.log(`Stock receipt PDF generated successfully at: ${filePath}`);
+        resolve();
+      });
+      writeStream.on("error", (err) => {
+        console.error(`WriteStream error for stock receipt PDF: ${filePath}`, err);
+        reject(err);
+      });
+    });
+
+    return filePath;
+  } catch (error) {
+    console.error("Error generating stock receipt PDF:", error);
+    throw error;
   }
-
-  doc.moveDown(0.5);
-  const tableInfo = addTable(doc, receiptData.items || [], doc.y + 10);
-
-  const footerStartY = tableInfo.endY + 20;
-  addFooter(doc, footerStartY);
-
-  doc.end();
-
-  await new Promise((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
-
-  return filePath;
 }

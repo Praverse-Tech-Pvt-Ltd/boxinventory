@@ -19,3 +19,8 @@ export const updateUserProfile = async (data) => {
   const res = await axiosInstance.put('/api/user/update-profile', data);
   return res.data;
 };
+
+export const changeUserPassword = async (userId, payload) => {
+  const res = await axiosInstance.put(`/api/user/${userId}/password`, payload);
+  return res.data;
+};

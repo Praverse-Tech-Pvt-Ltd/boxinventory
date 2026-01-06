@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 
 /**
- * Challan Counter Model - Manages per-FY sequence counters
+ * Challan Counter Model - Manages per-year-range sequence counters
  * 
  * Schema fields:
- * - fy: Financial Year (e.g., "25-26")
- * - gst_next_seq: Next sequence number for GST challans in this FY
- * - nongst_next_seq: Next sequence number for Non-GST challans in this FY
+ * - fy: Year range (e.g., "26-27" for 2026-2027)
+ * - gst_next_seq: Next sequence number for GST challans in this year range
+ * - nongst_next_seq: Next sequence number for Non-GST challans in this year range
  */
 
 const challanCounterSchema = new mongoose.Schema(
@@ -16,7 +16,7 @@ const challanCounterSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-      match: /^\d{2}-\d{2}$/, // Validate format: YY-YY (e.g., "25-26")
+      match: /^\d{2}-\d{2}$/, // Validate format: YY-YY (e.g., "26-27")
     },
     gst_next_seq: {
       type: Number,
@@ -37,9 +37,9 @@ const challanCounterSchema = new mongoose.Schema(
 );
 
 /**
- * Get or create counter for a specific FY
+ * Get or create counter for a specific year range
  * 
- * @param {string} fy - Financial Year (e.g., "25-26")
+ * @param {string} fy - Year range (e.g., "26-27")
  * @param {string} type - Counter type: "gst" or "nongst"
  * @returns {Promise<number>} - Next sequence number
  */
@@ -60,9 +60,9 @@ challanCounterSchema.statics.getNextSequence = async function (fy, type = "gst")
 };
 
 /**
- * Get current (unadjusted) sequence for a FY without incrementing
+ * Get current (unadjusted) sequence for a year range without incrementing
  * 
- * @param {string} fy - Financial Year
+ * @param {string} fy - Year range
  * @param {string} type - Counter type: "gst" or "nongst"
  * @returns {Promise<number>} - Current sequence number
  */
@@ -84,10 +84,10 @@ challanCounterSchema.statics.getCurrentSequence = async function (fy, type = "gs
 };
 
 /**
- * Reset counter for a specific FY and type
+ * Reset counter for a specific year range and type
  * (Use with caution - typically not needed unless recovering from error)
  * 
- * @param {string} fy - Financial Year
+ * @param {string} fy - Year range
  * @param {string} type - Counter type: "gst" or "nongst"
  * @param {number} newValue - New value to set (default: 1)
  * @returns {Promise<object>} - Updated counter document

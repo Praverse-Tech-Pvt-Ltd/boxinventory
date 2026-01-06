@@ -122,6 +122,19 @@ export const createBox = async (req, res) => {
       colours: coloursArray,
     });
 
+    // Log audit event for box creation
+    try {
+      await BoxAudit.create({
+        box: box._id,
+        user: req.user._id,
+        note: `Box created: ${title} (${code?.toUpperCase()})`,
+        action: 'create_box',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for box creation:', auditError);
+      // Continue even if audit logging fails
+    }
+
     res.status(201).json(box);
   } catch (error) {
     // If image was uploaded but box creation fails, delete the uploaded image
@@ -193,7 +206,7 @@ export const updateBox = async (req, res) => {
     // Update other fields
     if (title !== undefined) box.title = title;
     if (code !== undefined) box.code = code.toUpperCase();
-    if (price !== undefined) box.price = price;
+    if (price !== undefined) box.price = parseFloat(price) || 0;
     if (bagSize !== undefined) box.bagSize = bagSize;
     if (boxInnerSize !== undefined) box.boxInnerSize = boxInnerSize;
     if (boxOuterSize !== undefined) box.boxOuterSize = boxOuterSize;
@@ -243,6 +256,20 @@ export const updateBox = async (req, res) => {
     }
 
     const updatedBox = await box.save();
+
+    // Log audit event for box update
+    try {
+      await BoxAudit.create({
+        box: box._id,
+        user: req.user._id,
+        note: `Box updated: ${box.title} (${box.code})`,
+        action: 'update_box',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for box update:', auditError);
+      // Continue even if audit logging fails
+    }
+
     res.status(200).json(updatedBox);
   } catch (error) {
     // If new image was uploaded but update fails, delete it

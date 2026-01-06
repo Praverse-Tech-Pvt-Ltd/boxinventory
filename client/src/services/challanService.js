@@ -14,6 +14,9 @@ export const createChallan = async ({
   clientDetails,
   hsnCode,
   inventoryType,
+  challanTaxType,
+  payment_mode,
+  remarks,
 }) => {
   const payload = {
     auditIds,
@@ -34,6 +37,9 @@ export const createChallan = async ({
   if (typeof inventoryType === "string" && inventoryType.trim()) {
     payload.inventoryType = inventoryType.trim();
   }
+  if (typeof challanTaxType === "string" && challanTaxType.trim()) {
+    payload.challanTaxType = challanTaxType.trim();
+  }
 
   if (Array.isArray(lineItems)) {
     payload.lineItems = lineItems;
@@ -41,6 +47,14 @@ export const createChallan = async ({
   if (Array.isArray(manualItems) && manualItems.length > 0) {
     payload.manualItems = manualItems;
   }
+
+  if (payment_mode && payment_mode.trim()) {
+    payload.payment_mode = payment_mode.trim();
+  }
+  if (remarks && remarks.trim()) {
+    payload.remarks = remarks.trim();
+  }
+
   const res = await axiosInstance.post('/api/challans', payload);
   return res.data;
 };

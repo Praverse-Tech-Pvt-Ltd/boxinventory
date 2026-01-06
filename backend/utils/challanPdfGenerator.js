@@ -13,30 +13,31 @@ const COMPANY = {
 
 const HSN_CODE = "481920"; // Fixed HSN Code for Paper Products
 
-const DEFAULT_TERMS = `Terms & Conditions:
-• Parcel will be dispatched after payment confirmation.
+const DEFAULT_TERMS = `• Parcel will be dispatched after payment confirmation.
 • Order once placed – No refund / No cancellation / No exchange.
 • Customised order – colour difference is possible in printing.
 • Order will be shipped within 24 hours of payment received.
 • Delivery timeline: 2–6 working days, depending on location.`;
 
-const DEFAULT_NOTE = `Note:
-~ The above-mentioned prices are without GST. GST @ 5% applicable.
+const DEFAULT_NOTE = `~ The above-mentioned prices are without GST. GST @ 5% applicable.
 ~ Shipping & packaging charges are additional.
 ~ Shipping charges are dynamic and depend on weight and dimensions.
 ~ Goods once sold will not be taken back / exchanged / refunded.
 ~ Final amount including shipping & packaging will be shared after order confirmation.
 ~ Always share payment confirmation screenshot.
 ~ Order will be dispatched within 24–48 hours after payment receipt.
-~ Shipping time:
-  • 1–2 days within Mumbai
-  • 5–7 days PAN India
-  • May take longer during festive seasons
+~ Shipping time: 1–2 days within Mumbai, 5–7 days PAN India, may take longer during festive seasons.
 ~ Opening video of parcel is mandatory to claim any damage.
 ~ Tracking ID will be shared once the parcel is picked up.`;
 
 const ensureDirectory = async (dirPath) => {
-  await fsPromises.mkdir(dirPath, { recursive: true });
+  try {
+    await fsPromises.mkdir(dirPath, { recursive: true });
+    console.log(`Directory ensured: ${dirPath}`);
+  } catch (err) {
+    console.error(`Failed to create directory ${dirPath}:`, err);
+    throw err;
+  }
 };
 
 const formatCurrency = (value) =>
@@ -46,7 +47,6 @@ const formatCurrency = (value) =>
 const columnConfig = [
   { key: "srNo", label: "Sr. No.", factor: 0.08, align: "center" },
   { key: "item", label: "ITEM", factor: 0.22, align: "left" },
-  { key: "cavity", label: "CAVITY", factor: 0.14, align: "left" },
   { key: "code", label: "CODE", factor: 0.12, align: "center" },
   { key: "colours", label: "COLOUR", factor: 0.18, align: "left" },
   { key: "quantity", label: "QTY.", factor: 0.08, align: "right" },
@@ -83,17 +83,17 @@ const drawTableBorders = (doc, startX, startY, headerHeight, rowHeights, colWidt
 
 const addHeader = (doc, challanNumber, hsnCode) => {
   // Header: Company name and details centered
-  doc.font("Helvetica-Bold").fontSize(10).text("DELIVERY CHALLAN", { align: "center" });
-  doc.moveDown(0.25);
-  doc.fontSize(18).text(COMPANY.name, { align: "center" });
-  doc.moveDown(0.15);
-  doc.font("Helvetica").fontSize(9.5).text(COMPANY.address, { align: "center" });
-  doc.fontSize(9).text(COMPANY.contact, { align: "center" });
-  doc.moveDown(0.15);
-  doc.font("Helvetica-Bold").fontSize(9).text(COMPANY.gst, { align: "center" });
+  doc.font("Helvetica-Bold").fontSize(9).text("DELIVERY CHALLAN", { align: "center" });
+  doc.moveDown(0.1);
+  doc.fontSize(14).text(COMPANY.name, { align: "center" });
+  doc.moveDown(0.08);
+  doc.font("Helvetica").fontSize(8).text(COMPANY.address, { align: "center" });
+  doc.fontSize(8).text(COMPANY.contact, { align: "center" });
+  doc.moveDown(0.08);
+  doc.font("Helvetica-Bold").fontSize(8).text(COMPANY.gst, { align: "center" });
 
   // Challan Number & HSN Code section with proper spacing
-  doc.moveDown(0.4);
+  doc.moveDown(0.2);
   const pageWidth = doc.page.width;
   const leftMargin = doc.page.margins.left;
   const rightMargin = doc.page.margins.right;
@@ -103,19 +103,19 @@ const addHeader = (doc, challanNumber, hsnCode) => {
   const columnWidth = contentWidth / 2;
   const currentY = doc.y;
   
-  doc.font("Helvetica-Bold").fontSize(11);
+  doc.font("Helvetica-Bold").fontSize(9);
   doc.text(`Challan No.: ${challanNumber}`, leftMargin, currentY, {
     width: columnWidth - 10,
     align: "left",
   });
   
-  doc.font("Helvetica-Bold").fontSize(11);
+  doc.font("Helvetica-Bold").fontSize(9);
   doc.text(`HSN Code: ${HSN_CODE}`, leftMargin + columnWidth + 10, currentY, {
     width: columnWidth - 20,
     align: "left",
   });
   
-  doc.moveDown(0.35);
+  doc.moveDown(0.15);
 };
 
 const addClientDetails = (doc, clientDetails = {}) => {
@@ -127,10 +127,10 @@ const addClientDetails = (doc, clientDetails = {}) => {
   ];
 
   const hasValue = entries.some((entry) => entry.value);
-  doc.moveDown(0.3);
-  doc.font("Helvetica-Bold").fontSize(10).text("Prepared By & Client Details:");
-  doc.moveDown(0.15);
-  doc.font("Helvetica").fontSize(9.5);
+  doc.moveDown(0.1);
+  doc.font("Helvetica-Bold").fontSize(9).text("Prepared By & Client Details:");
+  doc.moveDown(0.08);
+  doc.font("Helvetica").fontSize(8);
   
   // Use fixed column widths for proper alignment
   const labelWidth = 70;
@@ -163,11 +163,11 @@ const addClientDetails = (doc, clientDetails = {}) => {
 
 const addTable = (doc, items, startY) => {
   const startX = 50;
-  const headerHeight = 28;
+  const headerHeight = 22;
   let currentY = startY;
 
-  doc.lineWidth(0.7);
-  doc.font("Helvetica-Bold").fontSize(9.5);
+  doc.lineWidth(0.5);
+  doc.font("Helvetica-Bold").fontSize(8.5);
 
   // Compute dynamic widths based on available width
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
@@ -199,7 +199,7 @@ const addTable = (doc, items, startY) => {
   });
   currentY += headerHeight;
 
-  doc.font("Helvetica").fontSize(9);
+  doc.font("Helvetica").fontSize(8);
 
   // Expand items into rows - one row per color-quantity pair
   const expandedRows = [];
@@ -227,15 +227,9 @@ const addTable = (doc, items, startY) => {
     if (colorsToShow.length === 1) {
       const qty = Number(item.quantity || 0);
       const lineTotal = (rate + assembly + packaging) * qty;
-      const itemLines = [
-        baseItemName,
-        `Assembly: ₹${formatCurrency(assembly)}`,
-        `Packaging: ₹${formatCurrency(packaging)}`,
-      ].filter(Boolean);
       expandedRows.push({
         srNo: srNoCounter++,
-        item: itemLines.join("\n"),
-        cavity: item.cavity || "",
+        item: baseItemName,
         code: item.code || item.box?.code || "",
         colours: colorsToShow[0] || "",
         quantity: qty,
@@ -245,20 +239,12 @@ const addTable = (doc, items, startY) => {
       });
     } else {
       // Multiple colors - create separate rows for each color
-      // Distribute quantity evenly or show same quantity for each (based on requirement)
-      // For now, we'll show the same quantity for each color
       const qtyPerColor = Number(item.quantity || 0);
       colorsToShow.forEach((color, colorIndex) => {
         const lineTotal = (rate + assembly + packaging) * qtyPerColor;
-        const itemLines = [
-          colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
-          colorIndex === 0 ? `Assembly: ₹${formatCurrency(assembly)}` : "",
-          colorIndex === 0 ? `Packaging: ₹${formatCurrency(packaging)}` : "",
-        ].filter(Boolean);
         expandedRows.push({
           srNo: colorIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
-          item: itemLines.join("\n"),
-          cavity: colorIndex === 0 ? (item.cavity || "") : "",
+          item: colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
           code: colorIndex === 0 ? (item.code || item.box?.code || "") : "",
           colours: color || "",
           quantity: qtyPerColor,
@@ -284,21 +270,21 @@ const addTable = (doc, items, startY) => {
       const cellHeight = doc.heightOfString(cellText || " ", {
         width: w - 8,
         align: col.align,
-        lineGap: 3,
+        lineGap: 2,
       });
-      rowHeight = Math.max(rowHeight, cellHeight + 14);
+      rowHeight = Math.max(rowHeight, cellHeight + 8);
     });
-    rowHeight = Math.max(rowHeight, 26);
+    rowHeight = Math.max(rowHeight, 20);
     rowHeights.push(rowHeight);
 
     x = startX;
     columnConfig.forEach((col, cIdx) => {
       const w = colWidths[cIdx];
       const value = row[col.key] ?? "";
-      doc.text(String(value), x + 4, currentY + 7, {
+      doc.text(String(value), x + 4, currentY + 4, {
         width: w - 8,
         align: col.align,
-        lineGap: 3,
+        lineGap: 2,
       });
       x += w;
     });
@@ -334,75 +320,109 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST") => 
   const roundOffValue =
     roundOff === 0 ? formatCurrency(0) : `${roundOff > 0 ? "+" : "-"}${formatCurrency(Math.abs(roundOff))}`;
 
-  doc.lineWidth(0.7);
+  doc.lineWidth(0.5);
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
   // Show GST line with appropriate label and amount
   const gstLabel = taxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST (5%)";
+  doc.font("Helvetica-Bold").fontSize(8.5);
+  doc.text(gstLabel, startX + 4, baseY + 4, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 4, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+
+  doc.text(roundOffLabel, startX + 4, baseY + 15, { width: labelWidth - 8, align: "right" });
+  doc.text(roundOffValue, startX + labelWidth, baseY + 15, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+
+  doc.moveTo(startX, baseY + 24).lineTo(startX + tableWidth, baseY + 24).stroke();
+
   doc.font("Helvetica-Bold").fontSize(9.5);
-  doc.text(gstLabel, startX + 4, baseY + 8, { width: labelWidth - 8, align: "right" });
-  doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 8, {
+  doc.text("TOTAL (Rounded)", startX + 4, baseY + 30, { width: labelWidth - 8, align: "right" });
+  doc.text(`INR ${formatCurrency(roundedTotal)}`, startX + labelWidth, baseY + 30, {
     width: valueWidth - 8,
     align: "right",
   });
 
-  doc.text(roundOffLabel, startX + 4, baseY + 26, { width: labelWidth - 8, align: "right" });
-  doc.text(roundOffValue, startX + labelWidth, baseY + 26, {
-    width: valueWidth - 8,
-    align: "right",
-  });
-
-  doc.moveTo(startX, baseY + 38).lineTo(startX + tableWidth, baseY + 38).stroke();
-
-  doc.font("Helvetica-Bold").fontSize(11);
-  doc.text("TOTAL (Rounded)", startX + 4, baseY + 46, { width: labelWidth - 8, align: "right" });
-  doc.text(`₹ ${formatCurrency(roundedTotal)}`, startX + labelWidth, baseY + 46, {
-    width: valueWidth - 8,
-    align: "right",
-  });
-
-  return baseY + 80;
+  return baseY + 50;
 };
 
-const addFooter = (doc, startY, terms) => {
-  // Start the footer section right after the summary (with minimal gap)
-  const footerStartY = startY + 10;
-  const footerY = footerStartY;
+const addFooter = (doc, startY, terms, paymentMode = null, remarks = null) => {
+  let contentY = startY;
+  const pageHeight = doc.page.height;
+  const bottomMargin = 40;
+  const sectionGap = 3;
+  const headerFontSize = 8;
+  const contentFontSize = 7;
   
-  doc.lineWidth(0.7);
-  doc.moveTo(50, footerY).lineTo(doc.page.width - 50, footerY).stroke();
-
-  // Terms & Conditions
-  const termsToUse = terms || DEFAULT_TERMS;
-  doc.font("Helvetica-Bold").fontSize(9).text("Terms & Conditions:", 50, footerY + 8);
-  doc.font("Helvetica").fontSize(8).text(termsToUse, 50, footerY + 22, {
-    width: doc.page.width - 100,
-    align: "left",
-    lineGap: 2,
-  });
-
-  // Calculate height used by terms
-  const termsHeight = doc.heightOfString(termsToUse, { width: doc.page.width - 100 });
-  const noteStartY = footerY + 22 + termsHeight + 12;
-
-  // Note Section
-  doc.font("Helvetica-Bold").fontSize(9).text("Note:", 50, noteStartY);
-  doc.font("Helvetica").fontSize(7.5).text(DEFAULT_NOTE, 50, noteStartY + 14, {
-    width: doc.page.width - 100,
-    align: "left",
-    lineGap: 1.5,
-  });
-
-  // Signature area on right
-  doc.font("Helvetica-Bold")
-    .fontSize(9)
-    .text("VISHAL PAPER PRODUCT", 50, footerY + 8, {
+  // Add Payment Mode if present
+  if (paymentMode) {
+    if (contentY + 18 > pageHeight - bottomMargin) {
+      doc.addPage();
+      contentY = 50;
+    }
+    doc.font("Helvetica-Bold").fontSize(headerFontSize).text("Payment Mode:", 50, contentY);
+    doc.font("Helvetica").fontSize(contentFontSize).text(paymentMode, 50, contentY + 9);
+    contentY += 18;
+  }
+  
+  // Add Remarks if present
+  if (remarks) {
+    const remarksHeight = doc.heightOfString(remarks, { width: doc.page.width - 100 });
+    if (contentY + 10 + remarksHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      contentY = 50;
+    }
+    doc.font("Helvetica-Bold").fontSize(headerFontSize).text("Remarks:", 50, contentY);
+    doc.font("Helvetica").fontSize(contentFontSize).text(remarks, 50, contentY + 9, {
       width: doc.page.width - 100,
-      align: "right",
     });
-  doc.font("Helvetica").fontSize(8).text("PRO.", 50, footerY + 22, {
+    contentY += 10 + remarksHeight + sectionGap;
+  }
+  
+  // Add separator if we had payment/remarks
+  if (paymentMode || remarks) {
+    doc.lineWidth(0.5);
+    doc.moveTo(50, contentY).lineTo(doc.page.width - 50, contentY).stroke();
+    contentY += sectionGap;
+  }
+
+  // Terms & Conditions - render header and content ONCE
+  const termsToUse = terms || DEFAULT_TERMS;
+  const termsHeight = doc.heightOfString(termsToUse, { width: doc.page.width - 100, lineGap: 1 });
+  const termsRequiredHeight = 12 + termsHeight + sectionGap;
+  
+  if (contentY + termsRequiredHeight > pageHeight - bottomMargin) {
+    doc.addPage();
+    contentY = 50;
+  }
+  
+  doc.font("Helvetica-Bold").fontSize(headerFontSize).text("Terms & Conditions:", 50, contentY);
+  doc.font("Helvetica").fontSize(contentFontSize).text(termsToUse, 50, contentY + 10, {
     width: doc.page.width - 100,
-    align: "right",
+    align: "left",
+    lineGap: 1,
+  });
+  
+  contentY += termsRequiredHeight;
+
+  // Note - render header and content ONCE
+  const noteHeight = doc.heightOfString(DEFAULT_NOTE, { width: doc.page.width - 100, lineGap: 1 });
+  const noteRequiredHeight = 12 + noteHeight + sectionGap;
+  
+  if (contentY + noteRequiredHeight > pageHeight - bottomMargin) {
+    doc.addPage();
+    contentY = 50;
+  }
+  
+  doc.font("Helvetica-Bold").fontSize(headerFontSize).text("Note:", 50, contentY);
+  doc.font("Helvetica").fontSize(contentFontSize).text(DEFAULT_NOTE, 50, contentY + 10, {
+    width: doc.page.width - 100,
+    align: "left",
+    lineGap: 1,
   });
 };
 
@@ -411,56 +431,90 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
     throw new Error("Challan data is required to generate PDF");
   }
 
-  const tempDir = process.env.CHALAN_PDF_DIR || path.join(os.tmpdir(), "challans");
-  await ensureDirectory(tempDir);
+  try {
+    const tempDir = process.env.CHALAN_PDF_DIR || path.join(os.tmpdir(), "challans");
+    console.log(`[PDF] Temp directory: ${tempDir}`);
+    
+    await ensureDirectory(tempDir);
 
-  const filename = `${challanData.number || `challan-${Date.now()}`}.pdf`;
-  const filePath = path.join(tempDir, filename);
+    // Replace slashes in filename to avoid directory creation issues
+    const safeFilename = `${(challanData.number || `challan-${Date.now()}`).replace(/\//g, "_")}`;
+    const filename = `${safeFilename}.pdf`;
+    const filePath = path.join(tempDir, filename);
+    
+    console.log(`[PDF] File path: ${filePath}`);
+    console.log(`[PDF] Creating PDF for challan: ${challanData.number}`);
 
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-  const writeStream = fs.createWriteStream(filePath);
-  doc.pipe(writeStream);
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    const writeStream = fs.createWriteStream(filePath);
+    
+    writeStream.on('error', (err) => {
+      console.error(`[PDF] WriteStream error:`, err);
+    });
+    
+    doc.on('error', (err) => {
+      console.error(`[PDF] Document error:`, err);
+    });
+    
+    doc.pipe(writeStream);
 
-  addHeader(doc, challanData.number || "", challanData.hsnCode || "");
+    addHeader(doc, challanData.number || "", challanData.hsnCode || "");
 
-  doc.moveDown(0.5);
-  doc.font("Helvetica").fontSize(10).text(`Prepared By: ${challanData.createdBy?.name || "-"}`);
+    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(10).text(`Prepared By: ${challanData.createdBy?.name || "-"}`);
 
-  if (challanData.clientDetails) {
-    addClientDetails(doc, challanData.clientDetails);
+    if (challanData.clientDetails) {
+      addClientDetails(doc, challanData.clientDetails);
+    }
+
+    doc.moveDown(0.1);
+    const tableInfo = addTable(doc, challanData.items || [], doc.y + 3);
+
+    // Always render GST/TOTAL just above the footer horizontal line
+    const summaryBlockHeight = 65;
+    const summarySpacing = 3;
+    let targetFooterY = Math.max(tableInfo.endY + 8, doc.page.height - 155);
+    let summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
+
+    if (summaryTop <= tableInfo.endY + 8) {
+      // Not enough space above footer on this page, move to new page
+      doc.addPage();
+      // Recompute targets on new page
+      targetFooterY = doc.page.height - 160;
+      summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
+    }
+
+    addSummary(doc, tableInfo, includeGST, summaryTop, taxType);
+
+    // Footer starts right after summary (let PDFKit track position)
+    doc.moveDown(0.2);
+    addFooter(doc, doc.y, challanData.terms, challanData.payment_mode, challanData.remarks);
+
+    console.log(`[PDF] Document finalized, waiting for stream finish`);
+    doc.end();
+
+    const result = await new Promise((resolve, reject) => {
+      writeStream.on("finish", () => {
+        console.log(`[PDF] ✓ PDF generated successfully: ${filePath}`);
+        resolve(filePath);
+      });
+      writeStream.on("error", (err) => {
+        console.error(`[PDF] ✗ WriteStream error:`, err);
+        reject(err);
+      });
+      
+      // Timeout safety
+      setTimeout(() => {
+        reject(new Error("PDF generation timeout after 30s"));
+      }, 30000);
+    });
+
+    return result;
+  } catch (error) {
+    console.error("[PDF] Error generating challan PDF:", error.message);
+    console.error("[PDF] Stack:", error.stack);
+    throw error;
   }
-
-  doc.moveDown(0.5);
-  const tableInfo = addTable(doc, challanData.items || [], doc.y + 10);
-
-  // Always render GST/TOTAL just above the footer horizontal line
-  const summaryBlockHeight = 78; // must match addSummary's return delta
-  const summarySpacing = 12;
-  let targetFooterY = Math.max(tableInfo.endY + 20, doc.page.height - 160);
-  let summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
-
-  if (summaryTop <= tableInfo.endY + 8) {
-    // Not enough space above footer on this page, move to new page
-    doc.addPage();
-    // Recompute targets on new page
-    targetFooterY = doc.page.height - 160;
-    summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
-  }
-
-  addSummary(doc, tableInfo, includeGST, summaryTop, taxType);
-
-  // Footer position is right after the summary, not at a fixed position
-  const summaryEndY = summaryTop + 80;
-  addFooter(doc, summaryEndY, challanData.terms);
-
-  doc.end();
-
-  await new Promise((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
-
-  return filePath;
 };
 
 
