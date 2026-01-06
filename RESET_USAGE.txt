@@ -1,0 +1,88 @@
+===============================================
+  COMMERCIAL FRESH START - RESET USAGE GUIDE
+===============================================
+
+This reset script clears all test/old data while preserving the system schema
+and keeping only two admin logins active.
+
+WHAT GETS DELETED:
+  • All boxes (products)
+  • All audit logs
+  • All challans (GST & Non-GST)
+  • All stock receipts
+  • All client batches
+  • All non-admin users
+
+WHAT IS PRESERVED:
+  • Database schema (collections structure)
+  • 2 admin accounts:
+    - test@gmail.com
+    - savlavaibhav99@gmail.com
+  • Challan numbering (reset to 0001)
+
+PRE-REQUISITES:
+  1. Node.js installed
+  2. Backend dependencies installed: npm install
+  3. .env file configured with MONGO_URI
+  4. MongoDB connection working
+
+HOW TO RUN:
+
+  Option 1: Using npm script (RECOMMENDED)
+  ─────────────────────────────────────
+  From backend directory:
+  
+    RESET_CONFIRM=YES npm run reset:data
+
+  Option 2: Direct node command
+  ──────────────────────────────
+  
+    RESET_CONFIRM=YES node scripts/resetProductionData.js
+
+SAFETY FEATURES:
+  ✓ Requires RESET_CONFIRM=YES environment variable
+  ✓ If not set, script exits with error message
+  ✓ Cannot be run without explicit confirmation
+  ✓ Reports initial & final state before/after
+
+EXPECTED OUTPUT:
+  • Initial database state (collections & counts)
+  • Deletion progress (items deleted per collection)
+  • Admin account management summary
+  • Counter reset confirmation
+  • Final database state
+  • List of remaining admin accounts
+  • System ready confirmation
+
+TROUBLESHOOTING:
+
+  Problem: "SAFETY CHECK FAILED"
+  ──────────────────────────────
+  Solution: Add RESET_CONFIRM=YES before command
+
+  Problem: "MONGO_URI not found"
+  ───────────────────────────────
+  Solution: Verify .env file exists and has MONGO_URI set
+
+  Problem: "Error connecting to MongoDB"
+  ─────────────────────────────────────
+  Solution: Check MongoDB connection string and network access
+
+AFTER RESET:
+  ✓ System is "commercially fresh" and ready for live data
+  ✓ Login with admin accounts to verify access
+  ✓ All counters start from 0001
+  ✓ Inventory is completely empty
+  ✓ Ready for new data entry/imports
+
+REPEATABLE:
+  Yes! This script can be run multiple times safely.
+  Each run will reset to the same clean state.
+
+NOTES:
+  • Always run from backend directory
+  • Takes 10-30 seconds depending on connection
+  • No user input needed (safety check is env variable based)
+  • Exit code 0 = success, 1 = error
+
+===============================================

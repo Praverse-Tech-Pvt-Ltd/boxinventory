@@ -14,7 +14,7 @@ import StockReceipt from '../models/stockReceiptModel.js';
 import ClientBatch from '../models/clientBatchModel.js';
 
 // Load environment variables
-dotenv.config({ path: '../.env' });
+dotenv.config();
 
 // Admin accounts to preserve
 const ADMIN_ACCOUNTS = [
@@ -36,16 +36,19 @@ const ADMIN_ACCOUNTS = [
 async function resetProductionData() {
   // Safety check
   if (process.env.RESET_CONFIRM !== 'YES') {
-    console.error('❌ SAFETY CHECK FAILED');
+    console.error('\n❌ SAFETY CHECK FAILED');
     console.error('Refusing to reset data. Set environment variable: RESET_CONFIRM=YES');
+    console.error('\nUsage: RESET_CONFIRM=YES npm run reset:data\n');
     process.exit(1);
   }
 
-  console.log('\n🔄 Starting Production Data Reset...');
-  console.log('========================================\n');
+  console.log('\n\n' + '='.repeat(60));
+  console.log('  🔄 PRODUCTION DATA RESET - COMMERCIAL FRESH START');
+  console.log('='.repeat(60) + '\n');
 
   try {
     // Connect to MongoDB
+    console.log('🔗 Connecting to MongoDB...');
     await connectDB();
     console.log('✅ Database connected\n');
 
@@ -56,42 +59,60 @@ async function resetProductionData() {
 
     // Step 1: Delete all data from non-user collections
     console.log('\n🗑️  Deleting test data...');
-    await deleteTestData();
+    const deletions = await deleteTestData();
 
     // Step 2: Delete non-admin users
     console.log('\n👥 Managing user accounts...');
-    await manageAdminAccounts();
+    const adminResult = await manageAdminAccounts();
+    deletions.nonAdminUsers = adminResult.nonAdminUsers;
 
     // Step 3: Reset counters
-    console.log('\n🔢 Resetting counters and sequences...');
+    console.log('\n🔢 Resetting challan counters...');
     await resetCounters();
 
     // Step 4: Get final state
     const finalState = await getCollectionCounts();
 
     // Print final report
-    console.log('\n\n📋 RESET COMPLETION REPORT');
-    console.log('========================================');
+    console.log('\n\n' + '='.repeat(60));
+    console.log('  ✅ RESET COMPLETION REPORT');
+    console.log('='.repeat(60) + '\n');
+    
     printCollectionCounts('Final', finalState);
 
     // Print admin accounts
     console.log('\n👤 Remaining Admin Accounts:');
-    const admins = await User.find({ role: 'admin' });
-    admins.forEach((admin, index) => {
-      console.log(`  ${index + 1}. ${admin.email} (ID: ${admin._id})`);
-    });
+    const admins = await User.find({ role: 'admin' }).sort({ email: 1 });
+    if (admins.length > 0) {
+      admins.forEach((admin, index) => {
+        console.log(`  ${index + 1}. ${admin.email} (ID: ${admin._id})`);
+      });
+    } else {
+      console.log('  ⚠️  No admin accounts found!');
+    }
 
-    console.log('\n✅ RESET COMPLETED SUCCESSFULLY!');
-    console.log('\n📝 Notes:');
-    console.log('  - New challan numbering starts from 0001');
-    console.log('  - All test data has been removed');
-    console.log('  - Only 2 admin accounts remain');
-    console.log('  - System is ready for fresh data entry\n');
+    // Print summary
+    console.log('\n📋 Summary:');
+    console.log(`  ✓ Deleted ${deletions.boxes} boxes`);
+    console.log(`  ✓ Deleted ${deletions.audits} audit logs`);
+    console.log(`  ✓ Deleted ${deletions.challans} challans`);
+    console.log(`  ✓ Deleted ${deletions.receipts} stock receipts`);
+    console.log(`  ✓ Deleted ${deletions.batches} client batches`);
+    console.log(`  ✓ Deleted ${deletions.nonAdminUsers} non-admin users`);
+    console.log(`  ✓ Preserved 2 admin accounts`);
+
+    console.log('\n✨ SYSTEM READY FOR COMMERCIAL USE');
+    console.log('  - Challan numbering starts from 0001');
+    console.log('  - Inventory is empty');
+    console.log('  - Only 2 admins can login');
+    console.log('  - All test data removed\n');
+    console.log('='.repeat(60) + '\n');
 
     process.exit(0);
   } catch (error) {
     console.error('\n❌ ERROR DURING RESET:');
-    console.error(error);
+    console.error(error.message);
+    console.error(error.stack);
     process.exit(1);
   }
 }
@@ -106,27 +127,27 @@ async function deleteTestData() {
     // Delete Boxes
     const boxResult = await Box.deleteMany({});
     deletions.boxes = boxResult.deletedCount;
-    console.log(`  • Deleted ${boxResult.deletedCount} boxes`);
+    console.log(`  • Boxes: ${boxResult.deletedCount} deleted`);
 
     // Delete BoxAudits
     const auditResult = await BoxAudit.deleteMany({});
     deletions.audits = auditResult.deletedCount;
-    console.log(`  • Deleted ${auditResult.deletedCount} audit logs`);
+    console.log(`  • Audit logs: ${auditResult.deletedCount} deleted`);
 
-    // Delete Challans
+    // Delete Challans (both GST and NON-GST)
     const challanResult = await Challan.deleteMany({});
     deletions.challans = challanResult.deletedCount;
-    console.log(`  • Deleted ${challanResult.deletedCount} challans`);
+    console.log(`  • Challans: ${challanResult.deletedCount} deleted`);
 
     // Delete StockReceipts
     const receiptResult = await StockReceipt.deleteMany({});
     deletions.receipts = receiptResult.deletedCount;
-    console.log(`  • Deleted ${receiptResult.deletedCount} stock receipts`);
+    console.log(`  • Stock receipts: ${receiptResult.deletedCount} deleted`);
 
     // Delete ClientBatches
     const batchResult = await ClientBatch.deleteMany({});
     deletions.batches = batchResult.deletedCount;
-    console.log(`  • Deleted ${batchResult.deletedCount} client batches`);
+    console.log(`  • Client batches: ${batchResult.deletedCount} deleted`);
 
     return deletions;
   } catch (error) {
@@ -142,14 +163,23 @@ async function manageAdminAccounts() {
   try {
     // Delete all non-admin users
     const deleteResult = await User.deleteMany({ role: { $ne: 'admin' } });
-    console.log(`  • Deleted ${deleteResult.deletedCount} non-admin users`);
+    console.log(`  • Non-admin users deleted: ${deleteResult.deletedCount}`);
+
+    let newAdminsCreated = 0;
 
     // Ensure admin accounts exist
     for (const adminConfig of ADMIN_ACCOUNTS) {
       const existingAdmin = await User.findOne({ email: adminConfig.email });
 
       if (existingAdmin) {
-        console.log(`  • Admin account exists: ${adminConfig.email}`);
+        // Ensure admin still has correct role
+        if (existingAdmin.role !== 'admin') {
+          existingAdmin.role = 'admin';
+          await existingAdmin.save();
+          console.log(`  • Updated ${adminConfig.email} to admin role`);
+        } else {
+          console.log(`  • Admin already exists: ${adminConfig.email}`);
+        }
       } else {
         // Create new admin account
         const hashedPassword = await bcryptjs.hash(adminConfig.defaultPassword, 10);
@@ -161,10 +191,13 @@ async function manageAdminAccounts() {
         });
 
         await newAdmin.save();
+        newAdminsCreated++;
         console.log(`  • Created new admin: ${adminConfig.email}`);
-        console.log(`    📝 Default password: ${adminConfig.defaultPassword} (please change on first login)`);
+        console.log(`    Default password: ${adminConfig.defaultPassword} (⚠️  change on first login)`);
       }
     }
+
+    return { nonAdminUsers: deleteResult.deletedCount, newAdminsCreated };
   } catch (error) {
     console.error('❌ Error managing admin accounts:', error.message);
     throw error;
@@ -176,16 +209,22 @@ async function manageAdminAccounts() {
  */
 async function resetCounters() {
   try {
-    // Get current financial year
+    // Get current financial year (India FY: Apr to Mar)
     const now = new Date();
-    const currentYear = now.getFullYear();
+    let currentYear = now.getFullYear();
+    
+    // If before April, use previous year as fiscal year start
+    if (now.getMonth() < 3) {
+      currentYear = currentYear - 1;
+    }
+    
     const nextYear = currentYear + 1;
-
-    // Get last 2 digits of year
     const currentFY = `${String(currentYear).slice(-2)}-${String(nextYear).slice(-2)}`;
 
-    // Reset ChallanCounter for current FY
-    const counterResult = await ChallanCounter.findOneAndUpdate(
+    console.log(`  • Current Financial Year: ${currentFY}`);
+
+    // Reset ChallanCounter for current FY (GST)
+    const gstCounter = await ChallanCounter.findOneAndUpdate(
       { fy: currentFY },
       {
         fy: currentFY,
@@ -194,15 +233,24 @@ async function resetCounters() {
       },
       { upsert: true, new: true }
     );
-    console.log(`  • Reset challan counter for FY ${currentFY}`);
-    console.log(`    - GST sequence: 1`);
-    console.log(`    - Non-GST sequence: 1`);
+    console.log(`  • GST challan counter reset to 1`);
+    console.log(`  • Non-GST challan counter reset to 1`);
 
-    // Reset generic Counter (if used)
-    await Counter.deleteMany({});
-    console.log(`  • Cleared generic counters`);
+    // Clear any other year's counters
+    const deletedCounters = await ChallanCounter.deleteMany({
+      fy: { $ne: currentFY }
+    });
+    if (deletedCounters.deletedCount > 0) {
+      console.log(`  • Cleared ${deletedCounters.deletedCount} old year counters`);
+    }
 
-    return counterResult;
+    // Clear generic Counter collection (if any)
+    const deletedGeneric = await Counter.deleteMany({});
+    if (deletedGeneric.deletedCount > 0) {
+      console.log(`  • Cleared ${deletedGeneric.deletedCount} generic counters`);
+    }
+
+    return gstCounter;
   } catch (error) {
     console.error('❌ Error resetting counters:', error.message);
     throw error;
@@ -214,8 +262,12 @@ async function resetCounters() {
  */
 async function getCollectionCounts() {
   try {
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    const userCount = await User.countDocuments();
+
     return {
-      users: await User.countDocuments(),
+      totalUsers: userCount,
+      adminUsers: adminCount,
       boxes: await Box.countDocuments(),
       audits: await BoxAudit.countDocuments(),
       challans: await Challan.countDocuments(),
@@ -233,16 +285,17 @@ async function getCollectionCounts() {
  */
 function printCollectionCounts(label, counts) {
   console.log(`\n${label} State:`);
-  console.log('  ┌─────────────────────┬──────┐');
-  console.log(`  │ Collection          │ Count│`);
-  console.log('  ├─────────────────────┼──────┤');
-  console.log(`  │ Users               │ ${String(counts.users).padStart(4)}  │`);
-  console.log(`  │ Boxes               │ ${String(counts.boxes).padStart(4)}  │`);
-  console.log(`  │ Audit Logs          │ ${String(counts.audits).padStart(4)}  │`);
-  console.log(`  │ Challans            │ ${String(counts.challans).padStart(4)}  │`);
-  console.log(`  │ Stock Receipts      │ ${String(counts.receipts).padStart(4)}  │`);
-  console.log(`  │ Client Batches      │ ${String(counts.batches).padStart(4)}  │`);
-  console.log('  └─────────────────────┴──────┘');
+  console.log('  ┌─────────────────────────┬───────┐');
+  console.log('  │ Collection              │ Count │');
+  console.log('  ├─────────────────────────┼───────┤');
+  console.log(`  │ Total Users             │ ${String(counts.totalUsers).padStart(5)} │`);
+  console.log(`  │ Admin Users             │ ${String(counts.adminUsers).padStart(5)} │`);
+  console.log(`  │ Boxes                   │ ${String(counts.boxes).padStart(5)} │`);
+  console.log(`  │ Audit Logs              │ ${String(counts.audits).padStart(5)} │`);
+  console.log(`  │ Challans                │ ${String(counts.challans).padStart(5)} │`);
+  console.log(`  │ Stock Receipts          │ ${String(counts.receipts).padStart(5)} │`);
+  console.log(`  │ Client Batches          │ ${String(counts.batches).padStart(5)} │`);
+  console.log('  └─────────────────────────┴───────┘');
 }
 
 // Run the reset
