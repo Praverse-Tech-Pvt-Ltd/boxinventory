@@ -1,0 +1,88 @@
+COMMERCIAL FRESH START - IMPLEMENTATION COMPLETE
+==================================================
+
+COMPLETED TASKS:
+✅ Reset script created: backend/scripts/resetProductionData.js
+✅ npm command registered: "reset:data"
+✅ Safety check implemented (RESET_CONFIRM=YES required)
+✅ All test data deleted from database
+✅ Only 2 admin accounts preserved
+✅ Challan counters reset to 0001
+✅ Inventory cleared (0 boxes)
+✅ Audit logs cleared
+✅ System tested and verified idempotent
+
+CURRENT SYSTEM STATE (COMMERCIAL FRESH):
+=========================================
+Total Users: 2 (both admins)
+Admin Accounts:
+  1. test@gmail.com
+  2. savlavaibhav99@gmail.com
+
+Collections Status:
+  • Boxes: 0
+  • Audit Logs: 0
+  • Challans: 0
+  • Stock Receipts: 0
+  • Client Batches: 0
+
+Challan Counters:
+  • GST: Reset to 1 (current FY 25-26)
+  • Non-GST: Reset to 1 (current FY 25-26)
+
+HOW TO USE:
+===========
+From backend directory, run:
+
+  RESET_CONFIRM=YES npm run reset:data
+
+Or directly:
+
+  RESET_CONFIRM=YES node scripts/resetProductionData.js
+
+SAFETY FEATURES:
+================
+• Requires explicit RESET_CONFIRM=YES environment variable
+• Script refuses to run without this safety check
+• Will exit with error code 1 if safety check fails
+• Can be safely run multiple times (idempotent)
+• Reports all changes with detailed summary
+
+WHAT EACH RUN DOES:
+===================
+1. Connects to MongoDB using .env MONGO_URI
+2. Shows initial database state
+3. Deletes all boxes, audits, challans, receipts, batches
+4. Deletes all non-admin users
+5. Ensures 2 admin accounts exist with correct roles
+6. Resets all challan counters to 1 for current FY
+7. Shows final database state
+8. Prints admin account emails
+9. Displays summary of deletions
+
+NEXT STEPS:
+===========
+1. System is now "commercially fresh" ready for live use
+2. Both admin accounts can login
+3. New boxes/challans can be created from scratch
+4. Challan numbering will start from VPP/25-26/0001
+5. Inventory is empty and ready for new stock entry
+
+FILES MODIFIED:
+===============
+• backend/scripts/resetProductionData.js (updated with comprehensive logic)
+• RESET_USAGE.txt (created - quick reference guide)
+
+TESTING PERFORMED:
+==================
+✓ Ran reset script with RESET_CONFIRM=YES
+✓ Verified all data was deleted
+✓ Verified 2 admin accounts remain
+✓ Verified counters reset to 1
+✓ Ran reset again to confirm idempotency
+✓ Verified safety check works (blocks without env var)
+
+READY FOR PRODUCTION
+====================
+The system is now clean and ready for commercial use.
+Only test data remains removed, schema intact, admins ready.

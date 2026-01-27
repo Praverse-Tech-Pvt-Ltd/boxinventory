@@ -256,6 +256,33 @@ export const createChallan = async (req, res) => {
       const rate = Number(manualItem.rate || 0);
       const assemblyCharge = Number(manualItem.assemblyCharge || 0);
       const packagingCharge = Number(manualItem.packagingCharge || 0);
+      
+      // Handle colorLines (color-wise quantities)
+      const colorLines = Array.isArray(manualItem.colorLines)
+        ? manualItem.colorLines
+            .filter(line => line.color && line.quantity > 0)
+            .map(line => ({
+              color: String(line.color).trim(),
+              quantity: Number(line.quantity)
+            }))
+        : [];
+      
+      // Validate color lines for dispatch mode
+      if (invMode === "dispatch" && colorLines.length > 0) {
+        const normalizedQuantityMap = normalizeQuantityMap(matchedBox.quantityByColor);
+        for (const line of colorLines) {
+          const normalizedColor = normalizeColor(line.color);
+          const available = Number(normalizedQuantityMap.get(normalizedColor) || 0);
+          const required = Number(line.quantity);
+          
+          if (available < required) {
+            return res.status(400).json({
+              message: `Manual item ${i + 1}: Insufficient stock for color "${line.color}". Available: ${available}, Required: ${required}`
+            });
+          }
+        }
+      }
+      
       const manualColours = (() => {
         if (Array.isArray(manualItem.colours) && manualItem.colours.length > 0) {
           const cleaned = manualItem.colours.map((c) => String(c).trim()).filter(Boolean);
@@ -282,6 +309,7 @@ export const createChallan = async (req, res) => {
         packagingCharge,
         color: manualItem.color || "",
         colours: manualColours,
+        colorLines,
         user: manualItem.user || undefined,
         auditedAt: null,
         manualEntry: true,
@@ -299,19 +327,36 @@ export const createChallan = async (req, res) => {
       
       // Collect usage from all items (normalized colors)
       items.forEach((item) => {
-        const rawColor = item.color || "";
-        const normalizedColor = normalizeColor(rawColor);
-        if (!normalizedColor) return;
-        
         const boxId = String(item.box._id);
-        const qty = Number(item.quantity || 0);
         
-        if (!usageByBox.has(boxId)) {
-          usageByBox.set(boxId, new Map());
+        // If item has colorLines, use those; otherwise fall back to single color
+        if (Array.isArray(item.colorLines) && item.colorLines.length > 0) {
+          item.colorLines.forEach((line) => {
+            const normalizedColor = normalizeColor(line.color);
+            if (!normalizedColor) return;
+            
+            const qty = Number(line.quantity || 0);
+            if (!usageByBox.has(boxId)) {
+              usageByBox.set(boxId, new Map());
+            }
+            const colorMap = usageByBox.get(boxId);
+            const prev = colorMap.get(normalizedColor) || 0;
+            colorMap.set(normalizedColor, prev + qty);
+          });
+        } else {
+          // Fallback to single color field
+          const rawColor = item.color || "";
+          const normalizedColor = normalizeColor(rawColor);
+          if (!normalizedColor) return;
+          
+          const qty = Number(item.quantity || 0);
+          if (!usageByBox.has(boxId)) {
+            usageByBox.set(boxId, new Map());
+          }
+          const colorMap = usageByBox.get(boxId);
+          const prev = colorMap.get(normalizedColor) || 0;
+          colorMap.set(normalizedColor, prev + qty);
         }
-        const colorMap = usageByBox.get(boxId);
-        const prev = colorMap.get(normalizedColor) || 0;
-        colorMap.set(normalizedColor, prev + qty);
       });
 
       // Apply updates to database
@@ -339,6 +384,25 @@ export const createChallan = async (req, res) => {
           // Update box with new normalized map
           box.quantityByColor = normalizedQuantityMap;
           await box.save();
+          
+          // Create audit logs for each color dispatch
+          if (invMode === "dispatch") {
+            for (const [normalizedColor, changeQty] of colorUsage.entries()) {
+              try {
+                await BoxAudit.create({
+                  box: box._id,
+                  user: req.user._id,
+                  quantity: -changeQty,
+                  color: normalizedColor,
+                  note: `Dispatch via challan: ${challanNumber}`,
+                  action: 'subtract',
+                  challan: null, // Will be updated after challan creation
+                });
+              } catch (auditError) {
+                console.error('Audit log error for color dispatch:', auditError);
+              }
+            }
+          }
         }
       }
     } else {

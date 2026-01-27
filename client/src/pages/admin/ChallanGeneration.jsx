@@ -4,7 +4,7 @@ import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import "../../styles/dashboard.css";
 import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients } from "../../services/challanService";
-import { getAllBoxes, addColorToBox } from "../../services/boxService";
+import { getAllBoxes, addColorToBox, getBoxAvailability } from "../../services/boxService";
 import {
   appendClientBatch as appendClientBatchApi,
   createClientBatch as createClientBatchApi,
@@ -36,6 +36,7 @@ const createManualRow = () => ({
   boxCode: "",
   boxCategory: "",
   availableColours: [],
+  colorLines: [], // Array of { id, color, availableQty, dispatchQty }
   cavity: "",
   quantity: 0,
   rate: 0,
@@ -261,7 +262,7 @@ const ChallanGeneration = () => {
     return map;
   }, [boxes]);
 
-  const handleManualCodeLookup = (rowId, rawCode) => {
+  const handleManualCodeLookup = async (rowId, rawCode) => {
     const cleaned = (rawCode || "").trim().toUpperCase();
     if (!cleaned) {
       updateManualRow(rowId, {
@@ -271,6 +272,7 @@ const ChallanGeneration = () => {
         boxCode: "",
         boxCategory: "",
         availableColours: [],
+        colorLines: [],
       });
       return;
     }
@@ -283,22 +285,49 @@ const ChallanGeneration = () => {
         boxCode: "",
         boxCategory: "",
         availableColours: [],
+        colorLines: [],
       });
       return;
     }
-    updateManualRow(rowId, {
-      boxId: matched._id,
-      searchCode: matched.code,
-      boxTitle: matched.title,
-      boxCode: matched.code || "",
-      boxCategory: matched.category,
-      cavity: matched.boxInnerSize || "",
-      rate: Number(matched.price || 0),
-      availableColours: Array.isArray(matched.colours) ? matched.colours : [],
-    });
+    
+    // Fetch color availability
+    try {
+      const availability = await getBoxAvailability(matched.code);
+      const colorLines = (availability.colors || []).map((c) => ({
+        id: `${rowId}-${c.color}-${Date.now()}`,
+        color: c.color,
+        availableQty: c.available,
+        dispatchQty: 0,
+      }));
+      
+      updateManualRow(rowId, {
+        boxId: matched._id,
+        searchCode: matched.code,
+        boxTitle: matched.title,
+        boxCode: matched.code || "",
+        boxCategory: matched.category,
+        cavity: matched.boxInnerSize || "",
+        rate: Number(matched.price || 0),
+        availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+        colorLines,
+      });
+    } catch (error) {
+      toast.error("Failed to fetch color availability");
+      updateManualRow(rowId, {
+        boxId: matched._id,
+        searchCode: matched.code,
+        boxTitle: matched.title,
+        boxCode: matched.code || "",
+        boxCategory: matched.category,
+        cavity: matched.boxInnerSize || "",
+        rate: Number(matched.price || 0),
+        availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+        colorLines: [],
+      });
+    }
   };
 
-  const handleManualNameLookup = (rowId, rawName) => {
+  const handleManualNameLookup = async (rowId, rawName) => {
     const cleaned = (rawName || "").trim().toLowerCase();
     if (!cleaned) {
       updateManualRow(rowId, {
@@ -308,6 +337,7 @@ const ChallanGeneration = () => {
         boxCode: "",
         boxCategory: "",
         availableColours: [],
+        colorLines: [],
       });
       return;
     }
@@ -320,19 +350,46 @@ const ChallanGeneration = () => {
         boxCode: "",
         boxCategory: "",
         availableColours: [],
+        colorLines: [],
       });
       return;
     }
-    updateManualRow(rowId, {
-      boxId: matched._id,
-      searchName: matched.title,
-      boxTitle: matched.title,
-      boxCode: matched.code || "",
-      boxCategory: matched.category,
-      cavity: matched.boxInnerSize || "",
-      rate: Number(matched.price || 0),
-      availableColours: Array.isArray(matched.colours) ? matched.colours : [],
-    });
+    
+    // Fetch color availability
+    try {
+      const availability = await getBoxAvailability(matched.code);
+      const colorLines = (availability.colors || []).map((c) => ({
+        id: `${rowId}-${c.color}-${Date.now()}`,
+        color: c.color,
+        availableQty: c.available,
+        dispatchQty: 0,
+      }));
+      
+      updateManualRow(rowId, {
+        boxId: matched._id,
+        searchName: matched.title,
+        boxTitle: matched.title,
+        boxCode: matched.code || "",
+        boxCategory: matched.category,
+        cavity: matched.boxInnerSize || "",
+        rate: Number(matched.price || 0),
+        availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+        colorLines,
+      });
+    } catch (error) {
+      toast.error("Failed to fetch color availability");
+      updateManualRow(rowId, {
+        boxId: matched._id,
+        searchName: matched.title,
+        boxTitle: matched.title,
+        boxCode: matched.code || "",
+        boxCategory: matched.category,
+        cavity: matched.boxInnerSize || "",
+        rate: Number(matched.price || 0),
+        availableColours: Array.isArray(matched.colours) ? matched.colours : [],
+        colorLines: [],
+      });
+    }
   };
 
   const handleManualColoursInput = (rowId, value) => {
@@ -341,6 +398,23 @@ const ChallanGeneration = () => {
       .map((c) => c.trim())
       .filter(Boolean);
     updateManualRow(rowId, { coloursInput: value, colours: parsed });
+  };
+  
+  const updateColorLineQty = (rowId, lineId, newQty) => {
+    setManualRows((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              colorLines: row.colorLines.map((line) =>
+                line.id === lineId
+                  ? { ...line, dispatchQty: Math.max(0, Math.min(newQty, line.availableQty)) }
+                  : line
+              ),
+            }
+          : row
+      )
+    );
   };
 
   const getBatchId = (batch) => (batch?._id ? String(batch._id) : batch?.id ? String(batch.id) : null);
@@ -536,7 +610,13 @@ const ChallanGeneration = () => {
 
   const manualRowsComputed = useMemo(() => {
     return manualRows.map((row, idx) => {
-      const qty = Number(row.quantity) || 0;
+      // Calculate total dispatch qty from colorLines if available
+      const colorLinesQty = Array.isArray(row.colorLines)
+        ? row.colorLines.reduce((sum, line) => sum + (Number(line.dispatchQty) || 0), 0)
+        : 0;
+      
+      // Use colorLines qty if available, otherwise use manual quantity
+      const qty = colorLinesQty > 0 ? colorLinesQty : Number(row.quantity) || 0;
       const rate = Number(row.rate) || 0;
       const assembly = Number(row.assemblyCharge) || 0;
       const packaging = Number(row.packagingCharge) || 0;
@@ -653,6 +733,15 @@ const ChallanGeneration = () => {
     if (manualInvalidQty) {
       throw new Error(`Enter a valid quantity for manual item #${manualInvalidQty.idx + 1}`);
     }
+    
+    // Validate color lines don't exceed available
+    const manualWithExcessQty = manualRowsComputed.find((row) =>
+      Array.isArray(row.colorLines) &&
+      row.colorLines.some(line => line.dispatchQty > line.availableQty)
+    );
+    if (manualWithExcessQty) {
+      throw new Error(`Manual item #${manualWithExcessQty.idx + 1}: Dispatch quantity exceeds available stock for one or more colors`);
+    }
 
     const lineItems = auditIds.map((id) => {
       const r = editRows[id] || {};
@@ -687,6 +776,14 @@ const ChallanGeneration = () => {
         packagingCharge: row.packaging || 0,
         color: row.color || "",
         colours: Array.isArray(row.colours) ? row.colours : [],
+        colorLines: Array.isArray(row.colorLines) 
+          ? row.colorLines
+              .filter(line => line.dispatchQty > 0)
+              .map(line => ({
+                color: line.color,
+                quantity: Number(line.dispatchQty) || 0,
+              }))
+          : [],
         boxSnapshot: {
           title: row.boxTitle || row.searchCode || "",
           code: row.boxCode || "",
@@ -1128,6 +1225,72 @@ const ChallanGeneration = () => {
                         />
                       </div>
                     </div>
+                    
+                    {/* Color-wise Quantity Table */}
+                    {row.colorLines && row.colorLines.length > 0 && (
+                      <div className="border border-theme-border rounded-lg p-4 bg-theme-surface-2">
+                        <p className="text-sm font-semibold text-theme-text-primary mb-3">
+                          📦 Color-wise Quantity (Dispatch)
+                        </p>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-theme-text-secondary pb-2 border-b border-theme-border">
+                            <div className="col-span-4">Color</div>
+                            <div className="col-span-3 text-right">Available</div>
+                            <div className="col-span-3 text-right">Dispatch Qty</div>
+                            <div className="col-span-2 text-right">Remaining</div>
+                          </div>
+                          {row.colorLines.map((line) => {
+                            const remaining = line.availableQty - line.dispatchQty;
+                            const hasError = line.dispatchQty > line.availableQty;
+                            return (
+                              <div
+                                key={line.id}
+                                className={`grid grid-cols-12 gap-2 items-center py-2 ${
+                                  hasError ? "bg-red-50 dark:bg-red-900/10 rounded px-2" : ""
+                                }`}
+                              >
+                                <div className="col-span-4 text-sm font-medium text-theme-text-primary">
+                                  {line.color}
+                                </div>
+                                <div className="col-span-3 text-right text-sm text-theme-text-secondary">
+                                  {line.availableQty}
+                                </div>
+                                <div className="col-span-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={line.availableQty}
+                                    value={line.dispatchQty}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value) || 0;
+                                      updateColorLineQty(row.id, line.id, val);
+                                    }}
+                                    className={`w-full px-2 py-1 text-sm text-right border rounded focus:outline-none focus:ring-1 ${
+                                      hasError
+                                        ? "border-red-500 focus:ring-red-500"
+                                        : "border-theme-input-border focus:ring-theme-primary"
+                                    } bg-theme-surface`}
+                                  />
+                                </div>
+                                <div
+                                  className={`col-span-2 text-right text-sm font-semibold ${
+                                    hasError ? "text-red-600" : remaining < 5 ? "text-amber-600" : "text-green-600"
+                                  }`}
+                                >
+                                  {remaining}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {row.colorLines.some(line => line.dispatchQty > line.availableQty) && (
+                            <p className="text-xs text-red-600 mt-2">
+                              ⚠️ Dispatch quantity exceeds available stock for one or more colors
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="grid gap-4 md:grid-cols-4">
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">

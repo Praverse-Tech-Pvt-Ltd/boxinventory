@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+const colorLineSchema = new mongoose.Schema(
+  {
+    color: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+  },
+  { _id: false }
+);
+
 const challanItemSchema = new mongoose.Schema(
   {
     audit: { type: mongoose.Schema.Types.ObjectId, ref: "BoxAudit" },
@@ -17,6 +25,7 @@ const challanItemSchema = new mongoose.Schema(
     packagingCharge: { type: Number, default: 0 },
     color: { type: String, default: "" },
     colours: { type: [String], default: [] },
+    colorLines: { type: [colorLineSchema], default: [] },
     user: {
       _id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       name: String,

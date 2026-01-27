@@ -211,48 +211,67 @@ const addTable = (doc, items, startY) => {
     const packaging = Number(item.packagingCharge || 0);
     const baseItemName = item.item || item.box?.title || "";
     
-    // Get colors - prioritize item.color, then item.colours array
-    let colorsToShow = [];
-    if (item.color) {
-      colorsToShow = [item.color];
-    } else if (Array.isArray(item.colours) && item.colours.length > 0) {
-      colorsToShow = item.colours;
-    } else if (Array.isArray(item.box?.colours) && item.box.colours.length > 0) {
-      colorsToShow = item.box.colours;
-    } else {
-      colorsToShow = [""]; // No color specified
-    }
-
-    // If only one color, show it as a single row
-    if (colorsToShow.length === 1) {
-      const qty = Number(item.quantity || 0);
-      const lineTotal = (rate + assembly + packaging) * qty;
-      expandedRows.push({
-        srNo: srNoCounter++,
-        item: baseItemName,
-        code: item.code || item.box?.code || "",
-        colours: colorsToShow[0] || "",
-        quantity: qty,
-        rate: (rate + assembly + packaging).toFixed(2),
-        total: lineTotal.toFixed(2),
-        rawTotal: lineTotal,
-      });
-    } else {
-      // Multiple colors - create separate rows for each color
-      const qtyPerColor = Number(item.quantity || 0);
-      colorsToShow.forEach((color, colorIndex) => {
-        const lineTotal = (rate + assembly + packaging) * qtyPerColor;
+    // Check if item has colorLines (color-wise quantities)
+    if (Array.isArray(item.colorLines) && item.colorLines.length > 0) {
+      // Use colorLines for color-wise breakdown
+      item.colorLines.forEach((line, lineIndex) => {
+        const qty = Number(line.quantity || 0);
+        const lineTotal = (rate + assembly + packaging) * qty;
         expandedRows.push({
-          srNo: colorIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
-          item: colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
-          code: colorIndex === 0 ? (item.code || item.box?.code || "") : "",
-          colours: color || "",
-          quantity: qtyPerColor,
+          srNo: lineIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
+          item: lineIndex === 0 ? baseItemName : "", // Show item name only on first row
+          code: lineIndex === 0 ? (item.code || item.box?.code || "") : "",
+          colours: line.color || "",
+          quantity: qty,
           rate: (rate + assembly + packaging).toFixed(2),
           total: lineTotal.toFixed(2),
           rawTotal: lineTotal,
         });
       });
+    } else {
+      // Fallback to old logic for colors array or single color
+      let colorsToShow = [];
+      if (item.color) {
+        colorsToShow = [item.color];
+      } else if (Array.isArray(item.colours) && item.colours.length > 0) {
+        colorsToShow = item.colours;
+      } else if (Array.isArray(item.box?.colours) && item.box.colours.length > 0) {
+        colorsToShow = item.box.colours;
+      } else {
+        colorsToShow = [""]; // No color specified
+      }
+
+      // If only one color, show it as a single row
+      if (colorsToShow.length === 1) {
+        const qty = Number(item.quantity || 0);
+        const lineTotal = (rate + assembly + packaging) * qty;
+        expandedRows.push({
+          srNo: srNoCounter++,
+          item: baseItemName,
+          code: item.code || item.box?.code || "",
+          colours: colorsToShow[0] || "",
+          quantity: qty,
+          rate: (rate + assembly + packaging).toFixed(2),
+          total: lineTotal.toFixed(2),
+          rawTotal: lineTotal,
+        });
+      } else {
+        // Multiple colors - create separate rows for each color
+        const qtyPerColor = Number(item.quantity || 0);
+        colorsToShow.forEach((color, colorIndex) => {
+          const lineTotal = (rate + assembly + packaging) * qtyPerColor;
+          expandedRows.push({
+            srNo: colorIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
+            item: colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
+            code: colorIndex === 0 ? (item.code || item.box?.code || "") : "",
+            colours: color || "",
+            quantity: qtyPerColor,
+            rate: (rate + assembly + packaging).toFixed(2),
+            total: lineTotal.toFixed(2),
+            rawTotal: lineTotal,
+          });
+        });
+      }
     }
   });
 

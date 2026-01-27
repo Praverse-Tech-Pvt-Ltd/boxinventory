@@ -12,6 +12,12 @@ export const getBoxById = async (boxId) => {
   return res.data;
 };
 
+// Get box color availability by code (for challan generation)
+export const getBoxAvailability = async (boxCode) => {
+  const res = await axiosInstance.get(`/api/boxes/availability/${boxCode}`);
+  return res.data;
+};
+
 // Create a new box (admin only - requires authentication)
 // boxData should be a FormData object with the image file and other fields
 // Example usage:

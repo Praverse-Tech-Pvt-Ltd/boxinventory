@@ -3,6 +3,7 @@ import {
   getAllBoxes,
   getAllAudits,
   getBoxById,
+  getBoxAvailabilityByCode,
   createBox,
   updateBox,
   deleteBox,
@@ -19,6 +20,9 @@ const router = express.Router();
 
 // Public routes - anyone can view boxes
 router.get("/", getAllBoxes);
+
+// Get box color availability (for challan generation)
+router.get("/availability/:code", getBoxAvailabilityByCode);
 
 // Admin: global audits list (must be BEFORE '/:id' to avoid conflict)
 router.get("/audits", protect, adminOnly, getAllAudits);
