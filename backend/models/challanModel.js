@@ -79,6 +79,7 @@ const challanSchema = new mongoose.Schema(
       default: null,
     },
     remarks: { type: String, trim: true },
+    packaging_charges_overall: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

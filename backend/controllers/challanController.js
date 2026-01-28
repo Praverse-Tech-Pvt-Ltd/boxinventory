@@ -67,7 +67,7 @@ async function generateStockReceiptNumberHelper(receiptDate) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -87,9 +87,11 @@ export const createChallan = async (req, res) => {
     })();
     console.log(`[createChallan] inventory_mode received: "${inventory_mode}", normalized to: "${invMode}"`);
 
-    // If INWARD mode, create a Stock Inward Receipt instead of Outward Challan
+    // Reject INWARD mode - it should only be used via dedicated inventory add feature
     if (invMode === "inward") {
-      return await createStockInwardReceipt(req, res, auditIdsArray, manualItemsInput, clientDetails, taxType);
+      return res.status(400).json({ 
+        message: "Stock inward is not allowed from challan screen. Use Inventory Add feature." 
+      });
     }
 
     if (auditIdsArray.length === 0 && manualItemsInput.length === 0) {
@@ -430,7 +432,8 @@ export const createChallan = async (req, res) => {
       includeGST: shouldIncludeGST,
       createdBy: req.user._id,
       inventory_mode: invMode,
-      hsnCode: "481920",
+      hsnCode: hsnCode || "481920",
+      packaging_charges_overall: Number(packaging_charges_overall) || 0,
     };
 
     if (payment_mode && String(payment_mode).trim()) {
@@ -512,10 +515,10 @@ export const downloadChallanPdf = async (req, res) => {
       return res.status(404).json({ message: "Document not found" });
     }
 
-    console.log(`[Download] Found document: ${document.number}, inventoryType: ${document.inventoryType}`);
+    console.log(`[Download] Found document: ${document.number}, inventory_mode: ${document.inventory_mode}`);
 
     // Determine if this is a stock receipt (inbound/add) or outward challan (outbound/dispatch)
-    const isStockReceipt = document.inventoryType === "add";
+    const isStockReceipt = document.inventory_mode === "inward";
 
     const itemsForPdf = (document.items || []).map((item) => ({
       item: item.item || item.box?.title || "",
@@ -528,10 +531,10 @@ export const downloadChallanPdf = async (req, res) => {
           : item.color
           ? [item.color]
           : item.box?.colours || [],
+      colorLines: item.colorLines || [],
       quantity: item.quantity || 0,
       rate: item.rate || 0,
       assemblyCharge: item.assemblyCharge || 0,
-      packagingCharge: item.packagingCharge || 0,
     }));
 
     const commonData = {
@@ -564,6 +567,7 @@ export const downloadChallanPdf = async (req, res) => {
           taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
           payment_mode: document.payment_mode || null,
           remarks: document.remarks || null,
+          packaging_charges_overall: document.packaging_charges_overall || 0,
         };
         const includeGST = document.includeGST !== false;
         pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);

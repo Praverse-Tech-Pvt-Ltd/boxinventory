@@ -41,7 +41,6 @@ const createManualRow = () => ({
   quantity: 0,
   rate: 0,
   assemblyCharge: 0,
-  packagingCharge: 0,
   color: "",
   colours: [],
   coloursInput: "",
@@ -96,6 +95,7 @@ const ChallanGeneration = () => {
   const [challanTaxType, setChallanTaxType] = useState("GST"); // GST or NON_GST
   const [paymentMode, setPaymentMode] = useState(""); // Cash, GPay, Bank Account, Credit
   const [remarks, setRemarks] = useState("");
+  const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -185,7 +185,6 @@ const ChallanGeneration = () => {
              quantity: audit.quantity || 0,
              rate: Number(audit.box?.price || 0),
              assemblyCharge: 0,
-             packagingCharge: 0,
              color: audit.color || "",
              colours: audit.color ? [audit.color] : (Array.isArray(audit.box?.colours) ? [...audit.box.colours] : []),
            };
@@ -431,6 +430,7 @@ const ChallanGeneration = () => {
     setManualRows([]);
     setPaymentMode("");
     setRemarks("");
+    setPackagingChargesOverall(0);
   };
 
   const upsertBatch = (nextBatch) => {
@@ -593,8 +593,7 @@ const ChallanGeneration = () => {
         const qty = Number.isFinite(Number(edit.quantity)) ? Number(edit.quantity) : Number(a.quantity || 0);
         const rate = Number(edit.rate || 0);
         const assembly = Number(edit.assemblyCharge || 0);
-        const packaging = Number(edit.packagingCharge || 0);
-        const lineTotal = (rate + assembly + packaging) * (Number.isFinite(qty) ? qty : 0);
+        const lineTotal = (rate + assembly) * (Number.isFinite(qty) ? qty : 0);
         return {
           idx,
           audit: a,
@@ -602,7 +601,6 @@ const ChallanGeneration = () => {
           qty: Number.isFinite(qty) ? qty : 0,
           rate,
           assembly,
-          packaging,
           total: Number.isFinite(lineTotal) ? lineTotal : 0,
         };
       });
@@ -619,15 +617,13 @@ const ChallanGeneration = () => {
       const qty = colorLinesQty > 0 ? colorLinesQty : Number(row.quantity) || 0;
       const rate = Number(row.rate) || 0;
       const assembly = Number(row.assemblyCharge) || 0;
-      const packaging = Number(row.packagingCharge) || 0;
-      const total = (rate + assembly + packaging) * qty;
+      const total = (rate + assembly) * qty;
       return {
         ...row,
         idx,
         qty,
         rate,
         assembly,
-        packaging,
         total,
       };
     });
@@ -636,7 +632,9 @@ const ChallanGeneration = () => {
   const summary = useMemo(() => {
     const auditedSubtotal = selectedRows.reduce((sum, row) => sum + row.total, 0);
     const manualSubtotal = manualRowsComputed.reduce((sum, row) => sum + row.total, 0);
-    const subtotal = auditedSubtotal + manualSubtotal;
+    const itemsSubtotal = auditedSubtotal + manualSubtotal;
+    const packagingCharges = Number(packagingChargesOverall) || 0;
+    const subtotal = itemsSubtotal + packagingCharges;
     const auditedQty = selectedRows.reduce((sum, row) => sum + row.qty, 0);
     const manualQty = manualRowsComputed.reduce((sum, row) => sum + row.qty, 0);
     const totalQty = auditedQty + manualQty;
@@ -651,8 +649,9 @@ const ChallanGeneration = () => {
       totalBeforeRound,
       roundOff,
       grandTotal: roundedTotal,
+      packagingCharges,
     };
-  }, [selectedRows, manualRowsComputed]);
+  }, [selectedRows, manualRowsComputed, packagingChargesOverall]);
 
   const hasAnyRows = selectedRows.length > 0 || manualRowsComputed.length > 0;
   const showClientBatchPanel = hasAnyRows || clientBatches.length > 0;
@@ -752,7 +751,6 @@ const ChallanGeneration = () => {
         quantity: Number(r.quantity || 0),
         rate: Number(r.rate || 0),
         assemblyCharge: Number(r.assemblyCharge || 0),
-        packagingCharge: Number(r.packagingCharge || 0),
         color: r.color || audit?.color || "",
         colours: Array.isArray(r.colours) ? r.colours : [],
         boxSnapshot: audit?.box
@@ -773,7 +771,6 @@ const ChallanGeneration = () => {
         quantity: row.qty,
         rate: row.rate || 0,
         assemblyCharge: row.assembly || 0,
-        packagingCharge: row.packaging || 0,
         color: row.color || "",
         colours: Array.isArray(row.colours) ? row.colours : [],
         colorLines: Array.isArray(row.colorLines) 
@@ -799,6 +796,11 @@ const ChallanGeneration = () => {
       (val) => (val || "").trim().length > 0
     );
 
+    // Reject inward mode
+    if (inventoryMode === "inward") {
+      throw new Error("Stock inward is not allowed from challan screen. Use Inventory Add feature.");
+    }
+    
     return {
       auditIds,
       lineItems,
@@ -811,6 +813,7 @@ const ChallanGeneration = () => {
       clientDetails: hasClientInfo ? clientDetails : undefined,
       payment_mode: paymentMode || null,
       remarks: remarks.trim() || null,
+      packaging_charges_overall: Number(packagingChargesOverall) || 0,
     };
   };
 
@@ -1026,16 +1029,6 @@ const ChallanGeneration = () => {
                         min="0"
                         value={edit.assemblyCharge ?? 0}
                         onChange={(e) => updateRow(audit._id, { assemblyCharge: Number(e.target.value) })}
-                        autoComplete="off"
-                        className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
-                      />
-                    </td>
-                    <td className="px-4 py-4 text-sm text-right">
-                      <input
-                        type="number"
-                        min="0"
-                        value={edit.packagingCharge ?? 0}
-                        onChange={(e) => updateRow(audit._id, { packagingCharge: Number(e.target.value) })}
                         autoComplete="off"
                         className="w-full sm:w-24 ml-auto px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-right text-sm shadow-sm"
                       />
@@ -1335,21 +1328,6 @@ const ChallanGeneration = () => {
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Packaging
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={row.packagingCharge}
-                          onChange={(e) =>
-                            updateManualRow(row.id, { packagingCharge: Number(e.target.value) })
-                          }
-                          autoComplete="off"
-                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                        />
-                      </div>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
@@ -1469,6 +1447,17 @@ const ChallanGeneration = () => {
               <p className="text-xs uppercase tracking-wide text-theme-text-muted font-semibold mb-3">Summary</p>
               <div className="mt-3 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
+                  <label className="text-theme-text-secondary font-semibold">Packaging Charges (Overall)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packagingChargesOverall}
+                    onChange={(e) => setPackagingChargesOverall(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-28 px-3 py-1.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 bg-theme-surface text-right text-sm font-semibold"
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-theme-border">
                   <span className="text-theme-text-secondary">Subtotal</span>
                   <span className="font-bold text-theme-text-primary">₹{summary.subtotal.toFixed(2)}</span>
                 </div>
@@ -1514,14 +1503,19 @@ const ChallanGeneration = () => {
           <div className="mt-4 rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
               <p className="text-sm font-semibold text-theme-text-primary">Challan Details</p>
-              <span className="text-xs text-theme-text-secondary">HSN code is auto-applied to the challan header</span>
+              <span className="text-xs text-theme-text-secondary">Default HSN: 481920 (editable)</span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">HSN Code</label>
-                <div className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg bg-theme-surface-2 text-sm shadow-sm text-theme-text-secondary font-semibold">
-                  481920
-                </div>
+                <input
+                  type="text"
+                  value={hsnCode}
+                  onChange={(e) => setHsnCode(e.target.value)}
+                  placeholder="481920"
+                  maxLength="8"
+                  className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                />
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Inventory Mode</label>
@@ -1532,7 +1526,6 @@ const ChallanGeneration = () => {
                 >
                   <option value="record_only">Record Only (No Inventory Change)</option>
                   <option value="dispatch">Dispatch / Subtract from Inventory</option>
-                  <option value="inward">Stock Inward / Add to Inventory</option>
                 </select>
                 {inventoryMode === "dispatch" && (
                   <p className="text-xs text-orange-600 font-medium mt-1">⚠️ This will subtract stock from inventory</p>
@@ -1916,43 +1909,23 @@ const ChallanGeneration = () => {
 
         {/* Action */}
         <div className="mt-4 flex flex-col md:flex-row gap-3 md:items-center">
-          {inventoryMode === "inward" ? (
-            <motion.button
-              onClick={handleGenerate}
-              disabled={submitting}
-              className="px-6 py-3 bg-linear-to-r from-[#10B981] via-[#059669] to-[#10B981] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
-              whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
-              whileTap={{ scale: submitting ? 1 : 0.98 }}
-            >
-              <motion.div
-                className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
-                initial={{ x: "-100%" }}
-                whileHover={{ x: "100%" }}
-                transition={{ duration: 0.6 }}
-              />
-              <span className="relative z-10">
-                {submitting ? "Adding to Inventory..." : "✅ Add to Inventory (Current Client)"}
-              </span>
-            </motion.button>
-          ) : (
-            <motion.button
-              onClick={handleGenerate}
-              disabled={submitting}
-              className="px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
-              whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
-              whileTap={{ scale: submitting ? 1 : 0.98 }}
-            >
-              <motion.div
-                className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
-                initial={{ x: "-100%" }}
-                whileHover={{ x: "100%" }}
-                transition={{ duration: 0.6 }}
-              />
-              <span className="relative z-10">
-                {submitting ? "Generating..." : "📄 Generate Challan (Current Client)"}
-              </span>
-            </motion.button>
-          )}
+          <motion.button
+            onClick={handleGenerate}
+            disabled={submitting}
+            className="px-6 py-3 bg-linear-to-r from-[#C1272D] via-[#A01F24] to-[#C1272D] text-white rounded-xl font-semibold poppins shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto text-center"
+            whileHover={{ scale: submitting ? 1 : 1.02, y: submitting ? 0 : -2 }}
+            whileTap={{ scale: submitting ? 1 : 0.98 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-linear-to-r from-transparent via-[#D4AF37]/30 to-transparent"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "100%" }}
+              transition={{ duration: 0.6 }}
+            />
+            <span className="relative z-10">
+              {submitting ? "Generating..." : "📄 Generate Challan (Current Client)"}
+            </span>
+          </motion.button>
           {clientBatches.length > 0 && (
             <motion.button
               onClick={async () => {

@@ -61,8 +61,7 @@ const generateChallanHTML = (challanData, taxType = "GST") => {
       const baseItemName = item.item || item.box?.title || "";
       const rate = Number(item.rate || 0);
       const assembly = Number(item.assemblyCharge || 0);
-      const packaging = Number(item.packagingCharge || 0);
-      const itemRate = rate + assembly + packaging;
+      const itemRate = rate + assembly;
       const qty = Number(item.quantity || 0);
       const lineTotal = itemRate * qty;
 
@@ -114,15 +113,17 @@ const generateChallanHTML = (challanData, taxType = "GST") => {
   (challanData.items || []).forEach((item) => {
     const rate = Number(item.rate || 0);
     const assembly = Number(item.assemblyCharge || 0);
-    const packaging = Number(item.packagingCharge || 0);
-    const itemRate = rate + assembly + packaging;
+    const itemRate = rate + assembly;
     const qty = Number(item.quantity || 0);
     subtotal += itemRate * qty;
   });
 
+  const packagingCharges = Number(challanData.packaging_charges_overall) || 0;
+  const subtotalWithPackaging = subtotal + packagingCharges;
+  
   const gstRate = taxType === "NON_GST" ? 0 : 0.05;
-  const gstAmount = subtotal * gstRate;
-  const totalBeforeRound = subtotal + gstAmount;
+  const gstAmount = subtotalWithPackaging * gstRate;
+  const totalBeforeRound = subtotalWithPackaging + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
 
@@ -379,6 +380,12 @@ const generateChallanHTML = (challanData, taxType = "GST") => {
             <div class="summary-label">Subtotal:</div>
             <div class="summary-value">₹${formatCurrency(subtotal)}</div>
           </div>
+          ${packagingCharges > 0 ? `
+          <div class="summary-row">
+            <div class="summary-label">Packaging Charges:</div>
+            <div class="summary-value">₹${formatCurrency(packagingCharges)}</div>
+          </div>
+          ` : ''}
           <div class="summary-row">
             <div class="summary-label">${gstLabel}:</div>
             <div class="summary-value">₹${formatCurrency(gstAmount)}</div>

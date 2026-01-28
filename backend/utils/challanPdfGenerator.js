@@ -208,7 +208,6 @@ const addTable = (doc, items, startY) => {
   items.forEach((item, itemIndex) => {
     const rate = Number(item.rate || 0);
     const assembly = Number(item.assemblyCharge || 0);
-    const packaging = Number(item.packagingCharge || 0);
     const baseItemName = item.item || item.box?.title || "";
     
     // Check if item has colorLines (color-wise quantities)
@@ -216,14 +215,14 @@ const addTable = (doc, items, startY) => {
       // Use colorLines for color-wise breakdown
       item.colorLines.forEach((line, lineIndex) => {
         const qty = Number(line.quantity || 0);
-        const lineTotal = (rate + assembly + packaging) * qty;
+        const lineTotal = (rate + assembly) * qty;
         expandedRows.push({
           srNo: lineIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
           item: lineIndex === 0 ? baseItemName : "", // Show item name only on first row
           code: lineIndex === 0 ? (item.code || item.box?.code || "") : "",
           colours: line.color || "",
           quantity: qty,
-          rate: (rate + assembly + packaging).toFixed(2),
+          rate: (rate + assembly).toFixed(2),
           total: lineTotal.toFixed(2),
           rawTotal: lineTotal,
         });
@@ -244,14 +243,14 @@ const addTable = (doc, items, startY) => {
       // If only one color, show it as a single row
       if (colorsToShow.length === 1) {
         const qty = Number(item.quantity || 0);
-        const lineTotal = (rate + assembly + packaging) * qty;
+        const lineTotal = (rate + assembly) * qty;
         expandedRows.push({
           srNo: srNoCounter++,
           item: baseItemName,
           code: item.code || item.box?.code || "",
           colours: colorsToShow[0] || "",
           quantity: qty,
-          rate: (rate + assembly + packaging).toFixed(2),
+          rate: (rate + assembly).toFixed(2),
           total: lineTotal.toFixed(2),
           rawTotal: lineTotal,
         });
@@ -259,14 +258,14 @@ const addTable = (doc, items, startY) => {
         // Multiple colors - create separate rows for each color
         const qtyPerColor = Number(item.quantity || 0);
         colorsToShow.forEach((color, colorIndex) => {
-          const lineTotal = (rate + assembly + packaging) * qtyPerColor;
+          const lineTotal = (rate + assembly) * qtyPerColor;
           expandedRows.push({
             srNo: colorIndex === 0 ? srNoCounter++ : "", // Show sr no only on first row
             item: colorIndex === 0 ? baseItemName : "", // Show item name only on first color row
             code: colorIndex === 0 ? (item.code || item.box?.code || "") : "",
             colours: color || "",
             quantity: qtyPerColor,
-            rate: (rate + assembly + packaging).toFixed(2),
+            rate: (rate + assembly).toFixed(2),
             total: lineTotal.toFixed(2),
             rawTotal: lineTotal,
           });
@@ -322,16 +321,20 @@ const addTable = (doc, items, startY) => {
   };
 };
 
-const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST") => {
+const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0) => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.65;
   const valueWidth = tableWidth * 0.35;
   
+  // Add packaging charges to subtotal
+  const packagingCharges = Number(packagingChargesOverall) || 0;
+  const subtotalWithPackaging = subtotal + packagingCharges;
+  
   // For NON-GST, always show 0; for GST, show 5%
   const gstRate = taxType === "NON_GST" ? 0 : 0.05;
-  const gstAmount = subtotal * gstRate;
-  const totalBeforeRound = subtotal + gstAmount;
+  const gstAmount = subtotalWithPackaging * gstRate;
+  const totalBeforeRound = subtotalWithPackaging + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
   const roundOffLabel =
@@ -342,31 +345,46 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST") => 
   doc.lineWidth(0.5);
   doc.moveTo(startX, baseY).lineTo(startX + tableWidth, baseY).stroke();
 
+  let currentLineY = baseY + 4;
+  
+  // Show packaging charges if present
+  if (packagingCharges > 0) {
+    doc.font("Helvetica-Bold").fontSize(8.5);
+    doc.text("Packaging Charges", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+    doc.text(formatCurrency(packagingCharges), startX + labelWidth, currentLineY, {
+      width: valueWidth - 8,
+      align: "right",
+    });
+    currentLineY += 11;
+  }
+
   // Show GST line with appropriate label and amount
   const gstLabel = taxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST (5%)";
   doc.font("Helvetica-Bold").fontSize(8.5);
-  doc.text(gstLabel, startX + 4, baseY + 4, { width: labelWidth - 8, align: "right" });
-  doc.text(formatCurrency(gstAmount), startX + labelWidth, baseY + 4, {
+  doc.text(gstLabel, startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(gstAmount), startX + labelWidth, currentLineY, {
     width: valueWidth - 8,
     align: "right",
   });
+  currentLineY += 11;
 
-  doc.text(roundOffLabel, startX + 4, baseY + 15, { width: labelWidth - 8, align: "right" });
-  doc.text(roundOffValue, startX + labelWidth, baseY + 15, {
+  doc.text(roundOffLabel, startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text(roundOffValue, startX + labelWidth, currentLineY, {
     width: valueWidth - 8,
     align: "right",
   });
+  currentLineY += 9;
 
-  doc.moveTo(startX, baseY + 24).lineTo(startX + tableWidth, baseY + 24).stroke();
+  doc.moveTo(startX, currentLineY).lineTo(startX + tableWidth, currentLineY).stroke();
 
   doc.font("Helvetica-Bold").fontSize(9.5);
-  doc.text("TOTAL (Rounded)", startX + 4, baseY + 30, { width: labelWidth - 8, align: "right" });
-  doc.text(`INR ${formatCurrency(roundedTotal)}`, startX + labelWidth, baseY + 30, {
+  doc.text("TOTAL (Rounded)", startX + 4, currentLineY + 6, { width: labelWidth - 8, align: "right" });
+  doc.text(`INR ${formatCurrency(roundedTotal)}`, startX + labelWidth, currentLineY + 6, {
     width: valueWidth - 8,
     align: "right",
   });
 
-  return baseY + 50;
+  return currentLineY + 26;
 };
 
 const addFooter = (doc, startY, terms, paymentMode = null, remarks = null) => {
@@ -503,7 +521,7 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
       summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
     }
 
-    addSummary(doc, tableInfo, includeGST, summaryTop, taxType);
+    addSummary(doc, tableInfo, includeGST, summaryTop, taxType, challanData.packaging_charges_overall || 0);
 
     // Footer starts right after summary (let PDFKit track position)
     doc.moveDown(0.2);
