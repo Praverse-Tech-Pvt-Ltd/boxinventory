@@ -80,6 +80,11 @@ const challanSchema = new mongoose.Schema(
     },
     remarks: { type: String, trim: true },
     packaging_charges_overall: { type: Number, default: 0 },
+    discount_pct: { type: Number, default: 0, min: 0, max: 100 },
+    discount_amount: { type: Number, default: 0 },
+    taxable_subtotal: { type: Number, default: 0 },
+    gst_amount: { type: Number, default: 0 },
+    grand_total: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

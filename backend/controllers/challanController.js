@@ -422,6 +422,28 @@ export const createChallan = async (req, res) => {
     // For GST challans, includeGST is always true; for NON-GST, it's always false
     const shouldIncludeGST = taxType === "GST";
 
+    // Helper: round to 2 decimals (monetary values)
+    const round2 = (val) => Math.round(val * 100) / 100;
+
+    // Calculate totals server-side (do NOT trust frontend math)
+    const itemsTotal = items.reduce((sum, item) => {
+      const rate = Number(item.rate || 0);
+      const assembly = Number(item.assemblyCharge || 0);
+      const qty = Number(item.quantity || 0);
+      return sum + (rate + assembly) * qty;
+    }, 0);
+
+    const packagingCharges = Number(packaging_charges_overall) || 0;
+    const preDiscountSubtotal = round2(itemsTotal + packagingCharges);
+
+    const discountPct = Number(req.body.discount_pct) || 0;
+    const discountAmount = round2(preDiscountSubtotal * Math.min(Math.max(discountPct, 0), 100) / 100);
+    const taxableSubtotal = round2(preDiscountSubtotal - discountAmount);
+
+    const gstAmount = round2(taxableSubtotal * 0.05);
+    const totalBeforeRound = round2(taxableSubtotal + gstAmount);
+    const grandTotal = Math.round(totalBeforeRound);
+
     const challanPayload = {
       number: challanNumber,
       challan_seq: challanSeq,
@@ -433,7 +455,12 @@ export const createChallan = async (req, res) => {
       createdBy: req.user._id,
       inventory_mode: invMode,
       hsnCode: hsnCode || "481920",
-      packaging_charges_overall: Number(packaging_charges_overall) || 0,
+      packaging_charges_overall: packagingCharges,
+      discount_pct: discountPct,
+      discount_amount: discountAmount,
+      taxable_subtotal: taxableSubtotal,
+      gst_amount: gstAmount,
+      grand_total: grandTotal,
     };
 
     if (payment_mode && String(payment_mode).trim()) {
@@ -568,6 +595,10 @@ export const downloadChallanPdf = async (req, res) => {
           payment_mode: document.payment_mode || null,
           remarks: document.remarks || null,
           packaging_charges_overall: document.packaging_charges_overall || 0,
+          discount_pct: document.discount_pct || 0,
+          discount_amount: document.discount_amount || 0,
+          taxable_subtotal: document.taxable_subtotal || 0,
+          gst_amount: document.gst_amount || 0,
         };
         const includeGST = document.includeGST !== false;
         pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);

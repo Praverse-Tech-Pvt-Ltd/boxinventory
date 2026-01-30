@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -88,6 +88,7 @@ const ChallanGeneration = () => {
   const [manualRows, setManualRows] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [boxesLoading, setBoxesLoading] = useState(false);
+  const manualRowsRef = useRef(null);
   const [clientBatches, setClientBatches] = useState([]);
   const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [appendTargetBatchId, setAppendTargetBatchId] = useState("");
@@ -96,6 +97,10 @@ const ChallanGeneration = () => {
   const [paymentMode, setPaymentMode] = useState(""); // Cash, GPay, Bank Account, Credit
   const [remarks, setRemarks] = useState("");
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
+  const [discountPct, setDiscountPct] = useState(0);
+  
+  // Utility function: round to 2 decimals (money calculations)
+  const round2 = (val) => Math.round(val * 100) / 100;
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -228,7 +233,32 @@ const ChallanGeneration = () => {
    };
 
   const addManualRow = () => {
-    setManualRows((prev) => [...prev, createManualRow()]);
+    console.log("[addManualRow] Adding new manual row");
+    setManualRows((prev) => {
+      const newRow = createManualRow();
+      console.log("[addManualRow] New row created:", newRow);
+      const updated = [...prev, newRow];
+      console.log("[addManualRow] Manual rows count:", updated.length);
+      return updated;
+    });
+    // Scroll to manual rows section after adding a new row
+    setTimeout(() => {
+      console.log("[addManualRow] Attempting to scroll to manual rows section");
+      if (manualRowsRef.current) {
+        const element = manualRowsRef.current;
+        const headerOffset = 100;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        
+        console.log("[addManualRow] Scroll position:", offsetPosition);
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        });
+      } else {
+        console.warn("[addManualRow] manualRowsRef.current is null");
+      }
+    }, 100);
   };
 
   const removeManualRow = (rowId) => {
@@ -431,6 +461,7 @@ const ChallanGeneration = () => {
     setPaymentMode("");
     setRemarks("");
     setPackagingChargesOverall(0);
+    setDiscountPct(0);
   };
 
   const upsertBatch = (nextBatch) => {
@@ -634,24 +665,35 @@ const ChallanGeneration = () => {
     const manualSubtotal = manualRowsComputed.reduce((sum, row) => sum + row.total, 0);
     const itemsSubtotal = auditedSubtotal + manualSubtotal;
     const packagingCharges = Number(packagingChargesOverall) || 0;
-    const subtotal = itemsSubtotal + packagingCharges;
+    const preDiscountSubtotal = itemsSubtotal + packagingCharges;
+    
+    // Calculate discount
+    const discountAmount = round2(preDiscountSubtotal * (Number(discountPct) || 0) / 100);
+    const taxableSubtotal = round2(preDiscountSubtotal - discountAmount);
+    
     const auditedQty = selectedRows.reduce((sum, row) => sum + row.qty, 0);
     const manualQty = manualRowsComputed.reduce((sum, row) => sum + row.qty, 0);
     const totalQty = auditedQty + manualQty;
-    const gstAmount = subtotal * 0.05;
-    const totalBeforeRound = subtotal + gstAmount;
+    
+    const gstAmount = round2(taxableSubtotal * 0.05);
+    const totalBeforeRound = round2(taxableSubtotal + gstAmount);
     const roundedTotal = Math.round(totalBeforeRound);
     const roundOff = roundedTotal - totalBeforeRound;
+    
     return {
-      subtotal,
+      itemsTotal: itemsSubtotal,
+      packagingCharges,
+      preDiscountSubtotal,
+      discountPct: Number(discountPct) || 0,
+      discountAmount,
+      taxableSubtotal,
       totalQty,
       gstAmount,
       totalBeforeRound,
       roundOff,
       grandTotal: roundedTotal,
-      packagingCharges,
     };
-  }, [selectedRows, manualRowsComputed, packagingChargesOverall]);
+  }, [selectedRows, manualRowsComputed, packagingChargesOverall, discountPct]);
 
   const hasAnyRows = selectedRows.length > 0 || manualRowsComputed.length > 0;
   const showClientBatchPanel = hasAnyRows || clientBatches.length > 0;
@@ -814,6 +856,7 @@ const ChallanGeneration = () => {
       payment_mode: paymentMode || null,
       remarks: remarks.trim() || null,
       packaging_charges_overall: Number(packagingChargesOverall) || 0,
+      discount_pct: Number(discountPct) || 0,
     };
   };
 
@@ -838,16 +881,27 @@ const ChallanGeneration = () => {
   const downloadPdf = async (id, number) => {
     try {
       const blob = await downloadChallanPdf(id);
-      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      // Verify blob is valid PDF
+      if (!blob || blob.size === 0) {
+        toast.error("PDF generation returned empty file");
+        return;
+      }
+      if (blob.type !== 'application/pdf') {
+        console.warn(`Blob type is ${blob.type}, expected application/pdf`);
+      }
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${number}.pdf`);
+      link.setAttribute('download', `${number.replace(/\//g, '_')}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Failed to download challan PDF");
+      toast.success(`Downloaded: ${number}.pdf`);
+    } catch (error) {
+      const msg = error?.response?.data?.message || error.message || "Failed to download challan PDF";
+      console.error("PDF download error:", error);
+      toast.error(msg);
     }
   };
 
@@ -925,7 +979,7 @@ const ChallanGeneration = () => {
             </div>
             <div className="rounded-lg border border-theme-border bg-theme-surface px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-theme-text-secondary font-semibold">Subtotal</p>
-              <p className="mt-1 text-2xl font-bold text-theme-text-primary">₹{summary.subtotal.toFixed(2)}</p>
+              <p className="mt-1 text-2xl font-bold text-theme-text-primary">₹{summary.preDiscountSubtotal.toFixed(2)}</p>
             </div>
             <div className="rounded-lg border border-theme-border bg-theme-surface px-4 py-3 flex flex-col justify-between">
               <p className="text-xs uppercase tracking-wide text-theme-text-secondary font-semibold">GST</p>
@@ -1040,7 +1094,7 @@ const ChallanGeneration = () => {
              </table>
            </div>
           )}
-          <div className="mt-8 rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm">
+          <div className="mt-8 rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm" ref={manualRowsRef}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <p className="text-sm font-semibold text-theme-text-primary">Manual Items (Optional)</p>
@@ -1457,9 +1511,40 @@ const ChallanGeneration = () => {
                     className="w-28 px-3 py-1.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 bg-theme-surface text-right text-sm font-semibold"
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-theme-text-secondary font-semibold">Discount (%)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={discountPct}
+                      onChange={(e) => setDiscountPct(Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-20 px-3 py-1.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 bg-theme-surface text-right text-sm font-semibold"
+                    />
+                    <span className="w-24 px-3 py-1.5 text-right text-sm font-semibold text-theme-text-primary bg-theme-table-header-bg rounded-lg border border-theme-border">
+                      -₹{summary.discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between pt-2 border-t border-theme-border">
-                  <span className="text-theme-text-secondary">Subtotal</span>
-                  <span className="font-bold text-theme-text-primary">₹{summary.subtotal.toFixed(2)}</span>
+                  <span className="text-theme-text-secondary">Items Total</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.itemsTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-theme-text-secondary">Packaging Charges</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.packagingCharges.toFixed(2)}</span>
+                </div>
+                {summary.discountAmount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-theme-text-secondary">Discount ({summary.discountPct}%)</span>
+                    <span className="font-bold text-amber-600">-₹{summary.discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-theme-border">
+                  <span className="text-theme-text-secondary">Taxable Subtotal</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.taxableSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-theme-text-secondary">GST (5%)</span>
@@ -1487,6 +1572,11 @@ const ChallanGeneration = () => {
                   <span className="font-bold text-theme-text-primary">Total Payable</span>
                   <span className="text-xl font-bold text-theme-primary">₹{summary.grandTotal.toFixed(2)}</span>
                 </div>
+                {summary.discountAmount > 0 && (
+                  <div className="flex items-center justify-center pt-2 px-3 py-2 bg-green-100/50 border border-green-300 rounded-lg">
+                    <span className="text-sm font-semibold text-green-700">You saved ₹{summary.discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="rounded-lg border border-theme-border bg-theme-surface px-5 py-4 shadow-sm md:col-span-2 lg:col-span-2">

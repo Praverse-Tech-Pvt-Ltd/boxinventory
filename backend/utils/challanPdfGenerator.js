@@ -321,20 +321,31 @@ const addTable = (doc, items, startY) => {
   };
 };
 
-const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0) => {
+const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0, discountPct = 0, discountAmount = 0, taxableSubtotal = 0, gstAmount = 0) => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.65;
   const valueWidth = tableWidth * 0.35;
   
-  // Add packaging charges to subtotal
-  const packagingCharges = Number(packagingChargesOverall) || 0;
-  const subtotalWithPackaging = subtotal + packagingCharges;
+  // Use server-calculated values if provided, otherwise compute from subtotal
+  let finalGstAmount = gstAmount;
+  let finalTaxableSubtotal = taxableSubtotal;
+  let finalGrandTotal = 0;
   
-  // For NON-GST, always show 0; for GST, show 5%
-  const gstRate = taxType === "NON_GST" ? 0 : 0.05;
-  const gstAmount = subtotalWithPackaging * gstRate;
-  const totalBeforeRound = subtotalWithPackaging + gstAmount;
+  if (taxableSubtotal > 0) {
+    // Server-calculated values are provided
+    finalTaxableSubtotal = taxableSubtotal;
+    finalGstAmount = gstAmount;
+  } else {
+    // Fallback to old calculation (for backwards compatibility)
+    const packagingCharges = Number(packagingChargesOverall) || 0;
+    const subtotalWithPackaging = subtotal + packagingCharges;
+    finalTaxableSubtotal = subtotalWithPackaging;
+    const gstRate = taxType === "NON_GST" ? 0 : 0.05;
+    finalGstAmount = subtotalWithPackaging * gstRate;
+  }
+  
+  const totalBeforeRound = finalTaxableSubtotal + finalGstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
   const roundOffLabel =
@@ -347,22 +358,53 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", pac
 
   let currentLineY = baseY + 4;
   
+  // Show items total
+  const itemsTotal = subtotal;
+  doc.font("Helvetica-Bold").fontSize(8.5);
+  doc.text("Items Total", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(itemsTotal), startX + labelWidth, currentLineY, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+  currentLineY += 11;
+  
   // Show packaging charges if present
-  if (packagingCharges > 0) {
+  if (packagingChargesOverall > 0) {
     doc.font("Helvetica-Bold").fontSize(8.5);
     doc.text("Packaging Charges", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
-    doc.text(formatCurrency(packagingCharges), startX + labelWidth, currentLineY, {
+    doc.text(formatCurrency(packagingChargesOverall), startX + labelWidth, currentLineY, {
       width: valueWidth - 8,
       align: "right",
     });
     currentLineY += 11;
   }
+  
+  // Show discount if present
+  if (discountAmount > 0) {
+    doc.font("Helvetica-Bold").fontSize(8.5);
+    const discountLabel = discountPct > 0 ? `Discount (${discountPct}%)` : "Discount";
+    doc.text(discountLabel, startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+    doc.text(`-${formatCurrency(discountAmount)}`, startX + labelWidth, currentLineY, {
+      width: valueWidth - 8,
+      align: "right",
+    });
+    currentLineY += 11;
+  }
+  
+  // Show taxable subtotal
+  doc.font("Helvetica-Bold").fontSize(8.5);
+  doc.text("Taxable Subtotal", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(finalTaxableSubtotal), startX + labelWidth, currentLineY, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+  currentLineY += 11;
 
   // Show GST line with appropriate label and amount
-  const gstLabel = taxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST (5%)";
+  const gstLabel = taxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST @ 5%";
   doc.font("Helvetica-Bold").fontSize(8.5);
   doc.text(gstLabel, startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
-  doc.text(formatCurrency(gstAmount), startX + labelWidth, currentLineY, {
+  doc.text(formatCurrency(finalGstAmount), startX + labelWidth, currentLineY, {
     width: valueWidth - 8,
     align: "right",
   });
@@ -521,7 +563,18 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
       summaryTop = targetFooterY - summaryBlockHeight - summarySpacing;
     }
 
-    addSummary(doc, tableInfo, includeGST, summaryTop, taxType, challanData.packaging_charges_overall || 0);
+    addSummary(
+      doc,
+      tableInfo,
+      includeGST,
+      summaryTop,
+      taxType,
+      challanData.packaging_charges_overall || 0,
+      challanData.discount_pct || 0,
+      challanData.discount_amount || 0,
+      challanData.taxable_subtotal || 0,
+      challanData.gst_amount || 0
+    );
 
     // Footer starts right after summary (let PDFKit track position)
     doc.moveDown(0.2);
