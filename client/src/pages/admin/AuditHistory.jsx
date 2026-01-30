@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
-import { downloadChallanPdf, listChallans } from "../../services/challanService";
+import { downloadChallanPdf, listChallans, editChallan, cancelChallan } from "../../services/challanService";
 import jsPDF from "jspdf";
 import "../../styles/dashboard.css";
 
@@ -31,7 +32,8 @@ const getClientDisplay = (clientName) => {
 
 // Helper function to format currency for UI display (with thousands separator and ₹)
 const formatCurrencyUI = (amount) => {
-  return `₹${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+  const num = typeof amount === 'number' ? amount : (typeof amount === 'string' ? parseFloat(amount) : 0);
+  return isNaN(num) ? '₹0.00' : `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 };
 
 // Function to generate PDF using jsPDF
@@ -291,6 +293,16 @@ const AuditHistory = () => {
   const [toDate, setToDate] = useState("");
   const [salesData, setSalesData] = useState([]);
 
+  // Edit/Cancel modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedChallan, setSelectedChallan] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [cancelReason, setCancelReason] = useState("");
+  const [challanStatusFilter, setChallanStatusFilter] = useState("all"); // "all", "active", "cancelled"
+  const [isEditingChallan, setIsEditingChallan] = useState(false);
+  const [isCancellingChallan, setIsCancellingChallan] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -314,7 +326,7 @@ const AuditHistory = () => {
   const handleDownload = async (challanId) => {
     if (!challanId) return;
     try {
-      const blob = await downloadChallanPdf(challanId, true);
+      const blob = await downloadChallanPdf(challanId);
       const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const link = document.createElement("a");
       link.href = url;
@@ -327,6 +339,128 @@ const AuditHistory = () => {
       toast.error(e.response?.data?.message || "Failed to download challan PDF");
     }
   };
+
+  // Edit challan handlers
+  const handleOpenEditModal = (challan) => {
+    setSelectedChallan(challan);
+    setEditFormData({
+      clientName: challan.clientName || "",
+      paymentMode: challan.payment_mode || "",
+      remarks: challan.remarks || "",
+      termsAndConditions: challan.terms || "",
+      hsnCode: challan.hsnCode || "",
+      packagingTotal: challan.packaging_charges_overall || 0,
+      discountPercent: challan.discount_pct || 0,
+      challanDate: challan.challanDate ? new Date(challan.challanDate).toISOString().split("T")[0] : "",
+    });
+    setShowEditModal(true);
+    // Disable background scroll
+    document.body.style.overflow = "hidden";
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    // Restore body scroll
+    document.body.style.overflow = "";
+    setSelectedChallan(null);
+    setEditFormData({});
+  };
+
+  const handleEditFormChange = (field, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveEditChallan = async () => {
+    if (!selectedChallan) return;
+    setIsEditingChallan(true);
+    try {
+      const payload = {
+        clientName: editFormData.clientName,
+        paymentMode: editFormData.paymentMode,
+        remarks: editFormData.remarks,
+        termsAndConditions: editFormData.termsAndConditions,
+        hsnCode: editFormData.hsnCode,
+        packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
+        discountPercent: parseFloat(editFormData.discountPercent) || 0,
+        challanDate: editFormData.challanDate ? new Date(editFormData.challanDate).toISOString() : undefined,
+      };
+
+      // Remove undefined fields
+      Object.keys(payload).forEach(
+        (key) => payload[key] === undefined && delete payload[key]
+      );
+
+      const updatedChallan = await editChallan(selectedChallan._id, payload);
+      
+      // Update challans list
+      setChallans((prev) =>
+        prev.map((c) => (c._id === selectedChallan._id ? updatedChallan : c))
+      );
+
+      toast.success("Challan updated successfully");
+      handleCloseEditModal();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update challan");
+      console.error("Edit challan error:", error);
+    } finally {
+      setIsEditingChallan(false);
+    }
+  };
+
+  // Cancel challan handlers
+  const handleOpenCancelModal = (challan) => {
+    setSelectedChallan(challan);
+    setCancelReason("");
+    setShowCancelModal(true);
+    // Disable background scroll
+    document.body.style.overflow = "hidden";
+  };
+
+  const handleCloseCancelModal = () => {
+    setShowCancelModal(false);
+    // Restore body scroll
+    document.body.style.overflow = "";
+    setSelectedChallan(null);
+    setCancelReason("");
+  };
+
+  const handleConfirmCancelChallan = async () => {
+    if (!selectedChallan || !cancelReason.trim()) {
+      toast.error("Please provide a cancellation reason");
+      return;
+    }
+
+    setIsCancellingChallan(true);
+    try {
+      const updatedChallan = await cancelChallan(selectedChallan._id, cancelReason);
+      
+      // Update challans list
+      setChallans((prev) =>
+        prev.map((c) => (c._id === selectedChallan._id ? updatedChallan : c))
+      );
+
+      toast.success("Challan cancelled successfully");
+      handleCloseCancelModal();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to cancel challan");
+      console.error("Cancel challan error:", error);
+    } finally {
+      setIsCancellingChallan(false);
+    }
+  };
+
+  // Filter challans by status
+  const filteredChallans = useMemo(() => {
+    if (challanStatusFilter === "active") {
+      return challans.filter((c) => c.status !== "CANCELLED");
+    } else if (challanStatusFilter === "cancelled") {
+      return challans.filter((c) => c.status === "CANCELLED");
+    }
+    return challans;
+  }, [challans, challanStatusFilter]);
 
   // Get unique client names from challans with clientDetails
   const clientsList = useMemo(() => {
@@ -402,63 +536,39 @@ const AuditHistory = () => {
       return;
     }
 
-    // Filter challans by date range
+    // Filter challans by date range (only OUTWARD challans, exclude inward/add)
     const filtered = challans.filter((challan) => {
       const challanDate = new Date(challan.createdAt);
-      return challanDate >= from && challanDate <= to;
+      const isOutward = challan.inventory_mode !== "inward"; // Exclude stock inward (adds)
+      return challanDate >= from && challanDate <= to && isOutward;
     });
 
     console.log(`Found ${filtered.length} challans in date range`);
 
-    // Helper function to calculate challan line totals
-    const calculateChallanTotals = (challan) => {
-      let subtotal = 0;
-      
-      // Calculate subtotal from items
-      if (Array.isArray(challan.items)) {
-        challan.items.forEach((item) => {
-          const rate = safeToNumber(item.rate || 0);
-          const assembly = safeToNumber(item.assemblyCharge || 0);
-          const packaging = safeToNumber(item.packagingCharge || 0);
-          const quantity = safeToNumber(item.quantity || 1);
-          const lineTotal = (rate + assembly + packaging) * quantity;
-          subtotal += lineTotal;
-        });
-      }
-
-      // GST is fixed at 5%
-      const gst = subtotal * 0.05;
-      const gstRounded = Math.round(gst * 100) / 100;
-      const total = Math.round((subtotal + gst) * 100) / 100;
-
-      return {
-        taxable: subtotal,
-        gst: gstRounded,
-        total: total,
-      };
-    };
-
-    // Calculate totals from filtered challans
+    // Calculate totals from filtered challans using server-side values
     let runningTotalTaxable = 0;
     let runningTotalGst = 0;
     let runningTotalAmount = 0;
 
     const data = filtered.map((challan) => {
-      const amounts = calculateChallanTotals(challan);
+      // Use server-side calculated totals (mapped fields from backend)
+      const taxableAmount = challan.taxableAmount || challan.taxable_subtotal || 0;
+      const gstAmount = challan.gstAmount || challan.gst_amount || 0;
+      const totalAmount = challan.totalAmount || challan.grand_total || 0;
 
       // Update running totals
-      runningTotalTaxable += amounts.taxable;
-      runningTotalGst += amounts.gst;
-      runningTotalAmount += amounts.total;
+      runningTotalTaxable += safeToNumber(taxableAmount);
+      runningTotalGst += safeToNumber(gstAmount);
+      runningTotalAmount += safeToNumber(totalAmount);
 
       return {
         _id: challan._id,
         date: new Date(challan.createdAt).toLocaleDateString(),
-        client: getClientDisplay(challan.clientDetails?.name || "-"),
-        challanNo: challan.number || "-",
-        taxableAmount: amounts.taxable,
-        gstAmount: amounts.gst,
-        totalAmount: amounts.total,
+        client: getClientDisplay(challan.clientName || challan.clientDetails?.name || "-"),
+        challanNo: challan.challanNumber || challan.number || "-",
+        taxableAmount: safeToNumber(taxableAmount),
+        gstAmount: safeToNumber(gstAmount),
+        totalAmount: safeToNumber(totalAmount),
       };
     });
 
@@ -700,12 +810,24 @@ const AuditHistory = () => {
           <div>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold text-slate-900">All Generated Challans</h3>
-              <div className="text-sm text-slate-600">
-                Total: {challans.length} {challans.length === 1 ? "challan" : "challans"}
+              <div className="flex items-center gap-4">
+                {/* Status Filter Dropdown */}
+                <select
+                  value={challanStatusFilter}
+                  onChange={(e) => setChallanStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:border-slate-400 focus:border-red-600 focus:outline-none bg-white"
+                >
+                  <option value="all">All Challans</option>
+                  <option value="active">Active Only</option>
+                  <option value="cancelled">Cancelled Only</option>
+                </select>
+                <div className="text-sm text-slate-600">
+                  Total: {filteredChallans.length} {filteredChallans.length === 1 ? "challan" : "challans"}
+                </div>
               </div>
             </div>
 
-            {challans.length > 0 ? (
+            {filteredChallans.length > 0 ? (
               <div className="table-container">
                 <table className="dashboard-table">
                   <thead>
@@ -716,57 +838,88 @@ const AuditHistory = () => {
                       <th>Items</th>
                       <th>Total Amount</th>
                       <th>Type</th>
+                      <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {challans.map((challan, idx) => (
+                    {filteredChallans.map((challan, idx) => (
                       <tr
                         key={challan._id}
                         className={`border-b border-slate-200 transition-colors ${
                           idx % 2 === 0 ? "bg-white" : "bg-slate-50"
-                        } hover:bg-slate-100`}
+                        } hover:bg-slate-100 ${challan.status === "CANCELLED" ? "opacity-60" : ""}`}
                       >
                         <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
                           {challan.createdAt ? new Date(challan.createdAt).toLocaleDateString() : "N/A"}
                         </td>
                         <td className="px-4 py-3 text-slate-700 font-mono font-semibold text-sm">
-                          {challan.challanNo || "N/A"}
+                          {challan.challanNumber || challan.number || "N/A"}
                         </td>
                         <td className="px-4 py-3 text-slate-700 text-sm">
-                          {challan.clientDetails?.name || challan.clientName || "N/A"}
+                          {challan.clientName || challan.clientDetails?.name || "N/A"}
                         </td>
                         <td className="px-4 py-3 text-slate-700 text-sm">
                           {challan.items ? challan.items.length : 0} item(s)
                         </td>
                         <td className="px-4 py-3 text-slate-700 font-semibold text-sm">
-                          {formatCurrencyUI(challan.totalAmount || 0)}
+                          {formatCurrencyUI(challan.totalAmount || challan.grand_total || 0)}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              challan.inventoryType === "add"
+                              challan.inventory_mode === "inward"
                                 ? "bg-green-100 text-green-800"
-                                : challan.inventoryType === "subtract"
+                                : challan.inventory_mode === "dispatch"
                                 ? "bg-red-100 text-red-800"
                                 : "bg-blue-100 text-blue-800"
                             }`}
                           >
-                            {challan.inventoryType === "add"
+                            {challan.inventory_mode === "inward"
                               ? "ADD"
-                              : challan.inventoryType === "subtract"
+                              : challan.inventory_mode === "dispatch"
                               ? "DISPATCH"
-                              : "MANUAL"}
+                              : "RECORD"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              challan.status === "CANCELLED"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {challan.status === "CANCELLED" ? "CANCELLED" : "ACTIVE"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-700">
-                          <button
-                            onClick={() => handleDownload(challan._id)}
-                            className="text-blue-600 hover:text-blue-800 font-semibold text-sm transition-colors"
-                            title="Download PDF"
-                          >
-                            📄 PDF
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleDownload(challan._id)}
+                              className="text-blue-600 hover:text-blue-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Download PDF"
+                              disabled={challan.status === "CANCELLED"}
+                            >
+                              📄
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditModal(challan)}
+                              className="text-amber-600 hover:text-amber-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Edit Challan"
+                              disabled={challan.status === "CANCELLED"}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleOpenCancelModal(challan)}
+                              className="text-red-600 hover:text-red-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Cancel Challan"
+                              disabled={challan.status === "CANCELLED"}
+                            >
+                              ❌
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -775,7 +928,9 @@ const AuditHistory = () => {
               </div>
             ) : (
               <div className="text-center py-12 text-slate-500">
-                <p className="font-medium">No challans generated yet</p>
+                <p className="font-medium">
+                  {challanStatusFilter === "all" ? "No challans generated yet" : `No ${challanStatusFilter} challans found`}
+                </p>
               </div>
             )}
           </div>
@@ -912,12 +1067,264 @@ const AuditHistory = () => {
             )}
           </>
         )}
+
+        {/* Edit Challan Modal - Using React Portal */}
+        {showEditModal && selectedChallan && createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.45)",
+              padding: "16px",
+            }}
+            onClick={(e) => {
+              // Close on overlay click (outside modal)
+              if (e.target === e.currentTarget) {
+                handleCloseEditModal();
+              }
+            }}
+            onKeyDown={(e) => {
+              // Close on ESC key
+              if (e.key === "Escape") {
+                handleCloseEditModal();
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+              style={{
+                width: "min(900px, 100%)",
+                maxHeight: "calc(100vh - 32px)",
+              }}
+            >
+              {/* Modal Header - Fixed */}
+              <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-slate-900">Edit Challan</h2>
+                <button
+                  onClick={handleCloseEditModal}
+                  className="text-slate-500 hover:text-slate-700 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 transition-colors"
+                  title="Close (ESC)"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Body - Scrollable */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  {/* Client Name */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Client Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.clientName}
+                      onChange={(e) => handleEditFormChange("clientName", e.target.value)}
+                      className="form-input w-full"
+                      placeholder="Client Name"
+                    />
+                  </div>
+
+                  {/* Payment Mode */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Mode</label>
+                    <select
+                      value={editFormData.paymentMode}
+                      onChange={(e) => handleEditFormChange("paymentMode", e.target.value)}
+                      className="form-input w-full"
+                    >
+                      <option value="">Select Payment Mode</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Cheque">Cheque</option>
+                      <option value="Online">Online</option>
+                      <option value="Credit">Credit</option>
+                    </select>
+                  </div>
+
+                  {/* Remarks */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks</label>
+                    <textarea
+                      value={editFormData.remarks}
+                      onChange={(e) => handleEditFormChange("remarks", e.target.value)}
+                      className="form-input w-full min-h-[80px]"
+                      placeholder="Enter remarks"
+                    />
+                  </div>
+
+                  {/* HSN Code */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">HSN Code</label>
+                    <input
+                      type="text"
+                      value={editFormData.hsnCode}
+                      onChange={(e) => handleEditFormChange("hsnCode", e.target.value)}
+                      className="form-input w-full"
+                      placeholder="HSN Code"
+                    />
+                  </div>
+
+                  {/* Packaging Total */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Packaging Total (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editFormData.packagingTotal}
+                      onChange={(e) => handleEditFormChange("packagingTotal", e.target.value)}
+                      className="form-input w-full"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Discount Percent */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Discount (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editFormData.discountPercent}
+                      onChange={(e) => handleEditFormChange("discountPercent", e.target.value)}
+                      className="form-input w-full"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Terms and Conditions */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Terms and Conditions</label>
+                    <textarea
+                      value={editFormData.termsAndConditions}
+                      onChange={(e) => handleEditFormChange("termsAndConditions", e.target.value)}
+                      className="form-input w-full min-h-[80px]"
+                      placeholder="Enter terms and conditions"
+                    />
+                  </div>
+
+                  {/* Challan Date */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Challan Date</label>
+                    <input
+                      type="date"
+                      value={editFormData.challanDate}
+                      onChange={(e) => handleEditFormChange("challanDate", e.target.value)}
+                      className="form-input w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer - Fixed */}
+              <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3 justify-end">
+                <button
+                  onClick={handleCloseEditModal}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  disabled={isEditingChallan}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEditChallan}
+                  className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isEditingChallan}
+                >
+                  {isEditingChallan ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
+
+        {/* Cancel Challan Modal - Using React Portal */}
+        {showCancelModal && selectedChallan && createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.45)",
+              padding: "16px",
+            }}
+            onClick={(e) => {
+              // Close on overlay click (outside modal)
+              if (e.target === e.currentTarget) {
+                handleCloseCancelModal();
+              }
+            }}
+            onKeyDown={(e) => {
+              // Close on ESC key
+              if (e.key === "Escape") {
+                handleCloseCancelModal();
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+              style={{
+                width: "min(600px, 100%)",
+                maxHeight: "calc(100vh - 32px)",
+              }}
+            >
+              {/* Modal Header - Fixed */}
+              <div className="flex-shrink-0 bg-red-50 border-b border-red-200 px-6 py-4">
+                <h2 className="text-xl font-bold text-red-800">Cancel Challan</h2>
+                <p className="text-sm text-red-700 mt-1">
+                  Challan #{selectedChallan.challanNumber || selectedChallan.number || "N/A"}
+                </p>
+              </div>
+
+              {/* Modal Body - Scrollable */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6 space-y-4">
+                  <p className="text-slate-700 text-sm">
+                    {selectedChallan.inventory_mode === "dispatch"
+                      ? "This will mark the challan as cancelled and reverse the inventory for all items."
+                      : "This will mark the challan as cancelled. No inventory will be affected."}
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Cancellation Reason *</label>
+                    <textarea
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="form-input w-full min-h-[100px]"
+                      placeholder="Please enter the reason for cancelling this challan"
+                    />
+                    {!cancelReason.trim() && (
+                      <p className="text-xs text-red-600 mt-1">Cancellation reason is required</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer - Fixed */}
+              <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3 justify-end">
+                <button
+                  onClick={handleCloseCancelModal}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  disabled={isCancellingChallan}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleConfirmCancelChallan}
+                  className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isCancellingChallan || !cancelReason.trim()}
+                >
+                  {isCancellingChallan ? "Cancelling..." : "Confirm Cancel"}
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
       </motion.div>
     </div>
   );
 };
 
 export default AuditHistory;
-
-
 

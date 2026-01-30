@@ -3,6 +3,7 @@ import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
 import ChallanCounter from "../models/challanCounterModel.js";
 import { generateChallanPdf } from "../utils/pdfRenderer.js";
+import { generateChallanPdfBuffer } from "../utils/pdfGeneratorBuffer.js";
 import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import { 
   getFinancialYear, 
@@ -46,7 +47,18 @@ async function getNonGSTChallanDetails(challanDate) {
 // Admin: list audits available to generate a challan (unused audits)
 export const getChallanCandidates = async (req, res) => {
   try {
-    const audits = await BoxAudit.find({ used: false })
+    // Default to only dispatch/subtract events unless explicitly requested
+    const onlyDispatch = req.query.onlyDispatch !== "false";
+    
+    let query = { used: false };
+    
+    if (onlyDispatch) {
+      // Only show dispatch/subtract events - exclude all additions and system actions
+      query.action = { $in: ["subtract", "dispatch"] };
+      query.quantity = { $gt: 0 }; // Exclude zero or negative quantities
+    }
+    
+    const audits = await BoxAudit.find(query)
       .populate("user", "name email")
       .populate("box", "title code category colours boxInnerSize price")
       .sort({ createdAt: -1 });
@@ -507,13 +519,39 @@ export const createChallan = async (req, res) => {
 };
 
 // Admin: list challans AND stock receipts (all documents)
+// Returns documents with mapped fields for frontend compatibility
 export const listChallans = async (req, res) => {
   try {
     const documents = await Challan.find({})
       .populate("createdBy", "name email")
+      .lean()
       .sort({ createdAt: -1 });
 
-    res.status(200).json(documents);
+    // Map response fields to match frontend expectations
+    const mapped = documents.map((doc) => {
+      const taxable = Number(doc.taxable_subtotal) || 0;
+      const gst = Number(doc.gst_amount) || 0;
+      const total = Number(doc.grand_total) || 0;
+      
+      return {
+        ...doc,
+        // Add mapped fields for frontend compatibility
+        challanNumber: doc.number || 'N/A',
+        number: doc.number || 'N/A',
+        // Ensure numeric fields are always numbers, never null/undefined
+        taxableAmount: taxable,
+        taxable_subtotal: taxable,
+        gstAmount: gst,
+        gst_amount: gst,
+        totalAmount: total,
+        grand_total: total,
+        clientName: doc.clientDetails?.name || null,
+        challanType: doc.challan_tax_type,
+        // Keep original fields for backward compatibility
+      };
+    });
+
+    res.status(200).json(mapped);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -573,25 +611,29 @@ export const downloadChallanPdf = async (req, res) => {
       clientDetails: document.clientDetails || {},
     };
 
-    let pdfPath;
+    let pdfBuffer;
 
     try {
       console.log(`[Download] Generating ${isStockReceipt ? "stock receipt" : "challan"} PDF...`);
       
       if (isStockReceipt) {
-        // Generate stock receipt PDF for inbound (add) operations
+        // Generate stock receipt PDF for inbound (add) operations using file-based generator
         const stockReceiptData = {
           ...commonData,
-          taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
+          taxType: document.challan_tax_type || "GST",
         };
-        pdfPath = await generateStockReceiptPdf(stockReceiptData);
+        const pdfPath = await generateStockReceiptPdf(stockReceiptData);
+        // Read the file into a buffer and delete it
+        pdfBuffer = await fsPromises.readFile(pdfPath);
+        await fsPromises.unlink(pdfPath);
       } else {
-        // Generate challan PDF for outbound (dispatch/subtract) operations
+        // Generate challan PDF for outbound (dispatch/subtract) operations using IN-MEMORY generator
         const challanData = {
           ...commonData,
-          terms: document.notes,
+          date: document.createdAt || new Date(),
+          notes: document.notes,
           hsnCode: document.hsnCode || "",
-          taxType: document.challan_tax_type || "GST", // Pass tax type to PDF generator
+          taxType: document.challan_tax_type || "GST",
           payment_mode: document.payment_mode || null,
           remarks: document.remarks || null,
           packaging_charges_overall: document.packaging_charges_overall || 0,
@@ -599,38 +641,31 @@ export const downloadChallanPdf = async (req, res) => {
           discount_amount: document.discount_amount || 0,
           taxable_subtotal: document.taxable_subtotal || 0,
           gst_amount: document.gst_amount || 0,
+          grand_total: document.grand_total || 0,
         };
         const includeGST = document.includeGST !== false;
-        pdfPath = await generateChallanPdf(challanData, includeGST, document.challan_tax_type);
+        // Use in-memory PDF generator (returns Buffer directly)
+        pdfBuffer = await generateChallanPdfBuffer(challanData, includeGST);
       }
       
-      console.log(`[Download] PDF generated at: ${pdfPath}`);
+      console.log(`[Download] PDF generated (${pdfBuffer.length} bytes)`);
     } catch (pdfError) {
       console.error("[Download] PDF generation error:", pdfError.message);
       console.error("[Download] Error stack:", pdfError.stack);
       return res.status(500).json({ message: "Failed to generate PDF", error: pdfError.message });
     }
 
-    if (!pdfPath) {
-      console.error("[Download] PDF path is empty/null after generation");
-      return res.status(500).json({ message: "PDF file path not generated" });
+    if (!pdfBuffer) {
+      console.error("[Download] PDF buffer is empty after generation");
+      return res.status(500).json({ message: "PDF generation resulted in empty buffer" });
     }
 
-    console.log(`[Download] Sending PDF file: ${pdfPath}`);
+    console.log(`[Download] Sending PDF buffer (${pdfBuffer.length} bytes)`);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${document.number.replace(/\//g, "_")}.pdf"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
 
-    return res.download(pdfPath, (err) => {
-      if (err) {
-        console.error("[Download] Error sending PDF:", err.message);
-      } else {
-        console.log(`[Download] PDF sent successfully to client`);
-      }
-      fsPromises
-        .unlink(pdfPath)
-        .then(() => console.log(`[Download] Temp file deleted: ${pdfPath}`))
-        .catch((unlinkErr) => console.error("[Download] Error deleting temp pdf:", unlinkErr));
-    });
+    return res.status(200).send(pdfBuffer);
   } catch (error) {
     console.error("[Download] Unexpected error:", error.message);
     console.error("[Download] Error stack:", error.stack);
@@ -943,4 +978,218 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
   }
 }
 
+// Admin: Edit challan (whitelisted fields only)
+export const editChallan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      clientName, 
+      paymentMode, 
+      remarks, 
+      termsAndConditions, 
+      hsnCode, 
+      packagingTotal, 
+      discountPercent,
+      challanDate
+    } = req.body;
 
+    // Fetch challan
+    const challan = await Challan.findById(id);
+    if (!challan) {
+      return res.status(404).json({ message: "Challan not found" });
+    }
+
+    // Cannot edit cancelled challans
+    if (challan.status === "CANCELLED") {
+      return res.status(400).json({ message: "Cannot edit cancelled challan" });
+    }
+
+    // Build update object with whitelisted fields only
+    const updateData = {};
+    
+    if (clientName !== undefined) {
+      updateData["clientDetails.name"] = String(clientName).trim();
+    }
+    if (paymentMode !== undefined && ["Cash", "GPay", "Bank Account", "Credit"].includes(paymentMode)) {
+      updateData.payment_mode = paymentMode;
+    }
+    if (remarks !== undefined) {
+      updateData.remarks = String(remarks).trim();
+    }
+    if (termsAndConditions !== undefined) {
+      updateData.notes = String(termsAndConditions).trim();
+    }
+    if (hsnCode !== undefined) {
+      updateData.hsnCode = String(hsnCode).trim();
+    }
+    if (packagingTotal !== undefined) {
+      updateData.packaging_charges_overall = Number(packagingTotal) || 0;
+    }
+    if (discountPercent !== undefined) {
+      updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+    }
+    if (challanDate !== undefined) {
+      updateData.createdAt = new Date(challanDate);
+    }
+
+    // Recompute totals based on items + updated packaging/discount
+    const itemsSubtotal = challan.items.reduce((sum, item) => {
+      const lineTotal = ((Number(item.rate) || 0) + (Number(item.assemblyCharge) || 0)) * (Number(item.quantity) || 0);
+      return sum + lineTotal;
+    }, 0);
+
+    updateData.items_subtotal = itemsSubtotal;
+    
+    const packaging = updateData.packaging_charges_overall !== undefined ? updateData.packaging_charges_overall : challan.packaging_charges_overall;
+    const discountPct = updateData.discount_pct !== undefined ? updateData.discount_pct : challan.discount_pct;
+    
+    const preDiscountSubtotal = itemsSubtotal + packaging;
+    const discountAmount = preDiscountSubtotal * (discountPct / 100);
+    const taxableAmount = preDiscountSubtotal - discountAmount;
+    
+    updateData.discount_amount = Math.round(discountAmount * 100) / 100;
+    updateData.taxable_subtotal = Math.round(taxableAmount * 100) / 100;
+
+    // Calculate GST if applicable
+    if (challan.challan_tax_type === "GST") {
+      const gstAmount = Math.round(taxableAmount * 0.05 * 100) / 100;
+      updateData.gst_amount = gstAmount;
+      const totalBeforeRound = taxableAmount + gstAmount;
+      const roundedTotal = Math.round(totalBeforeRound);
+      const roundOff = roundedTotal - totalBeforeRound;
+      updateData.grand_total = roundedTotal;
+    } else {
+      updateData.gst_amount = 0;
+      updateData.grand_total = Math.round(taxableAmount);
+    }
+
+    // Add metadata
+    updateData.updatedBy = req.user._id;
+
+    // Update challan
+    const updatedChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email");
+
+    // Log audit event
+    try {
+      await BoxAudit.create({
+        challan: challan._id,
+        user: req.user._id,
+        note: `Challan ${challan.number} edited by ${req.user.email}`,
+        action: 'challan_edited',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for challan edit:', auditError);
+    }
+
+    res.status(200).json({
+      message: "Challan updated successfully",
+      challan: updatedChallan,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Admin: Cancel challan (mark as CANCELLED, reverse inventory if dispatch)
+export const cancelChallan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ message: "Cancellation reason is required" });
+    }
+
+    // Fetch challan
+    const challan = await Challan.findById(id).populate("items.box");
+    if (!challan) {
+      return res.status(404).json({ message: "Challan not found" });
+    }
+
+    // Idempotency: if already cancelled, return success
+    if (challan.status === "CANCELLED") {
+      return res.status(200).json({
+        message: "Challan already cancelled",
+        challan,
+      });
+    }
+
+    // Reverse inventory if this is a DISPATCH challan
+    let reversalApplied = false;
+    if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
+      try {
+        // Reverse quantities for each item
+        for (const item of challan.items) {
+          const boxId = item.box?._id;
+          if (!boxId) continue;
+
+          const quantity = Number(item.quantity) || 0;
+          const color = String(item.color || "").trim();
+
+          if (quantity > 0) {
+            // Increment inventory back
+            if (color) {
+              // Update color-specific quantity
+              await Box.updateOne(
+                { _id: boxId },
+                { 
+                  $inc: { 
+                    [`quantityByColor.${color}`]: quantity,
+                    totalQuantity: quantity
+                  }
+                }
+              );
+            } else {
+              // Update total quantity only
+              await Box.updateOne(
+                { _id: boxId },
+                { $inc: { totalQuantity: quantity } }
+              );
+            }
+          }
+        }
+        reversalApplied = true;
+      } catch (reversalError) {
+        console.error('Inventory reversal error:', reversalError);
+        return res.status(500).json({ 
+          message: "Failed to reverse inventory during cancellation",
+          error: reversalError.message 
+        });
+      }
+    }
+
+    // Mark challan as CANCELLED
+    const updateData = {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelledBy: req.user._id,
+      cancelReason: String(reason).trim(),
+      reversalApplied,
+    };
+
+    const cancelledChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
+      .populate("createdBy", "name email")
+      .populate("cancelledBy", "name email");
+
+    // Log audit event
+    try {
+      await BoxAudit.create({
+        challan: challan._id,
+        user: req.user._id,
+        note: `Challan ${challan.number} cancelled by ${req.user.email}. Reason: ${reason}`,
+        action: 'challan_cancelled',
+      });
+    } catch (auditError) {
+      console.error('Audit log error for challan cancellation:', auditError);
+    }
+
+    res.status(200).json({
+      message: "Challan cancelled successfully",
+      challan: cancelledChallan,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

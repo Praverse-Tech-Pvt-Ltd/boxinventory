@@ -5,6 +5,7 @@ import {
   updateUser,
   deleteUser,
   resetToProduction,
+  cleanupAdditionChallans,
 } from "../controllers/adminController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { adminOnly } from "../middlewares/adminMiddleware.js";
@@ -19,5 +20,8 @@ router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
 router.post("/reset-to-production", resetToProduction);
 
+// Cleanup routes
+router.delete("/cleanup/addition-challans", cleanupAdditionChallans);
+router.delete("/cleanup/addition-data", cleanupAdditionChallans); // Alias for part B endpoint
 
 export default router;

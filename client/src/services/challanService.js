@@ -83,4 +83,14 @@ export const searchClients = async (query) => {
   return res.data;
 };
 
+export const editChallan = async (id, editData) => {
+  const res = await axiosInstance.put(`/api/challans/${id}`, editData);
+  return res.data;
+};
+
+export const cancelChallan = async (id, reason) => {
+  const res = await axiosInstance.post(`/api/challans/${id}/cancel`, { reason });
+  return res.data;
+};
+
 

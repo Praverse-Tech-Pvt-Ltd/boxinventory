@@ -1,27 +1,17 @@
 /**
- * Calendar Year Range calculation for challan numbering
+ * Indian Financial Year Range calculation for challan numbering
  * 
- * Uses calendar year logic (Jan-Dec) for year range:
- * - Jan 2026 → "26-27" (current year to next year)
- * - Jan 2027 → "27-28"
+ * Uses Indian Financial Year logic (Apr-Mar):
+ * - Apr 2025 to Mar 2026 → "25-26"
+ * - Apr 2026 to Mar 2027 → "26-27"
  * 
- * This is different from Indian Financial Year (Apr-Mar)
- */
-
-/**
- * Calculate Calendar Year Range from a given date
- * 
- * Rules:
- * - Get current year and next year
- * - Return format: YY-YY (e.g., "26-27" for 2026)
- * 
- * @param {Date|string} date - Date to calculate year range for
- * @returns {string} Year range in format "YY-YY" (e.g., "26-27")
+ * @param {Date|string} date - Date to calculate financial year for
+ * @returns {string} Financial year in format "YY-YY" (e.g., "25-26")
  * 
  * @example
- * getFinancialYear(new Date(2026, 0, 1)) // "26-27" (1 Jan 2026)
- * getFinancialYear(new Date(2026, 11, 31)) // "26-27" (31 Dec 2026)
- * getFinancialYear(new Date(2027, 0, 1)) // "27-28" (1 Jan 2027)
+ * getFinancialYear(new Date(2026, 0, 15)) // "25-26" (15 Jan 2026, within Apr 2025 - Mar 2026)
+ * getFinancialYear(new Date(2026, 3, 15)) // "26-27" (15 Apr 2026, start of new FY)
+ * getFinancialYear(new Date(2025, 11, 31)) // "25-26" (31 Dec 2025, within Apr 2025 - Mar 2026)
  */
 export function getFinancialYear(date) {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -31,24 +21,42 @@ export function getFinancialYear(date) {
   }
   
   const year = dateObj.getFullYear();
-  const nextYear = year + 1;
+  const month = dateObj.getMonth(); // 0 = January, 3 = April, 11 = December
+  
+  // Financial year starts in April (month 3)
+  // If current month is April or later, FY = year-01 to year
+  // If current month is before April, FY = (year-1)-year
+  let fyStart, fyEnd;
+  
+  if (month >= 3) { // April (3) onwards
+    fyStart = year - 1;
+    fyEnd = year;
+  } else { // January to March
+    fyStart = year - 2;
+    fyEnd = year - 1;
+  }
   
   // Get last two digits of each year
-  const yearStr = String(year).slice(-2);
-  const nextYearStr = String(nextYear).slice(-2);
+  const fyStartStr = String(fyStart).slice(-2);
+  const fyEndStr = String(fyEnd).slice(-2);
   
-  return `${yearStr}-${nextYearStr}`;
+  return `${fyStartStr}-${fyEndStr}`;
 }
 
 /**
- * Get the actual start and end dates of a given year range
+ * Get the actual start and end dates of a given financial year
  * 
- * @param {string} fy - Year range label in format "YY-YY" (e.g., "26-27")
+ * Indian Financial Year: April 1 to March 31
+ * 
+ * @param {string} fy - Financial year label in format "YY-YY" (e.g., "25-26")
  * @returns {object} Object with startDate and endDate
  * 
  * @example
+ * getFYDateRange("25-26")
+ * // Returns: { startDate: 2025-04-01, endDate: 2026-03-31 }
+ * 
  * getFYDateRange("26-27")
- * // Returns: { startDate: 2026-01-01, endDate: 2026-12-31 }
+ * // Returns: { startDate: 2026-04-01, endDate: 2027-03-31 }
  */
 export function getFYDateRange(fy) {
   const [startYyStr, endYyStr] = fy.split('-');
@@ -64,8 +72,8 @@ export function getFYDateRange(fy) {
   }
   
   return {
-    startDate: new Date(startYear, 0, 1), // January 1
-    endDate: new Date(startYear, 11, 31), // December 31
+    startDate: new Date(startYear, 3, 1), // April 1 (month 3)
+    endDate: new Date(endYear, 2, 31), // March 31 (month 2, day 31)
   };
 }
 

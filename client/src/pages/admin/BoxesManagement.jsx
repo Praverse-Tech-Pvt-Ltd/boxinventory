@@ -775,7 +775,7 @@ const BoxesManagement = () => {
                             const qty = box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0
                             return (
                               <div key={color} className="text-xs">
-                                <span className="font-mono">{color}:</span> <span className="font-semibold">{qty}</span>
+                                <span className="font-mono font-semibold">{color}:</span> <span className="font-semibold">{qty}</span>
                               </div>
                             )
                           })

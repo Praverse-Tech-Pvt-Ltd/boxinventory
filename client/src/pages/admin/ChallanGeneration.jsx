@@ -41,11 +41,6 @@ const createManualRow = () => ({
   quantity: 0,
   rate: 0,
   assemblyCharge: 0,
-  color: "",
-  colours: [],
-  coloursInput: "",
-  showAddColorInput: false,
-  newColorInput: "",
 });
 
 const DEFAULT_TERMS = `Terms & Conditions:
@@ -112,7 +107,15 @@ const ChallanGeneration = () => {
     try {
       setLoading(true);
       const data = await getChallanCandidates();
-      setCandidates(data);
+      // Defensive filter: only show dispatch/subtract actions (in case backend filter missed)
+      const filtered = Array.isArray(data)
+        ? data.filter((audit) => 
+            audit.action && 
+            ["subtract", "dispatch"].includes(audit.action) && 
+            Number(audit.quantity) > 0
+          )
+        : [];
+      setCandidates(filtered);
     } catch {
       toast.error("Failed to load candidates");
     } finally {
@@ -124,7 +127,11 @@ const ChallanGeneration = () => {
     try {
       setLoadingChallans(true);
       const data = await listChallans();
-      setRecentChallans(data.slice(0, 10));
+      // Filter to show only dispatch mode challans
+      const dispatchChallans = Array.isArray(data)
+        ? data.filter((c) => c.inventory_mode === "dispatch")
+        : [];
+      setRecentChallans(dispatchChallans.slice(0, 10));
     } catch {
       // silent
     } finally {
@@ -1341,18 +1348,24 @@ const ChallanGeneration = () => {
                     <div className="grid gap-4 md:grid-cols-4">
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Quantity
+                          Quantity (Auto)
                         </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={row.quantity}
-                          onChange={(e) =>
-                            updateManualRow(row.id, { quantity: Number(e.target.value) })
-                          }
-                          autoComplete="off"
-                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                        />
+                        {(() => {
+                          const totalDispatchQty = Array.isArray(row.colorLines)
+                            ? row.colorLines.reduce((sum, line) => sum + (Number(line.dispatchQty) || 0), 0)
+                            : 0;
+                          return (
+                            <input
+                              type="number"
+                              min="0"
+                              value={totalDispatchQty}
+                              disabled
+                              autoComplete="off"
+                              title="Auto-calculated from color-wise dispatch quantities"
+                              className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg bg-theme-surface-2 text-theme-text-muted text-sm cursor-not-allowed"
+                            />
+                          );
+                        })()}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
@@ -1381,107 +1394,6 @@ const ChallanGeneration = () => {
                           autoComplete="off"
                           className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
                         />
-                      </div>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Primary Color
-                        </label>
-                        {row.availableColours && row.availableColours.length > 0 ? (
-                          <div className="mt-1 space-y-2">
-                            <select
-                              value={row.color}
-                              onChange={(e) => {
-                                if (e.target.value === "__add_new__") {
-                                  updateManualRow(row.id, { color: "", showAddColorInput: true });
-                                } else {
-                                  updateManualRow(row.id, { color: e.target.value, showAddColorInput: false });
-                                }
-                              }}
-                              className="w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                            >
-                              <option value="">-- Select a color --</option>
-                              {row.availableColours.map((col) => (
-                                <option key={col} value={col}>
-                                  {col}
-                                </option>
-                              ))}
-                              <option value="__add_new__">+ Add new color</option>
-                            </select>
-                            {row.showAddColorInput && (
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  autoComplete="off"
-                                  placeholder="Enter new color name"
-                                  value={row.newColorInput || ""}
-                                  onChange={(e) => updateManualRow(row.id, { newColorInput: e.target.value })}
-                                  className="flex-1 px-3 py-2 border border-theme-primary/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const newColor = (row.newColorInput || "").trim();
-                                    if (!newColor) {
-                                      toast.error("Color name cannot be empty");
-                                      return;
-                                    }
-                                    try {
-                                      // Call API to add color to box
-                                      await addColorToBox(row.boxId, newColor);
-                                      toast.success(`Color "${newColor}" added to product`);
-                                      updateManualRow(row.id, { 
-                                        color: newColor, 
-                                        availableColours: [...(row.availableColours || []), newColor],
-                                        showAddColorInput: false,
-                                        newColorInput: ""
-                                      });
-                                    } catch (error) {
-                                      const msg = error?.response?.data?.message || error.message || "Failed to add color";
-                                      toast.error(msg);
-                                    }
-                                  }}
-                                  className="px-3 py-2 bg-theme-primary text-white rounded-lg text-xs font-semibold hover:bg-theme-primary/80"
-                                >
-                                  Add
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateManualRow(row.id, { showAddColorInput: false, newColorInput: "" })}
-                                  className="px-3 py-2 bg-theme-surface-2 text-theme-text-secondary rounded-lg text-xs font-semibold hover:bg-theme-surface-3"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <input
-                            type="text"
-                            value={row.color}
-                            onChange={(e) => updateManualRow(row.id, { color: e.target.value })}
-                            placeholder="Enter color (no colors available for this product)"
-                            className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Additional Colors (comma separated)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={row.coloursInput}
-                          onChange={(e) => handleManualColoursInput(row.id, e.target.value)}
-                          placeholder="e.g. Gold, Silver, Black"
-                          className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
-                        />
-                        {row.colours.length > 0 && (
-                          <p className="text-xs text-theme-text-secondary mt-1">
-                            Selected: {row.colours.join(", ")}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2197,8 +2109,6 @@ const ChallanGeneration = () => {
 };
 
 export default ChallanGeneration;
-
-
 
 
 

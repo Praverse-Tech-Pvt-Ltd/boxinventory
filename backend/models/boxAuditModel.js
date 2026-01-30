@@ -40,7 +40,7 @@ const boxAuditSchema = new mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ["add", "subtract", "dispatch", "password_change", "create_challan", "create_stock_receipt", "create_box", "update_box"],
+      enum: ["add", "subtract", "dispatch", "password_change", "create_challan", "create_stock_receipt", "create_box", "update_box", "challan_edited", "challan_cancelled"],
       default: "subtract",
       index: true,
     },

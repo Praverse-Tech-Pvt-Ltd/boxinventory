@@ -69,6 +69,121 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+// Admin: Clean up stock inward/addition challans and related audits
+export const cleanupAdditionChallans = async (req, res) => {
+  try {
+    const dryRun = req.query.dryRun !== "false"; // default to true for safety
+    
+    console.log(`[CLEANUP] Starting ${dryRun ? "DRY-RUN" : "REAL"} cleanup of addition challans...`);
+
+    // Find all stock inward/addition challans
+    // Check for challans with inventory_mode === "inward" or doc_type === "STOCK_INWARD_RECEIPT"
+    const additionChallans = await Challan.find({
+      $or: [
+        { inventory_mode: "inward" },
+        { doc_type: "STOCK_INWARD_RECEIPT" }
+      ]
+    }).select("_id number inventory_mode doc_type createdAt");
+
+    console.log(`[CLEANUP] Found ${additionChallans.length} addition challans to process`);
+
+    if (additionChallans.length === 0) {
+      return res.status(200).json({
+        message: "No addition challans found",
+        mode: dryRun ? "dryRun" : "delete",
+        deletedChallansCount: 0,
+        deletedAuditCount: 0,
+        deletedChallanIds: [],
+      });
+    }
+
+    const additionChallanIds = additionChallans.map((c) => c._id);
+
+    // Find related audits
+    // Delete audits that:
+    // 1. Reference these challans via challan field
+    // 2. Have action indicating inward/addition
+    // 3. Have doc_type STOCK_INWARD_RECEIPT
+    const relatedAudits = await BoxAudit.find({
+      $or: [
+        { challan: { $in: additionChallanIds } },
+        { action: { $in: ["add", "create_stock_receipt"] } },
+        { doc_type: "STOCK_INWARD_RECEIPT" }
+      ]
+    }).select("_id action challan createdAt");
+
+    console.log(`[CLEANUP] Found ${relatedAudits.length} related audits to process`);
+
+    if (dryRun) {
+      // DRY RUN: Report without deleting
+      const sampleChallanIds = additionChallans.slice(0, 20).map((c) => ({
+        id: c._id,
+        number: c.number,
+        type: c.doc_type,
+        mode: c.inventory_mode,
+      }));
+
+      const sampleAuditIds = relatedAudits.slice(0, 20).map((a) => ({
+        id: a._id,
+        action: a.action,
+      }));
+
+      console.log(`[CLEANUP] DRY-RUN REPORT: Would delete ${additionChallans.length} challans and ${relatedAudits.length} audits`);
+
+      return res.status(200).json({
+        message: "Dry run completed - no data deleted",
+        mode: "dryRun",
+        deletedChallansCount: additionChallans.length,
+        deletedAuditCount: relatedAudits.length,
+        deletedChallanIds: sampleChallanIds,
+        deletedAuditIds: sampleAuditIds,
+        warning: "This is a dry run. Set ?dryRun=false to actually delete.",
+      });
+    } else {
+      // REAL DELETE: Remove challans and audits
+      console.log(`[CLEANUP] Starting real deletion...`);
+
+      // Delete the addition challans
+      const challanDeleteResult = await Challan.deleteMany({
+        _id: { $in: additionChallanIds }
+      });
+
+      // Delete related audits
+      const auditDeleteResult = await BoxAudit.deleteMany({
+        $or: [
+          { challan: { $in: additionChallanIds } },
+          { action: { $in: ["add", "create_stock_receipt"] } },
+          { doc_type: "STOCK_INWARD_RECEIPT" }
+        ]
+      });
+
+      console.log(`[CLEANUP] Deleted ${challanDeleteResult.deletedCount} challans and ${auditDeleteResult.deletedCount} audits`);
+
+      const sampleChallanIds = additionChallans.slice(0, 20).map((c) => ({
+        id: c._id,
+        number: c.number,
+        type: c.doc_type,
+        mode: c.inventory_mode,
+      }));
+
+      return res.status(200).json({
+        message: "Addition challans and related audits deleted successfully",
+        mode: "delete",
+        deletedChallansCount: challanDeleteResult.deletedCount,
+        deletedAuditCount: auditDeleteResult.deletedCount,
+        deletedChallanIds: sampleChallanIds,
+        success: true,
+      });
+    }
+  } catch (error) {
+    console.error("[CLEANUP] Error during cleanup:", error);
+    res.status(500).json({
+      message: "Server error during cleanup",
+      error: error.message,
+    });
+  }
+};
+
 // Admin: Reset system to production state
 // Only works in development mode or with correct admin secret
 export const resetToProduction = async (req, res) => {

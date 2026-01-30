@@ -85,6 +85,19 @@ const challanSchema = new mongoose.Schema(
     taxable_subtotal: { type: Number, default: 0 },
     gst_amount: { type: Number, default: 0 },
     grand_total: { type: Number, default: 0 },
+    // Edit and cancel tracking
+    status: { 
+      type: String, 
+      enum: ["ACTIVE", "CANCELLED"],
+      default: "ACTIVE",
+      index: true
+    },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    cancelReason: { type: String, trim: true, default: null },
+    reversalApplied: { type: Boolean, default: false },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    items_subtotal: { type: Number, default: 0 }, // Sum of items before packaging/discount
   },
   { timestamps: true }
 );
