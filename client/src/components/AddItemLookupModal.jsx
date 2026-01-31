@@ -114,8 +114,6 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
-
   // Auto-focus search input when modal opens
   React.useEffect(() => {
     if (isOpen && searchInputRef.current) {
@@ -125,6 +123,8 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
 
   const selectedBox = searchResults.find((b) => b._id === selectedBoxId);
   const availableColors = selectedBox?.colors || [];
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div 
