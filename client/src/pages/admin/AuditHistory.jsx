@@ -5,6 +5,7 @@ import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
 import { downloadChallanPdf, listChallans, editChallan, cancelChallan } from "../../services/challanService";
+import { getProfile } from "../../services/authService";
 import jsPDF from "jspdf";
 import AddItemLookupModal from "../../components/AddItemLookupModal";
 import "../../styles/dashboard.css";
@@ -288,6 +289,8 @@ const AuditHistory = () => {
   const [loadingAudits, setLoadingAudits] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClient, setSelectedClient] = useState(""); // Client name filter
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Total Sales tab states
   const [fromDate, setFromDate] = useState("");
@@ -309,12 +312,17 @@ const AuditHistory = () => {
     const loadData = async () => {
       try {
         setLoadingAudits(true);
-        const [auditData, challanData] = await Promise.all([
+        const [auditData, challanData, userProfile] = await Promise.all([
           getAllAudits(),
           listChallans(),
+          getProfile().catch(() => null),
         ]);
         setAudits(auditData);
         setChallans(challanData);
+        if (userProfile) {
+          setCurrentUser(userProfile);
+          setIsAdmin(userProfile.role === "admin");
+        }
       } catch (e) {
         console.error("Failed to load audits or challans", e);
         toast.error("Failed to load audit history");
@@ -983,22 +991,26 @@ const AuditHistory = () => {
                             >
                               📄
                             </button>
-                            <button
-                              onClick={() => handleOpenEditModal(challan)}
-                              className="text-amber-600 hover:text-amber-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Edit Challan"
-                              disabled={challan.status === "CANCELLED"}
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => handleOpenCancelModal(challan)}
-                              className="text-red-600 hover:text-red-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Cancel Challan"
-                              disabled={challan.status === "CANCELLED"}
-                            >
-                              ❌
-                            </button>
+                            {isAdmin && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenEditModal(challan)}
+                                  className="text-amber-600 hover:text-amber-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Edit Challan (Admin Only)"
+                                  disabled={challan.status === "CANCELLED"}
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleOpenCancelModal(challan)}
+                                  className="text-red-600 hover:text-red-800 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Cancel Challan (Admin Only)"
+                                  disabled={challan.status === "CANCELLED"}
+                                >
+                                  ❌
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1176,6 +1188,7 @@ const AuditHistory = () => {
                 width: "min(1000px, 100%)",
                 maxHeight: "min(90vh, 900px)",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header - Fixed */}
               <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
@@ -1192,8 +1205,8 @@ const AuditHistory = () => {
                 </button>
               </div>
 
-              {/* Modal Body - Scrollable */}
-              <div className="flex-1 overflow-y-auto">
+              {/* Modal Body - Scrollable with proper overflow handling */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden">
                 <div className="p-6 space-y-6">
                   {/* SECTION A: Challan Info (Read-only + Editable) */}
                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
