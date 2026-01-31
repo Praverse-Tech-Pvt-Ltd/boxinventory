@@ -4,6 +4,7 @@ import {
   getAllAudits,
   getBoxById,
   getBoxAvailabilityByCode,
+  searchBoxes,
   createBox,
   updateBox,
   deleteBox,
@@ -20,6 +21,9 @@ const router = express.Router();
 
 // Public routes - anyone can view boxes
 router.get("/", getAllBoxes);
+
+// Search boxes by code or title (for add item in edit modal)
+router.get("/search", searchBoxes);
 
 // Get box color availability (for challan generation)
 router.get("/availability/:code", getBoxAvailabilityByCode);

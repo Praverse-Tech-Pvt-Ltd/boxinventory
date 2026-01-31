@@ -75,6 +75,60 @@ export const getBoxAvailabilityByCode = async (req, res) => {
   }
 };
 
+// Search boxes by code or title (for add item in edit modal)
+export const searchBoxes = async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 1) {
+      return res.status(200).json([]);
+    }
+
+    const query = String(q).trim();
+    
+    // Search by code (exact match) or title (partial match)
+    const boxes = await Box.find({
+      $or: [
+        { code: { $regex: query, $options: "i" } },
+        { title: { $regex: query, $options: "i" } }
+      ]
+    }).limit(20).select("_id code title category price totalQuantity quantityByColor");
+
+    const results = boxes.map((box) => {
+      // Get available colors
+      const colors = [];
+      if (box.quantityByColor) {
+        const qtyMap = box.quantityByColor instanceof Map 
+          ? box.quantityByColor 
+          : new Map(Object.entries(box.quantityByColor || {}));
+        
+        qtyMap.forEach((qty, color) => {
+          if (color && color.trim() && Number(qty) > 0) {
+            colors.push({
+              color: color.trim(),
+              available: Number(qty) || 0
+            });
+          }
+        });
+      }
+
+      return {
+        _id: box._id,
+        code: box.code,
+        title: box.title,
+        category: box.category,
+        price: box.price,
+        totalQuantity: box.totalQuantity || 0,
+        colors: colors
+      };
+    });
+
+    res.status(200).json(results);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // Create a new box
 export const createBox = async (req, res) => {
   try {

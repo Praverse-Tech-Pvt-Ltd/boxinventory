@@ -93,4 +93,10 @@ export const cancelChallan = async (id, reason) => {
   return res.data;
 };
 
+export const searchBoxes = async (query) => {
+  const res = await axiosInstance.get('/api/boxes/search', {
+    params: { q: query },
+  });
+  return res.data;
+};
 

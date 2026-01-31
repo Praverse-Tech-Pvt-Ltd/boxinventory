@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
 import { downloadChallanPdf, listChallans, editChallan, cancelChallan } from "../../services/challanService";
 import jsPDF from "jspdf";
+import AddItemLookupModal from "../../components/AddItemLookupModal";
 import "../../styles/dashboard.css";
 
 // Helper function to safely convert values to numbers
@@ -296,6 +297,7 @@ const AuditHistory = () => {
   // Edit/Cancel modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [selectedChallan, setSelectedChallan] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [cancelReason, setCancelReason] = useState("");
@@ -456,22 +458,15 @@ const AuditHistory = () => {
 
   // Item management handlers
   const handleAddItem = () => {
+    setShowAddItemModal(true);
+  };
+
+  const handleSelectBoxForItem = (newItem) => {
     setEditFormData((prev) => ({
       ...prev,
-      items: [
-        ...prev.items,
-        {
-          _id: Math.random().toString(),
-          boxId: "",
-          code: "",
-          name: "",
-          color: "",
-          quantity: 0,
-          rate: 0,
-          assemblyCharge: 0,
-        },
-      ],
+      items: [...prev.items, newItem],
     }));
+    toast.success("Item added successfully");
   };
 
   const handleDeleteItem = (itemId) => {
@@ -1354,31 +1349,24 @@ const AuditHistory = () => {
                               return (
                                 <tr key={item._id} className={`border-b border-slate-300 ${idx % 2 === 0 ? "bg-white" : "bg-slate-100"}`}>
                                   <td className="px-3 py-2">
-                                    <input
-                                      type="text"
-                                      value={item.code}
-                                      onChange={(e) => handleUpdateItem(item._id, "code", e.target.value)}
-                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50"
-                                      placeholder="Product Code"
-                                    />
+                                    <div className="text-xs font-medium text-slate-900">{item.code}</div>
                                   </td>
                                   <td className="px-3 py-2">
-                                    <input
-                                      type="text"
-                                      value={item.name}
-                                      onChange={(e) => handleUpdateItem(item._id, "name", e.target.value)}
-                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50"
-                                      placeholder="Product Name"
-                                    />
+                                    <div className="text-xs font-medium text-slate-900">{item.name}</div>
                                   </td>
                                   <td className="px-3 py-2">
-                                    <input
-                                      type="text"
+                                    <select
                                       value={item.color}
                                       onChange={(e) => handleUpdateItem(item._id, "color", e.target.value)}
-                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white"
-                                      placeholder="Color"
-                                    />
+                                      className="form-select w-full py-1 text-xs border border-slate-300 rounded bg-white"
+                                    >
+                                      <option value="">Select Color</option>
+                                      {item.boxId && selectedChallan && 
+                                        selectedChallan.items.find((orig) => orig.boxId === item.boxId)?.colors?.map((color) => (
+                                          <option key={color} value={color}>{color}</option>
+                                        ))
+                                      }
+                                    </select>
                                   </td>
                                   <td className="px-3 py-2">
                                     <input
@@ -1542,6 +1530,13 @@ const AuditHistory = () => {
           </div>,
           document.body
         )}
+
+        {/* Add Item Lookup Modal */}
+        <AddItemLookupModal
+          isOpen={showAddItemModal}
+          onClose={() => setShowAddItemModal(false)}
+          onSelectBox={handleSelectBoxForItem}
+        />
       </motion.div>
     </div>
   );
