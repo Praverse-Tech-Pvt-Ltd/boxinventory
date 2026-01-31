@@ -18,22 +18,33 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
+  const [searchError, setSearchError] = useState("");
+  const searchInputRef = React.useRef(null);
 
   // Debounced search
   const handleSearch = useCallback(
     async (query) => {
       if (!query || query.trim().length < 2) {
         setSearchResults([]);
+        setSearchError("");
         return;
       }
 
       setIsSearching(true);
+      setSearchError("");
       try {
+        console.log("Searching for:", query);
         const results = await searchBoxes(query);
-        setSearchResults(results);
+        console.log("Search results:", results);
+        setSearchResults(results || []);
+        if (!results || results.length === 0) {
+          setSearchError("No products found matching your search");
+        }
       } catch (error) {
-        toast.error("Failed to search boxes");
         console.error("Search error:", error);
+        setSearchError("Failed to search boxes: " + (error.message || "Unknown error"));
+        toast.error("Failed to search boxes");
+        setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -90,6 +101,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
       quantity: 0,
       rate: selectedBox.price || 0,
       assemblyCharge: 0,
+      colors: selectedBox.colors, // Store available colors for dropdown
     };
 
     onSelectBox(newItem);
@@ -103,6 +115,13 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
   };
 
   if (!isOpen) return null;
+
+  // Auto-focus search input when modal opens
+  React.useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
 
   const selectedBox = searchResults.find((b) => b._id === selectedBoxId);
   const availableColors = selectedBox?.colors || [];
@@ -140,11 +159,13 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
             </label>
             <div className="relative">
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchInput}
                 placeholder="e.g., V22 or JMWER"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
               />
               {isSearching && (
                 <div className="absolute right-3 top-3 text-slate-400">
@@ -155,6 +176,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
                 </div>
               )}
             </div>
+            {searchError && <p className="text-xs text-red-600 mt-1">{searchError}</p>}
           </div>
 
           {/* Two-Column Layout: Search Results + Selection Details */}

@@ -1374,11 +1374,15 @@ const AuditHistory = () => {
                                       className="form-select w-full py-1 text-xs border border-slate-300 rounded bg-white"
                                     >
                                       <option value="">Select Color</option>
-                                      {item.boxId && selectedChallan && 
-                                        selectedChallan.items.find((orig) => orig.boxId === item.boxId)?.colors?.map((color) => (
-                                          <option key={color} value={color}>{color}</option>
+                                      {item.colors && Array.isArray(item.colors) && item.colors.length > 0 ? (
+                                        item.colors.map((colorObj) => (
+                                          <option key={colorObj.color || colorObj} value={colorObj.color || colorObj}>
+                                            {colorObj.color || colorObj} {colorObj.available ? `(${colorObj.available})` : ""}
+                                          </option>
                                         ))
-                                      }
+                                      ) : (
+                                        <option disabled>No colors available</option>
+                                      )}
                                     </select>
                                   </td>
                                   <td className="px-3 py-2">
