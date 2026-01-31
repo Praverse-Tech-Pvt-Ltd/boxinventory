@@ -1358,9 +1358,8 @@ const AuditHistory = () => {
                                       type="text"
                                       value={item.code}
                                       onChange={(e) => handleUpdateItem(item._id, "code", e.target.value)}
-                                      className="form-input w-full py-1 text-xs"
-                                      placeholder="Code"
-                                      disabled
+                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50"
+                                      placeholder="Product Code"
                                     />
                                   </td>
                                   <td className="px-3 py-2">
@@ -1368,9 +1367,8 @@ const AuditHistory = () => {
                                       type="text"
                                       value={item.name}
                                       onChange={(e) => handleUpdateItem(item._id, "name", e.target.value)}
-                                      className="form-input w-full py-1 text-xs"
-                                      placeholder="Name"
-                                      disabled
+                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white hover:bg-slate-50"
+                                      placeholder="Product Name"
                                     />
                                   </td>
                                   <td className="px-3 py-2">
@@ -1378,7 +1376,7 @@ const AuditHistory = () => {
                                       type="text"
                                       value={item.color}
                                       onChange={(e) => handleUpdateItem(item._id, "color", e.target.value)}
-                                      className="form-input w-full py-1 text-xs"
+                                      className="form-input w-full py-1 text-xs border border-slate-300 rounded bg-white"
                                       placeholder="Color"
                                     />
                                   </td>
@@ -1387,8 +1385,8 @@ const AuditHistory = () => {
                                       type="number"
                                       value={item.quantity}
                                       onChange={(e) => handleUpdateItem(item._id, "quantity", e.target.value)}
-                                      className="form-input w-full py-1 text-xs text-center"
-                                      placeholder="Qty"
+                                      className="form-input w-full py-1 text-xs text-center border border-slate-300 rounded bg-white"
+                                      placeholder="0"
                                       min="0"
                                     />
                                   </td>
@@ -1398,7 +1396,7 @@ const AuditHistory = () => {
                                       step="0.01"
                                       value={item.rate}
                                       onChange={(e) => handleUpdateItem(item._id, "rate", e.target.value)}
-                                      className="form-input w-full py-1 text-xs text-right"
+                                      className="form-input w-full py-1 text-xs text-right border border-slate-300 rounded bg-white"
                                       placeholder="0.00"
                                     />
                                   </td>
@@ -1408,7 +1406,7 @@ const AuditHistory = () => {
                                       step="0.01"
                                       value={item.assemblyCharge}
                                       onChange={(e) => handleUpdateItem(item._id, "assemblyCharge", e.target.value)}
-                                      className="form-input w-full py-1 text-xs text-right"
+                                      className="form-input w-full py-1 text-xs text-right border border-slate-300 rounded bg-white"
                                       placeholder="0.00"
                                     />
                                   </td>
