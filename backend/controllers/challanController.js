@@ -990,11 +990,12 @@ export const editChallan = async (req, res) => {
       hsnCode, 
       packagingTotal, 
       discountPercent,
-      challanDate
+      challanDate,
+      items // NEW: items array from edit modal
     } = req.body;
 
-    // Fetch challan
-    const challan = await Challan.findById(id);
+    // Fetch challan with items
+    const challan = await Challan.findById(id).populate("items.box");
     if (!challan) {
       return res.status(404).json({ message: "Challan not found" });
     }
@@ -1028,12 +1029,119 @@ export const editChallan = async (req, res) => {
     if (discountPercent !== undefined) {
       updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
     }
-    if (challanDate !== undefined) {
-      updateData.createdAt = new Date(challanDate);
+
+    // NEW: Handle items array if provided
+    let itemsForCalculation = challan.items;
+    if (Array.isArray(items) && items.length > 0) {
+      // Validate items
+      const newItems = items.map((item) => ({
+        box: {
+          _id: item.box || item.boxId,
+          title: item.title || item.name,
+          code: item.code,
+          category: item.category || "",
+          colours: item.colours || [],
+        },
+        quantity: Number(item.quantity) || 0,
+        rate: Number(item.rate) || 0,
+        assemblyCharge: Number(item.assemblyCharge) || 0,
+        color: item.color || "",
+        user: {
+          _id: req.user._id,
+          name: req.user.name,
+          email: req.user.email,
+        },
+        manualEntry: true,
+      }));
+      updateData.items = newItems;
+      itemsForCalculation = newItems;
+
+      // If dispatch mode: handle inventory reversal/re-apply
+      if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
+        try {
+          // Step 1: Revert old quantities back to boxes
+          for (const oldItem of challan.items) {
+            const boxId = oldItem.box?._id;
+            if (!boxId) continue;
+            const qty = Number(oldItem.quantity) || 0;
+            const color = String(oldItem.color || "").trim();
+            if (qty > 0) {
+              if (color) {
+                await Box.updateOne(
+                  { _id: boxId },
+                  { $inc: { [`quantityByColor.${color}`]: qty, totalQuantity: qty } }
+                );
+              } else {
+                await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: qty } });
+              }
+            }
+          }
+
+          // Step 2: Check new quantities are available
+          for (const newItem of newItems) {
+            const boxId = newItem.box?._id;
+            const qty = Number(newItem.quantity) || 0;
+            const color = String(newItem.color || "").trim();
+            if (!boxId || qty <= 0) continue;
+
+            const box = await Box.findById(boxId);
+            if (!box) {
+              return res.status(400).json({ message: `Product ${newItem.box.code} not found` });
+            }
+
+            const available = color 
+              ? (box.quantityByColor?.[color] || 0)
+              : box.totalQuantity;
+
+            if (available < qty) {
+              // Rollback: revert the revert we just did
+              for (const revertItem of challan.items) {
+                const rBoxId = revertItem.box?._id;
+                if (!rBoxId) continue;
+                const rQty = Number(revertItem.quantity) || 0;
+                const rColor = String(revertItem.color || "").trim();
+                if (rQty > 0) {
+                  if (rColor) {
+                    await Box.updateOne(
+                      { _id: rBoxId },
+                      { $inc: { [`quantityByColor.${rColor}`]: -rQty, totalQuantity: -rQty } }
+                    );
+                  } else {
+                    await Box.updateOne({ _id: rBoxId }, { $inc: { totalQuantity: -rQty } });
+                  }
+                }
+              }
+              return res.status(400).json({ 
+                message: `Insufficient stock for ${newItem.box.code} ${color || ""}. Available: ${available}, Required: ${qty}` 
+              });
+            }
+          }
+
+          // Step 3: Apply new quantities
+          for (const newItem of newItems) {
+            const boxId = newItem.box?._id;
+            const qty = Number(newItem.quantity) || 0;
+            const color = String(newItem.color || "").trim();
+            if (qty > 0) {
+              if (color) {
+                await Box.updateOne(
+                  { _id: boxId },
+                  { $inc: { [`quantityByColor.${color}`]: -qty, totalQuantity: -qty } }
+                );
+              } else {
+                await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: -qty } });
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Inventory update error:", error);
+          return res.status(500).json({ message: "Failed to update inventory", error: error.message });
+        }
+      }
     }
 
     // Recompute totals based on items + updated packaging/discount
-    const itemsSubtotal = challan.items.reduce((sum, item) => {
+    const itemsSubtotal = itemsForCalculation.reduce((sum, item) => {
       const lineTotal = ((Number(item.rate) || 0) + (Number(item.assemblyCharge) || 0)) * (Number(item.quantity) || 0);
       return sum + lineTotal;
     }, 0);
@@ -1056,7 +1164,6 @@ export const editChallan = async (req, res) => {
       updateData.gst_amount = gstAmount;
       const totalBeforeRound = taxableAmount + gstAmount;
       const roundedTotal = Math.round(totalBeforeRound);
-      const roundOff = roundedTotal - totalBeforeRound;
       updateData.grand_total = roundedTotal;
     } else {
       updateData.gst_amount = 0;

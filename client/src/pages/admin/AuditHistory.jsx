@@ -344,14 +344,25 @@ const AuditHistory = () => {
   const handleOpenEditModal = (challan) => {
     setSelectedChallan(challan);
     setEditFormData({
-      clientName: challan.clientName || "",
+      clientName: challan.clientDetails?.name || challan.clientName || "",
       paymentMode: challan.payment_mode || "",
       remarks: challan.remarks || "",
-      termsAndConditions: challan.terms || "",
+      termsAndConditions: challan.notes || challan.terms || "",
       hsnCode: challan.hsnCode || "",
       packagingTotal: challan.packaging_charges_overall || 0,
       discountPercent: challan.discount_pct || 0,
-      challanDate: challan.challanDate ? new Date(challan.challanDate).toISOString().split("T")[0] : "",
+      challanDate: challan.createdAt ? new Date(challan.createdAt).toISOString().split("T")[0] : "",
+      // Items array for editing
+      items: challan.items?.map((item) => ({
+        _id: item._id || Math.random().toString(),
+        boxId: item.box?._id || item.box || "",
+        code: item.box?.code || item.code || "",
+        name: item.box?.title || item.name || "",
+        color: item.color || "",
+        quantity: item.quantity || 0,
+        rate: item.rate || 0,
+        assemblyCharge: item.assemblyCharge || 0,
+      })) || [],
     });
     setShowEditModal(true);
     // Disable background scroll
@@ -375,6 +386,29 @@ const AuditHistory = () => {
 
   const handleSaveEditChallan = async () => {
     if (!selectedChallan) return;
+
+    // Validate items
+    if (!editFormData.items || editFormData.items.length === 0) {
+      toast.error("Challan must have at least one item");
+      return;
+    }
+
+    // Validate each item
+    for (const item of editFormData.items) {
+      if (!item.boxId) {
+        toast.error("All items must have a product selected");
+        return;
+      }
+      if (item.quantity <= 0) {
+        toast.error(`Item ${item.code} must have quantity > 0`);
+        return;
+      }
+      if (item.rate < 0) {
+        toast.error(`Item ${item.code} must have rate >= 0`);
+        return;
+      }
+    }
+
     setIsEditingChallan(true);
     try {
       const payload = {
@@ -386,6 +420,16 @@ const AuditHistory = () => {
         packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
         discountPercent: parseFloat(editFormData.discountPercent) || 0,
         challanDate: editFormData.challanDate ? new Date(editFormData.challanDate).toISOString() : undefined,
+        // Include items for full challan edit
+        items: editFormData.items.map((item) => ({
+          box: item.boxId,
+          code: item.code,
+          title: item.name,
+          color: item.color || "",
+          quantity: Number(item.quantity) || 0,
+          rate: Number(item.rate) || 0,
+          assemblyCharge: Number(item.assemblyCharge) || 0,
+        })),
       };
 
       // Remove undefined fields
@@ -408,6 +452,45 @@ const AuditHistory = () => {
     } finally {
       setIsEditingChallan(false);
     }
+  };
+
+  // Item management handlers
+  const handleAddItem = () => {
+    setEditFormData((prev) => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          _id: Math.random().toString(),
+          boxId: "",
+          code: "",
+          name: "",
+          color: "",
+          quantity: 0,
+          rate: 0,
+          assemblyCharge: 0,
+        },
+      ],
+    }));
+  };
+
+  const handleDeleteItem = (itemId) => {
+    if (window.confirm("Delete this item?")) {
+      setEditFormData((prev) => ({
+        ...prev,
+        items: prev.items.filter((item) => item._id !== itemId),
+      }));
+      toast.success("Item removed");
+    }
+  };
+
+  const handleUpdateItem = (itemId, field, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item._id === itemId ? { ...item, [field]: value } : item
+      ),
+    }));
   };
 
   // Cancel challan handlers
@@ -536,14 +619,16 @@ const AuditHistory = () => {
       return;
     }
 
-    // Filter challans by date range (only OUTWARD challans, exclude inward/add)
+    // Filter challans by date range and status
+    // ONLY ACTIVE CHALLANS count towards sales (CANCELLED are excluded)
     const filtered = challans.filter((challan) => {
       const challanDate = new Date(challan.createdAt);
       const isOutward = challan.inventory_mode !== "inward"; // Exclude stock inward (adds)
-      return challanDate >= from && challanDate <= to && isOutward;
+      const isActive = challan.status !== "CANCELLED"; // Exclude cancelled
+      return challanDate >= from && challanDate <= to && isOutward && isActive;
     });
 
-    console.log(`Found ${filtered.length} challans in date range`);
+    console.log(`Found ${filtered.length} active challans in date range`);
 
     // Calculate totals from filtered challans using server-side values
     let runningTotalTaxable = 0;
@@ -575,7 +660,7 @@ const AuditHistory = () => {
     setSalesData(data);
 
     // Log totals for debugging
-    console.log("Calculated totals:", {
+    console.log("Calculated totals (ACTIVE CHALLANS ONLY):", {
       totalTaxable: runningTotalTaxable,
       totalGst: runningTotalGst,
       totalAmount: runningTotalAmount,
@@ -1068,7 +1153,7 @@ const AuditHistory = () => {
           </>
         )}
 
-        {/* Edit Challan Modal - Using React Portal */}
+        {/* Edit Challan Modal - Using React Portal - WITH ITEMS TABLE */}
         {showEditModal && selectedChallan && createPortal(
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center"
@@ -1077,13 +1162,11 @@ const AuditHistory = () => {
               padding: "16px",
             }}
             onClick={(e) => {
-              // Close on overlay click (outside modal)
               if (e.target === e.currentTarget) {
                 handleCloseEditModal();
               }
             }}
             onKeyDown={(e) => {
-              // Close on ESC key
               if (e.key === "Escape") {
                 handleCloseEditModal();
               }
@@ -1095,13 +1178,16 @@ const AuditHistory = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
               style={{
-                width: "min(900px, 100%)",
-                maxHeight: "calc(100vh - 32px)",
+                width: "min(1000px, 100%)",
+                maxHeight: "min(90vh, 900px)",
               }}
             >
               {/* Modal Header - Fixed */}
               <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-slate-900">Edit Challan</h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Edit Challan</h2>
+                  <p className="text-sm text-slate-500 mt-1">Challan #: {selectedChallan.number}</p>
+                </div>
                 <button
                   onClick={handleCloseEditModal}
                   className="text-slate-500 hover:text-slate-700 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 transition-colors"
@@ -1113,104 +1199,241 @@ const AuditHistory = () => {
 
               {/* Modal Body - Scrollable */}
               <div className="flex-1 overflow-y-auto">
-                <div className="p-6 space-y-4">
-                  {/* Client Name */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Client Name</label>
-                    <input
-                      type="text"
-                      value={editFormData.clientName}
-                      onChange={(e) => handleEditFormChange("clientName", e.target.value)}
-                      className="form-input w-full"
-                      placeholder="Client Name"
-                    />
+                <div className="p-6 space-y-6">
+                  {/* SECTION A: Challan Info (Read-only + Editable) */}
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-4">Challan Information</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Challan Number (read-only) */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Challan Number</label>
+                        <div className="px-3 py-2 bg-slate-200 rounded text-slate-800 font-mono">{selectedChallan.number}</div>
+                      </div>
+
+                      {/* Challan Type (read-only) */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Type</label>
+                        <div className="px-3 py-2 bg-slate-200 rounded text-slate-800 font-semibold">
+                          {selectedChallan.challan_tax_type === "GST" ? "GST Challan" : "Non-GST Challan"}
+                        </div>
+                      </div>
+
+                      {/* Client Name (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Client Name</label>
+                        <input
+                          type="text"
+                          value={editFormData.clientName}
+                          onChange={(e) => handleEditFormChange("clientName", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="Client Name"
+                        />
+                      </div>
+
+                      {/* Payment Mode (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Mode</label>
+                        <select
+                          value={editFormData.paymentMode}
+                          onChange={(e) => handleEditFormChange("paymentMode", e.target.value)}
+                          className="form-input w-full"
+                        >
+                          <option value="">Select Payment Mode</option>
+                          <option value="Cash">Cash</option>
+                          <option value="GPay">GPay</option>
+                          <option value="Bank Account">Bank Account</option>
+                          <option value="Credit">Credit</option>
+                        </select>
+                      </div>
+
+                      {/* HSN Code (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">HSN Code</label>
+                        <input
+                          type="text"
+                          value={editFormData.hsnCode}
+                          onChange={(e) => handleEditFormChange("hsnCode", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="481920"
+                        />
+                      </div>
+
+                      {/* Challan Date (read-only from createdAt) */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Challan Date</label>
+                        <div className="px-3 py-2 bg-slate-200 rounded text-slate-800">
+                          {new Date(selectedChallan.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Packaging Total (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Packaging Total (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.packagingTotal}
+                          onChange={(e) => handleEditFormChange("packagingTotal", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      {/* Discount Percent (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Discount (%)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={editFormData.discountPercent}
+                          onChange={(e) => handleEditFormChange("discountPercent", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Remarks (full width) */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks</label>
+                      <textarea
+                        value={editFormData.remarks}
+                        onChange={(e) => handleEditFormChange("remarks", e.target.value)}
+                        className="form-input w-full min-h-[60px] resize-none"
+                        placeholder="Enter remarks"
+                      />
+                    </div>
+
+                    {/* Terms and Conditions (full width) */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Terms and Conditions</label>
+                      <textarea
+                        value={editFormData.termsAndConditions}
+                        onChange={(e) => handleEditFormChange("termsAndConditions", e.target.value)}
+                        className="form-input w-full min-h-[60px] resize-none"
+                        placeholder="Enter terms and conditions"
+                      />
+                    </div>
                   </div>
 
-                  {/* Payment Mode */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Mode</label>
-                    <select
-                      value={editFormData.paymentMode}
-                      onChange={(e) => handleEditFormChange("paymentMode", e.target.value)}
-                      className="form-input w-full"
-                    >
-                      <option value="">Select Payment Mode</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Cheque">Cheque</option>
-                      <option value="Online">Online</option>
-                      <option value="Credit">Credit</option>
-                    </select>
-                  </div>
+                  {/* SECTION B: Challan Items Table */}
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-slate-900">Items in Challan</h3>
+                      <button
+                        onClick={handleAddItem}
+                        className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition-colors"
+                      >
+                        + Add Item
+                      </button>
+                    </div>
 
-                  {/* Remarks */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks</label>
-                    <textarea
-                      value={editFormData.remarks}
-                      onChange={(e) => handleEditFormChange("remarks", e.target.value)}
-                      className="form-input w-full min-h-[80px]"
-                      placeholder="Enter remarks"
-                    />
-                  </div>
-
-                  {/* HSN Code */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">HSN Code</label>
-                    <input
-                      type="text"
-                      value={editFormData.hsnCode}
-                      onChange={(e) => handleEditFormChange("hsnCode", e.target.value)}
-                      className="form-input w-full"
-                      placeholder="HSN Code"
-                    />
-                  </div>
-
-                  {/* Packaging Total */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Packaging Total (₹)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editFormData.packagingTotal}
-                      onChange={(e) => handleEditFormChange("packagingTotal", e.target.value)}
-                      className="form-input w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* Discount Percent */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Discount (%)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editFormData.discountPercent}
-                      onChange={(e) => handleEditFormChange("discountPercent", e.target.value)}
-                      className="form-input w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* Terms and Conditions */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Terms and Conditions</label>
-                    <textarea
-                      value={editFormData.termsAndConditions}
-                      onChange={(e) => handleEditFormChange("termsAndConditions", e.target.value)}
-                      className="form-input w-full min-h-[80px]"
-                      placeholder="Enter terms and conditions"
-                    />
-                  </div>
-
-                  {/* Challan Date */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Challan Date</label>
-                    <input
-                      type="date"
-                      value={editFormData.challanDate}
-                      onChange={(e) => handleEditFormChange("challanDate", e.target.value)}
-                      className="form-input w-full"
-                    />
+                    {/* Items Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="bg-slate-200 border-b-2 border-slate-300">
+                            <th className="px-3 py-2 text-left font-semibold text-slate-700">Product Code</th>
+                            <th className="px-3 py-2 text-left font-semibold text-slate-700">Product Name</th>
+                            <th className="px-3 py-2 text-left font-semibold text-slate-700">Color</th>
+                            <th className="px-3 py-2 text-center font-semibold text-slate-700">Qty</th>
+                            <th className="px-3 py-2 text-right font-semibold text-slate-700">Rate (₹)</th>
+                            <th className="px-3 py-2 text-right font-semibold text-slate-700">Assembly (₹)</th>
+                            <th className="px-3 py-2 text-right font-semibold text-slate-700">Line Total (₹)</th>
+                            <th className="px-3 py-2 text-center font-semibold text-slate-700">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {editFormData.items && editFormData.items.length > 0 ? (
+                            editFormData.items.map((item, idx) => {
+                              const lineTotal = 
+                                (Number(item.rate) || 0 + Number(item.assemblyCharge) || 0) * (Number(item.quantity) || 0);
+                              return (
+                                <tr key={item._id} className={`border-b border-slate-300 ${idx % 2 === 0 ? "bg-white" : "bg-slate-100"}`}>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="text"
+                                      value={item.code}
+                                      onChange={(e) => handleUpdateItem(item._id, "code", e.target.value)}
+                                      className="form-input w-full py-1 text-xs"
+                                      placeholder="Code"
+                                      disabled
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="text"
+                                      value={item.name}
+                                      onChange={(e) => handleUpdateItem(item._id, "name", e.target.value)}
+                                      className="form-input w-full py-1 text-xs"
+                                      placeholder="Name"
+                                      disabled
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="text"
+                                      value={item.color}
+                                      onChange={(e) => handleUpdateItem(item._id, "color", e.target.value)}
+                                      className="form-input w-full py-1 text-xs"
+                                      placeholder="Color"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="number"
+                                      value={item.quantity}
+                                      onChange={(e) => handleUpdateItem(item._id, "quantity", e.target.value)}
+                                      className="form-input w-full py-1 text-xs text-center"
+                                      placeholder="Qty"
+                                      min="0"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.rate}
+                                      onChange={(e) => handleUpdateItem(item._id, "rate", e.target.value)}
+                                      className="form-input w-full py-1 text-xs text-right"
+                                      placeholder="0.00"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.assemblyCharge}
+                                      onChange={(e) => handleUpdateItem(item._id, "assemblyCharge", e.target.value)}
+                                      className="form-input w-full py-1 text-xs text-right"
+                                      placeholder="0.00"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                                    {formatCurrencyUI(lineTotal)}
+                                  </td>
+                                  <td className="px-3 py-2 text-center">
+                                    <button
+                                      onClick={() => handleDeleteItem(item._id)}
+                                      className="px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded hover:bg-red-700 transition-colors"
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan="8" className="px-3 py-4 text-center text-slate-500">No items</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
