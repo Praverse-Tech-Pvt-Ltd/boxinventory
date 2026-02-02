@@ -58,6 +58,23 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
+// Global error handler (must be last middleware)
+app.use((err, req, res, next) => {
+  console.error("🔴 UNHANDLED ERROR:", {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+  });
+  
+  res.status(500).json({ 
+    message: "Internal Server Error", 
+    error: err.message,
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

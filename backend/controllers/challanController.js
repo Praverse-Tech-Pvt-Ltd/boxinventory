@@ -991,6 +991,8 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
 // Admin: Edit challan (whitelisted fields only)
 export const editChallan = async (req, res) => {
   try {
+    console.log("[editChallan] Starting - user:", req.user?.email, "ID:", req.user?._id);
+    
     const { id } = req.params;
     const { 
       clientName, 
@@ -1004,11 +1006,23 @@ export const editChallan = async (req, res) => {
       items // NEW: items array from edit modal
     } = req.body;
 
+    console.log("[editChallan] Received body:", { clientName, paymentMode, remarks, items: items?.length || 0 });
+
+    // Verify user is authenticated
+    if (!req.user || !req.user._id) {
+      console.error("[editChallan] User not authenticated:", req.user);
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
     // Fetch challan with items
+    console.log("[editChallan] Fetching challan:", id);
     const challan = await Challan.findById(id).populate("items.box");
     if (!challan) {
+      console.log("[editChallan] Challan not found:", id);
       return res.status(404).json({ message: "Challan not found" });
     }
+
+    console.log("[editChallan] Challan found:", challan.number);
 
     // Cannot edit cancelled challans
     if (challan.status === "CANCELLED") {
@@ -1057,39 +1071,49 @@ export const editChallan = async (req, res) => {
     // NEW: Handle items array if provided
     let itemsForCalculation = challan.items;
     if (Array.isArray(items) && items.length > 0) {
+      console.log("[editChallan] Processing", items.length, "items");
       // Validate items
-      const newItems = items.map((item) => ({
-        box: {
-          _id: item.box || item.boxId,
-          title: item.title || item.name,
-          code: item.code,
-          category: item.category || "",
-          colours: item.colours || [],
-        },
-        quantity: Number(item.quantity) || 0,
-        rate: Number(item.rate) || 0,
-        assemblyCharge: Number(item.assemblyCharge) || 0,
-        color: item.color || "",
-        user: {
-          _id: req.user._id,
-          name: req.user.name,
-          email: req.user.email,
-        },
-        manualEntry: true,
-      }));
+      const newItems = items.map((item) => {
+        console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, rate: item.rate });
+        return {
+          box: {
+            _id: item.box || item.boxId,
+            title: item.title || item.name,
+            code: item.code,
+            category: item.category || "",
+            colours: item.colours || [],
+          },
+          quantity: Number(item.quantity) || 0,
+          rate: Number(item.rate) || 0,
+          assemblyCharge: Number(item.assemblyCharge) || 0,
+          color: item.color || "",
+          user: {
+            _id: req.user._id,
+            name: req.user.name,
+            email: req.user.email,
+          },
+          manualEntry: true,
+        };
+      });
       updateData.items = newItems;
       itemsForCalculation = newItems;
 
       // If dispatch mode: handle inventory reversal/re-apply
       if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
+        console.log("[editChallan] Dispatch mode detected, reversing old and applying new inventory");
         try {
           // Step 1: Revert old quantities back to boxes
+          console.log("[editChallan] Step 1: Reverting old items");
           for (const oldItem of challan.items) {
             const boxId = oldItem.box?._id;
-            if (!boxId) continue;
+            if (!boxId) {
+              console.log("[editChallan] Skipping old item with no boxId");
+              continue;
+            }
             const qty = Number(oldItem.quantity) || 0;
             const color = String(oldItem.color || "").trim();
             if (qty > 0) {
+              console.log("[editChallan] Reverting boxId: " + boxId + ", qty: " + qty + ", color: " + color);
               if (color) {
                 await Box.updateOne(
                   { _id: boxId },
@@ -1102,14 +1126,17 @@ export const editChallan = async (req, res) => {
           }
 
           // Step 2: Check new quantities are available
+          console.log("[editChallan] Step 2: Checking new item availability");
           for (const newItem of newItems) {
             const boxId = newItem.box?._id;
             const qty = Number(newItem.quantity) || 0;
             const color = String(newItem.color || "").trim();
             if (!boxId || qty <= 0) continue;
 
+            console.log("[editChallan] Checking boxId: " + boxId + ", qty: " + qty);
             const box = await Box.findById(boxId);
             if (!box) {
+              console.log("[editChallan] Box not found: " + boxId);
               return res.status(400).json({ message: `Product ${newItem.box.code} not found` });
             }
 
@@ -1117,7 +1144,10 @@ export const editChallan = async (req, res) => {
               ? (box.quantityByColor?.[color] || 0)
               : box.totalQuantity;
 
+            console.log("[editChallan] Box: " + box.code + ", color: " + color + ", available: " + available + ", required: " + qty);
+
             if (available < qty) {
+              console.log("[editChallan] Insufficient stock, rolling back");
               // Rollback: revert the revert we just did
               for (const revertItem of challan.items) {
                 const rBoxId = revertItem.box?._id;
@@ -1142,11 +1172,13 @@ export const editChallan = async (req, res) => {
           }
 
           // Step 3: Apply new quantities
+          console.log("[editChallan] Step 3: Applying new item quantities");
           for (const newItem of newItems) {
             const boxId = newItem.box?._id;
             const qty = Number(newItem.quantity) || 0;
             const color = String(newItem.color || "").trim();
             if (qty > 0) {
+              console.log("[editChallan] Applying boxId: " + boxId + ", qty: " + qty + ", color: " + color);
               if (color) {
                 await Box.updateOne(
                   { _id: boxId },
