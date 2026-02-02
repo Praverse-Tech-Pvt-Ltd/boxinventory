@@ -1030,6 +1030,20 @@ export const editChallan = async (req, res) => {
       updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
     }
 
+    // Handle challan date if provided
+    if (challanDate !== undefined && challanDate) {
+      try {
+        const parsedDate = new Date(challanDate);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid challan date format" });
+        }
+        updateData.createdAt = parsedDate;
+      } catch (dateError) {
+        console.error("Date parsing error:", dateError);
+        return res.status(400).json({ message: "Invalid challan date" });
+      }
+    }
+
     // NEW: Handle items array if provided
     let itemsForCalculation = challan.items;
     if (Array.isArray(items) && items.length > 0) {
@@ -1195,7 +1209,12 @@ export const editChallan = async (req, res) => {
       challan: updatedChallan,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("[editChallan] Error:", error);
+    res.status(500).json({ 
+      message: "Server error during challan update", 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -1297,6 +1316,11 @@ export const cancelChallan = async (req, res) => {
       challan: cancelledChallan,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("[cancelChallan] Error:", error);
+    res.status(500).json({ 
+      message: "Server error during challan cancellation", 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
