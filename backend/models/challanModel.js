@@ -97,7 +97,8 @@ const challanSchema = new mongoose.Schema(
     cancelReason: { type: String, trim: true, default: null },
     reversalApplied: { type: Boolean, default: false },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    items_subtotal: { type: Number, default: 0 }, // Sum of items before packaging/discount
+    items_subtotal: { type: Number, default: 0 }, // Sum of (rate * qty) before assembly/packaging/discount
+    assembly_total: { type: Number, default: 0 }, // Sum of (assemblyCharge * qty)
   },
   { timestamps: true }
 );

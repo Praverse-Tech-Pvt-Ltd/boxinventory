@@ -438,15 +438,23 @@ export const createChallan = async (req, res) => {
     const round2 = (val) => Math.round(val * 100) / 100;
 
     // Calculate totals server-side (do NOT trust frontend math)
-    const itemsTotal = items.reduce((sum, item) => {
+    // Separate items subtotal and assembly total
+    let itemsSubtotal = 0;
+    let assemblyTotal = 0;
+    
+    items.forEach((item) => {
       const rate = Number(item.rate || 0);
       const assembly = Number(item.assemblyCharge || 0);
       const qty = Number(item.quantity || 0);
-      return sum + (rate + assembly) * qty;
-    }, 0);
+      itemsSubtotal += rate * qty;
+      assemblyTotal += assembly * qty;
+    });
+    
+    itemsSubtotal = round2(itemsSubtotal);
+    assemblyTotal = round2(assemblyTotal);
 
     const packagingCharges = Number(packaging_charges_overall) || 0;
-    const preDiscountSubtotal = round2(itemsTotal + packagingCharges);
+    const preDiscountSubtotal = round2(itemsSubtotal + assemblyTotal + packagingCharges);
 
     const discountPct = Number(req.body.discount_pct) || 0;
     const discountAmount = round2(preDiscountSubtotal * Math.min(Math.max(discountPct, 0), 100) / 100);
@@ -467,6 +475,8 @@ export const createChallan = async (req, res) => {
       createdBy: req.user._id,
       inventory_mode: invMode,
       hsnCode: hsnCode || "481920",
+      items_subtotal: itemsSubtotal,
+      assembly_total: assemblyTotal,
       packaging_charges_overall: packagingCharges,
       discount_pct: discountPct,
       discount_amount: discountAmount,
@@ -1155,17 +1165,26 @@ export const editChallan = async (req, res) => {
     }
 
     // Recompute totals based on items + updated packaging/discount
-    const itemsSubtotal = itemsForCalculation.reduce((sum, item) => {
-      const lineTotal = ((Number(item.rate) || 0) + (Number(item.assemblyCharge) || 0)) * (Number(item.quantity) || 0);
-      return sum + lineTotal;
-    }, 0);
+    // Calculate items subtotal (rate * qty) and assembly total separately
+    let itemsSubtotal = 0;
+    let assemblyTotal = 0;
+    
+    itemsForCalculation.forEach((item) => {
+      const itemQty = Number(item.quantity) || 0;
+      const itemRate = Number(item.rate) || 0;
+      const itemAssembly = Number(item.assemblyCharge) || 0;
+      
+      itemsSubtotal += itemRate * itemQty;
+      assemblyTotal += itemAssembly * itemQty;
+    });
 
-    updateData.items_subtotal = itemsSubtotal;
+    updateData.items_subtotal = Math.round(itemsSubtotal * 100) / 100;
+    updateData.assembly_total = Math.round(assemblyTotal * 100) / 100;
     
     const packaging = updateData.packaging_charges_overall !== undefined ? updateData.packaging_charges_overall : challan.packaging_charges_overall;
     const discountPct = updateData.discount_pct !== undefined ? updateData.discount_pct : challan.discount_pct;
     
-    const preDiscountSubtotal = itemsSubtotal + packaging;
+    const preDiscountSubtotal = itemsSubtotal + assemblyTotal + packaging;
     const discountAmount = preDiscountSubtotal * (discountPct / 100);
     const taxableAmount = preDiscountSubtotal - discountAmount;
     

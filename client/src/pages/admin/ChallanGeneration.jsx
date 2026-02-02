@@ -127,9 +127,9 @@ const ChallanGeneration = () => {
     try {
       setLoadingChallans(true);
       const data = await listChallans();
-      // Filter to show only dispatch mode challans
+      // Filter to show only dispatch mode challans that are ACTIVE (not CANCELLED)
       const dispatchChallans = Array.isArray(data)
-        ? data.filter((c) => c.inventory_mode === "dispatch")
+        ? data.filter((c) => c.inventory_mode === "dispatch" && c.status !== "CANCELLED")
         : [];
       setRecentChallans(dispatchChallans.slice(0, 10));
     } catch {
