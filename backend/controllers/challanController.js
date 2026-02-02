@@ -1240,21 +1240,28 @@ export const editChallan = async (req, res) => {
 // Admin: Cancel challan (mark as CANCELLED, reverse inventory if dispatch)
 export const cancelChallan = async (req, res) => {
   try {
+    console.log("[cancelChallan] Starting - user:", req.user?.email);
+    
     const { id } = req.params;
     const { reason } = req.body;
+
+    console.log("[cancelChallan] Params - id:", id, ", reason:", reason);
 
     if (!reason || !String(reason).trim()) {
       return res.status(400).json({ message: "Cancellation reason is required" });
     }
 
     // Fetch challan
+    console.log("[cancelChallan] Fetching challan:", id);
     const challan = await Challan.findById(id).populate("items.box");
     if (!challan) {
       return res.status(404).json({ message: "Challan not found" });
     }
+    console.log("[cancelChallan] Challan found:", challan.number);
 
     // Idempotency: if already cancelled, return success
     if (challan.status === "CANCELLED") {
+      console.log("[cancelChallan] Challan already cancelled:", challan.number);
       return res.status(200).json({
         message: "Challan already cancelled",
         challan,
@@ -1263,21 +1270,30 @@ export const cancelChallan = async (req, res) => {
 
     // Reverse inventory if this is a DISPATCH challan
     let reversalApplied = false;
+    console.log("[cancelChallan] Inventory mode:", challan.inventory_mode);
+    
     if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
       try {
+        console.log("[cancelChallan] Starting inventory reversal for", challan.items.length, 'items');
+        
         // Reverse quantities for each item
         for (const item of challan.items) {
           const boxId = item.box?._id;
-          if (!boxId) continue;
+          if (!boxId) {
+            console.log("[cancelChallan] Skipping item with no boxId");
+            continue;
+          }
 
           const quantity = Number(item.quantity) || 0;
           const color = String(item.color || "").trim();
+
+          console.log("[cancelChallan] Reversing - boxId: " + boxId + ", qty: " + quantity + ", color: " + color);
 
           if (quantity > 0) {
             // Increment inventory back
             if (color) {
               // Update color-specific quantity
-              await Box.updateOne(
+              const updateResult = await Box.updateOne(
                 { _id: boxId },
                 { 
                   $inc: { 
@@ -1286,18 +1302,21 @@ export const cancelChallan = async (req, res) => {
                   }
                 }
               );
+              console.log("[cancelChallan] Color update result: " + updateResult.modifiedCount);
             } else {
               // Update total quantity only
-              await Box.updateOne(
+              const updateResult = await Box.updateOne(
                 { _id: boxId },
                 { $inc: { totalQuantity: quantity } }
               );
+              console.log("[cancelChallan] Total quantity update result: " + updateResult.modifiedCount);
             }
           }
         }
+        console.log("[cancelChallan] Inventory reversal completed");
         reversalApplied = true;
       } catch (reversalError) {
-        console.error('Inventory reversal error:', reversalError);
+        console.error('[cancelChallan] Inventory reversal error:', reversalError);
         return res.status(500).json({ 
           message: "Failed to reverse inventory during cancellation",
           error: reversalError.message 
@@ -1314,28 +1333,36 @@ export const cancelChallan = async (req, res) => {
       reversalApplied,
     };
 
+    console.log("[cancelChallan] Updating challan with data:", updateData);
+
     const cancelledChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
       .populate("createdBy", "name email")
       .populate("cancelledBy", "name email");
+    
+    console.log("[cancelChallan] Update successful, challan status: " + cancelledChallan.status);
 
     // Log audit event
     try {
+      console.log("[cancelChallan] Creating audit log");
       await BoxAudit.create({
         challan: challan._id,
         user: req.user._id,
         note: `Challan ${challan.number} cancelled by ${req.user.email}. Reason: ${reason}`,
         action: 'challan_cancelled',
       });
+      console.log("[cancelChallan] Audit log created");
     } catch (auditError) {
-      console.error('Audit log error for challan cancellation:', auditError);
+      console.error('[cancelChallan] Audit log error:', auditError);
     }
 
+    console.log("[cancelChallan] Sending success response");
     res.status(200).json({
       message: "Challan cancelled successfully",
       challan: cancelledChallan,
     });
   } catch (error) {
-    console.error("[cancelChallan] Error:", error);
+    console.error("[cancelChallan] MAIN ERROR:", error.message);
+    console.error("[cancelChallan] Stack:", error.stack);
     res.status(500).json({ 
       message: "Server error during challan cancellation", 
       error: error.message,
