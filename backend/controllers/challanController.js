@@ -1335,11 +1335,16 @@ export const cancelChallan = async (req, res) => {
 
     console.log("[cancelChallan] Updating challan with data:", updateData);
 
-    const cancelledChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
-      .populate("createdBy", "name email")
-      .populate("cancelledBy", "name email");
-    
-    console.log("[cancelChallan] Update successful, challan status: " + cancelledChallan.status);
+    let cancelledChallan;
+    try {
+      cancelledChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
+        .populate("createdBy", "name email")
+        .populate("cancelledBy", "name email");
+      console.log("[cancelChallan] Update successful, challan status: " + cancelledChallan.status);
+    } catch (updateError) {
+      console.error("[cancelChallan] Error during update/populate:", updateError.message);
+      throw updateError;
+    }
 
     // Log audit event
     try {
