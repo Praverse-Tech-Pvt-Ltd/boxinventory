@@ -1016,7 +1016,7 @@ export const editChallan = async (req, res) => {
 
     // Fetch challan with items
     console.log("[editChallan] Fetching challan:", id);
-    const challan = await Challan.findById(id).populate("items.box");
+    const challan = await Challan.findById(id);
     if (!challan) {
       console.log("[editChallan] Challan not found:", id);
       return res.status(404).json({ message: "Challan not found" });
@@ -1285,7 +1285,7 @@ export const cancelChallan = async (req, res) => {
 
     // Fetch challan
     console.log("[cancelChallan] Fetching challan:", id);
-    const challan = await Challan.findById(id).populate("items.box");
+    const challan = await Challan.findById(id);
     if (!challan) {
       return res.status(404).json({ message: "Challan not found" });
     }
