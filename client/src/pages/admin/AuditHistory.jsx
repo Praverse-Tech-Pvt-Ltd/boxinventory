@@ -71,7 +71,7 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
     });
     yPosition += 8;
 
-    addText(`Date Range: ${new Date(fromDate).toLocaleDateString()} to ${new Date(toDate).toLocaleDateString()}`, margin, yPosition, {
+    addText(`Date Range: ${safeFormatDate(fromDate)} to ${safeFormatDate(toDate)}`, margin, yPosition, {
       size: 10,
       color: [100, 100, 100],
     });
@@ -283,6 +283,23 @@ const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
 };
 
 const AuditHistory = () => {
+  // Safe date parsing utility
+  const safeParseDate = (dateValue) => {
+    if (!dateValue) return null;
+    const parsed = new Date(dateValue);
+    if (isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
+  const safeFormatDate = (dateValue) => {
+    const date = safeParseDate(dateValue);
+    return date ? date.toLocaleDateString() : "N/A";
+  };
+
+  const safeToISODate = (dateValue) => {
+    const date = safeParseDate(dateValue);
+    return date ? date.toISOString().split('T')[0] : "";
+  };
   const [activeTab, setActiveTab] = useState("audits"); // "audits" or "sales"
   const [audits, setAudits] = useState([]);
   const [challans, setChallans] = useState([]);
@@ -470,9 +487,14 @@ const AuditHistory = () => {
   };
 
   const handleSelectBoxForItem = (newItem) => {
+    // Ensure item has a unique _id (use crypto.randomUUID or timestamp for new items)
+    const itemWithId = {
+      ...newItem,
+      _id: newItem._id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    };
     setEditFormData((prev) => ({
       ...prev,
-      items: [...prev.items, newItem],
+      items: [...prev.items, itemWithId],
     }));
     toast.success("Item added successfully");
   };
@@ -651,7 +673,7 @@ const AuditHistory = () => {
 
       return {
         _id: challan._id,
-        date: new Date(challan.createdAt).toLocaleDateString(),
+        date: safeFormatDate(challan.createdAt),
         client: getClientDisplay(challan.clientName || challan.clientDetails?.name || "-"),
         challanNo: challan.challanNumber || challan.number || "-",
         taxableAmount: safeToNumber(taxableAmount),
@@ -939,7 +961,7 @@ const AuditHistory = () => {
                         } hover:bg-slate-100 ${challan.status === "CANCELLED" ? "opacity-60" : ""}`}
                       >
                         <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
-                          {challan.createdAt ? new Date(challan.createdAt).toLocaleDateString() : "N/A"}
+                          {safeFormatDate(challan.createdAt)}
                         </td>
                         <td className="px-4 py-3 text-slate-700 font-mono font-semibold text-sm">
                           {challan.challanNumber || challan.number || "N/A"}
@@ -1272,7 +1294,7 @@ const AuditHistory = () => {
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Challan Date</label>
                         <input
                           type="date"
-                          value={editFormData.challanDate || new Date(selectedChallan.createdAt).toISOString().split('T')[0]}
+                          value={editFormData.challanDate || safeToISODate(selectedChallan.createdAt)}
                           onChange={(e) => handleEditFormChange("challanDate", e.target.value)}
                           className="form-input w-full"
                         />
