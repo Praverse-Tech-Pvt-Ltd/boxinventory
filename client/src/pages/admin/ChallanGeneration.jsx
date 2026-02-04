@@ -126,11 +126,14 @@ const ChallanGeneration = () => {
     try {
       setLoadingChallans(true);
       const data = await listChallans();
-      // Filter to show only dispatch mode challans that are ACTIVE (not CANCELLED)
-      const dispatchChallans = Array.isArray(data)
-        ? data.filter((c) => c.inventory_mode === "dispatch" && c.status !== "CANCELLED")
+      // Show all challans that contain inventory data (any inventory_mode with items)
+      // Sort by created date (newest first)
+      const allChallans = Array.isArray(data)
+        ? data
+            .filter((c) => c.items && c.items.length > 0) // Must have items
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Newest first
         : [];
-      setRecentChallans(dispatchChallans.slice(0, 10));
+      setRecentChallans(allChallans.slice(0, 10));
     } catch {
       // silent
     } finally {
@@ -760,20 +763,31 @@ const ChallanGeneration = () => {
           clientName: key,
           challanCount: 0,
           totalItems: 0,
+          totalAmount: 0,
           latestDate: null,
+          modes: new Set(),
         });
       }
       const g = groups.get(key);
       g.challanCount += 1;
       g.totalItems += Array.isArray(c.items) ? c.items.length : 0;
+      g.totalAmount += Number(c.grand_total || 0);
+      if (c.inventory_mode) {
+        g.modes.add(c.inventory_mode);
+      }
       const createdAt = c.createdAt ? new Date(c.createdAt) : null;
       if (createdAt && (!g.latestDate || createdAt > g.latestDate)) {
         g.latestDate = createdAt;
       }
     });
-    return Array.from(groups.values()).sort((a, b) =>
-      a.clientName.localeCompare(b.clientName)
-    );
+    return Array.from(groups.values())
+      .map(g => ({
+        ...g,
+        modes: Array.from(g.modes)
+      }))
+      .sort((a, b) =>
+        a.clientName.localeCompare(b.clientName)
+      );
   }, [recentChallans]);
 
   const buildCurrentClientPayload = () => {
@@ -2028,6 +2042,8 @@ const ChallanGeneration = () => {
                 <th className="px-4 py-3">Client</th>
                 <th className="px-4 py-3">Challans</th>
                 <th className="px-4 py-3">Total Items</th>
+                <th className="px-4 py-3">Total Amount</th>
+                <th className="px-4 py-3">Modes</th>
                 <th className="px-4 py-3">Last Challan</th>
               </tr>
             </thead>
@@ -2035,7 +2051,7 @@ const ChallanGeneration = () => {
               {loadingChallans ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={6}
                     className="px-4 py-4 text-center text-theme-text-secondary text-sm"
                   >
                     Loading...
@@ -2044,7 +2060,7 @@ const ChallanGeneration = () => {
               ) : clientChallanSummary.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={6}
                     className="px-4 py-4 text-center text-theme-text-secondary text-sm"
                   >
                     No challans yet.
@@ -2062,8 +2078,30 @@ const ChallanGeneration = () => {
                     <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-bold">
                       {g.totalItems}
                     </td>
+                    <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-primary font-bold text-green-700">
+                      ₹{g.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-4 py-3 text-xs sm:text-sm">
+                      <div className="flex gap-1 flex-wrap">
+                        {g.modes.map(mode => {
+                          const getModeColor = (m) => {
+                            switch(m) {
+                              case 'dispatch': return 'bg-blue-100 text-blue-700 text-xs';
+                              case 'inward': return 'bg-green-100 text-green-700 text-xs';
+                              case 'record_only': return 'bg-gray-100 text-gray-700 text-xs';
+                              default: return 'bg-orange-100 text-orange-700 text-xs';
+                            }
+                          };
+                          return (
+                            <span key={mode} className={`px-2 py-1 rounded ${getModeColor(mode)} font-medium`}>
+                              {mode.replace('_', ' ').toUpperCase()}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-xs sm:text-sm text-theme-text-secondary">
-                      {g.latestDate ? g.latestDate.toLocaleString() : "-"}
+                      {g.latestDate ? g.latestDate.toLocaleDateString() : "-"}
                     </td>
                   </tr>
                 ))
@@ -2079,8 +2117,11 @@ const ChallanGeneration = () => {
               <tr>
                 <th className="px-4 py-3 text-sm">Number</th>
                 <th className="px-4 py-3 text-sm">Client</th>
+                <th className="px-4 py-3 text-sm">Mode</th>
+                <th className="px-4 py-3 text-sm">Status</th>
                 <th className="px-4 py-3 text-sm">Created</th>
                 <th className="px-4 py-3 text-sm">Items</th>
+                <th className="px-4 py-3 text-sm">Total</th>
                 <th className="px-4 py-3 text-sm">Actions</th>
               </tr>
             </thead>
@@ -2089,7 +2130,7 @@ const ChallanGeneration = () => {
                 <tr>
                   <td
                     className="px-4 py-6 text-center text-theme-text-secondary poppins font-medium"
-                    colSpan={5}
+                    colSpan={8}
                   >
                     Loading...
                   </td>
@@ -2098,35 +2139,69 @@ const ChallanGeneration = () => {
                 <tr>
                   <td
                     className="px-4 py-6 text-center text-theme-text-secondary poppins font-medium"
-                    colSpan={5}
+                    colSpan={8}
                   >
                     No challans yet
                   </td>
                 </tr>
               ) : (
-                recentChallans.map((c) => (
-                  <tr key={c._id} className="border-t border-theme-border hover:bg-theme-surface-2 transition-colors">
-                    <td className="px-4 py-3 text-sm text-theme-text-primary font-mono">{c.number}</td>
-                    <td className="px-4 py-3 text-sm text-theme-text-primary">
-                      {(c.clientDetails?.name || "").trim() || "Unnamed Client"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-theme-text-secondary">
-                      {new Date(c.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-theme-text-secondary">
-                      {c.items?.length || 0}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => downloadPdf(c._id, c.number)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-red-700 transition-all"
-                        title="Download PDF"
-                      >
-                        <FiDownload size={14} /> Download
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                recentChallans.map((c) => {
+                  // Get mode badge color
+                  const getModeColor = (mode) => {
+                    switch(mode) {
+                      case 'dispatch': return 'bg-blue-100 text-blue-800';
+                      case 'inward': return 'bg-green-100 text-green-800';
+                      case 'record_only': return 'bg-gray-100 text-gray-800';
+                      default: return 'bg-orange-100 text-orange-800';
+                    }
+                  };
+
+                  // Get status badge color
+                  const getStatusColor = (status) => {
+                    switch(status?.toUpperCase()) {
+                      case 'ACTIVE': return 'bg-green-100 text-green-800';
+                      case 'CANCELLED': return 'bg-red-100 text-red-800';
+                      default: return 'bg-yellow-100 text-yellow-800';
+                    }
+                  };
+
+                  return (
+                    <tr key={c._id} className="border-t border-theme-border hover:bg-theme-surface-2 transition-colors">
+                      <td className="px-4 py-3 text-sm text-theme-text-primary font-mono font-semibold">{c.number}</td>
+                      <td className="px-4 py-3 text-sm text-theme-text-primary">
+                        {(c.clientDetails?.name || "").trim() || "Unnamed Client"}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getModeColor(c.inventory_mode)}`}>
+                          {c.inventory_mode?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(c.status)}`}>
+                          {c.status || 'ACTIVE'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-theme-text-secondary">
+                        {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-theme-text-secondary font-semibold">
+                        {c.items?.length || 0}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-theme-text-secondary font-semibold">
+                        ₹{Number(c.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          onClick={() => downloadPdf(c._id, c.number)}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-red-700 transition-all"
+                          title="Download PDF"
+                        >
+                          <FiDownload size={14} /> PDF
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
