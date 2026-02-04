@@ -5,6 +5,8 @@ import { toast } from "react-hot-toast";
 import "../../styles/dashboard.css";
 import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients } from "../../services/challanService";
 import { getAllBoxes, addColorToBox, getBoxAvailability } from "../../services/boxService";
+import { getTotalAvailableQty, getTotalDispatchQty } from "../../utils/getTotalQty";
+import { calculateChallanTotals, round2 } from "../../utils/calculateChallanTotals";
 import {
   appendClientBatch as appendClientBatchApi,
   createClientBatch as createClientBatchApi,
@@ -93,9 +95,6 @@ const ChallanGeneration = () => {
   const [remarks, setRemarks] = useState("");
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
-  
-  // Utility function: round to 2 decimals (money calculations)
-  const round2 = (val) => Math.round(val * 100) / 100;
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -668,37 +667,45 @@ const ChallanGeneration = () => {
   }, [manualRows]);
 
   const summary = useMemo(() => {
-    const auditedSubtotal = selectedRows.reduce((sum, row) => sum + row.total, 0);
-    const manualSubtotal = manualRowsComputed.reduce((sum, row) => sum + row.total, 0);
-    const itemsSubtotal = auditedSubtotal + manualSubtotal;
-    const packagingCharges = Number(packagingChargesOverall) || 0;
-    const preDiscountSubtotal = itemsSubtotal + packagingCharges;
-    
-    // Calculate discount
-    const discountAmount = round2(preDiscountSubtotal * (Number(discountPct) || 0) / 100);
-    const taxableSubtotal = round2(preDiscountSubtotal - discountAmount);
-    
+    // Combine all items for calculation
+    const allItems = [
+      ...selectedRows.map(row => ({
+        rate: row.rate,
+        assemblyCharge: row.assembly,
+        quantity: row.qty,
+      })),
+      ...manualRowsComputed.map(row => ({
+        rate: row.rate,
+        assemblyCharge: row.assembly,
+        quantity: row.qty,
+      })),
+    ];
+
+    // Use shared utility to calculate totals
+    const totals = calculateChallanTotals(allItems, {
+      packagingChargesOverall: Number(packagingChargesOverall) || 0,
+      discountPct: Number(discountPct) || 0,
+      taxType: "GST", // Default to GST, can be changed if needed
+    });
+
+    // Calculate total quantity
     const auditedQty = selectedRows.reduce((sum, row) => sum + row.qty, 0);
     const manualQty = manualRowsComputed.reduce((sum, row) => sum + row.qty, 0);
     const totalQty = auditedQty + manualQty;
-    
-    const gstAmount = round2(taxableSubtotal * 0.05);
-    const totalBeforeRound = round2(taxableSubtotal + gstAmount);
-    const roundedTotal = Math.round(totalBeforeRound);
-    const roundOff = roundedTotal - totalBeforeRound;
-    
+
     return {
-      itemsTotal: itemsSubtotal,
-      packagingCharges,
-      preDiscountSubtotal,
-      discountPct: Number(discountPct) || 0,
-      discountAmount,
-      taxableSubtotal,
+      itemsSubtotal: totals.itemsSubtotal,
+      assemblyTotal: totals.assemblyTotal,
+      packagingCharges: totals.packagingCharges,
+      preDiscountSubtotal: totals.preDiscountSubtotal,
+      discountPct: totals.discountPct,
+      discountAmount: totals.discountAmount,
+      taxableSubtotal: totals.taxableSubtotal,
       totalQty,
-      gstAmount,
-      totalBeforeRound,
-      roundOff,
-      grandTotal: roundedTotal,
+      gstAmount: totals.gstAmount,
+      totalBeforeRound: totals.totalBeforeRound,
+      roundOff: totals.roundOff,
+      grandTotal: totals.grandTotal,
     };
   }, [selectedRows, manualRowsComputed, packagingChargesOverall, discountPct]);
 
@@ -1348,12 +1355,29 @@ const ChallanGeneration = () => {
                     <div className="grid gap-4 md:grid-cols-4">
                       <div>
                         <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
-                          Quantity (Auto)
+                          Available Total Qty
                         </label>
                         {(() => {
-                          const totalDispatchQty = Array.isArray(row.colorLines)
-                            ? row.colorLines.reduce((sum, line) => sum + (Number(line.dispatchQty) || 0), 0)
-                            : 0;
+                          const totalAvailableQty = getTotalAvailableQty(row.colorLines);
+                          return (
+                            <input
+                              type="number"
+                              min="0"
+                              value={totalAvailableQty}
+                              disabled
+                              autoComplete="off"
+                              title="Sum of all color-wise available quantities"
+                              className="mt-1 w-full px-3 py-2 border border-theme-input-border rounded-lg bg-theme-surface-2 text-theme-text-muted text-sm cursor-not-allowed"
+                            />
+                          );
+                        })()}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">
+                          Dispatch Qty
+                        </label>
+                        {(() => {
+                          const totalDispatchQty = getTotalDispatchQty(row.colorLines);
                           return (
                             <input
                               type="number"
@@ -1442,7 +1466,11 @@ const ChallanGeneration = () => {
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-theme-border">
                   <span className="text-theme-text-secondary">Items Total</span>
-                  <span className="font-bold text-theme-text-primary">₹{summary.itemsTotal.toFixed(2)}</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.itemsSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-theme-text-secondary">Assembly Charges</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.assemblyTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-theme-text-secondary">Packaging Charges</span>

@@ -7,7 +7,7 @@ import PDFDocument from "pdfkit";
 const COMPANY = {
   name: "VISHAL PAPER PRODUCT",
   address: "172, Khadilkar Raod, Girgaon, Mumbai - 400 004",
-  contact: "• Mob.: 8850893493 / 9004433300 • E-mail: fancycards@yahoo.com",
+  contact: "• Mob.: 8850893493 • E-mail: fancycards@yahoo.com",
   gst: "GST NO.: 27BCZPS4667K1ZD",
 };
 
@@ -321,7 +321,7 @@ const addTable = (doc, items, startY) => {
   };
 };
 
-const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0, discountPct = 0, discountAmount = 0, taxableSubtotal = 0, gstAmount = 0) => {
+const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0, discountPct = 0, discountAmount = 0, taxableSubtotal = 0, gstAmount = 0, assemblyTotal = 0) => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.65;
@@ -358,11 +358,24 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", pac
 
   let currentLineY = baseY + 4;
   
-  // Show items total
-  const itemsTotal = subtotal;
+  // The subtotal from table includes both rate and assembly combined
+  // We need to show them separately
+  // subtotal = itemsTotal + assemblyTotal (from the table)
+  const assemblyChargeAmount = Number(assemblyTotal) || 0;
+  const itemsTotal = subtotal - assemblyChargeAmount;
+  
   doc.font("Helvetica-Bold").fontSize(8.5);
-  doc.text("Items Total", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text("Items Subtotal", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
   doc.text(formatCurrency(itemsTotal), startX + labelWidth, currentLineY, {
+    width: valueWidth - 8,
+    align: "right",
+  });
+  currentLineY += 11;
+  
+  // Show assembly charge separately (always, even if 0)
+  doc.font("Helvetica-Bold").fontSize(8.5);
+  doc.text("Assembly Charges", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+  doc.text(formatCurrency(assemblyChargeAmount), startX + labelWidth, currentLineY, {
     width: valueWidth - 8,
     align: "right",
   });
@@ -573,7 +586,8 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
       challanData.discount_pct || 0,
       challanData.discount_amount || 0,
       challanData.taxable_subtotal || 0,
-      challanData.gst_amount || 0
+      challanData.gst_amount || 0,
+      challanData.assembly_total || 0
     );
 
     // Footer starts right after summary (let PDFKit track position)

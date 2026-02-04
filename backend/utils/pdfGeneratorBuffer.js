@@ -30,7 +30,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       // Header
       doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
       doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
-      doc.fontSize(9).text('Mob.: 8850893493 / 9004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
+      doc.fontSize(9).text('Mob.: 8850893493 | E-mail: fancycards@yahoo.com', { align: 'center' });
       doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
 
       doc.moveDown(0.5);
@@ -92,13 +92,15 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
         items.forEach((item) => {
           const itemName = item.item || item.box?.title || 'Unknown Item';
           const qty = item.quantity || 0;
-          const rate = item.rate || 0;
-          const amount = qty * rate;
+          const rate = Number(item.rate || 0);
+          const assemblyCharge = Number(item.assemblyCharge || 0);
+          const displayRate = rate + assemblyCharge; // Show combined rate with assembly
+          const amount = qty * displayRate;
 
           doc.fontSize(9).font('Helvetica');
           doc.text(itemName, col1, yPosition, { width: 200, height: 40 });
           doc.text(String(qty), col2, yPosition);
-          doc.text(formatCurrency(rate), col3, yPosition);
+          doc.text(formatCurrency(displayRate), col3, yPosition);
           doc.text(formatCurrency(amount), col4, yPosition);
 
           yPosition += 25;
@@ -110,25 +112,64 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
 
       // Totals section
       doc.fontSize(9).font('Helvetica');
+      const itemsSubtotal = challanData.items_subtotal || 0;
+      const assemblyTotal = challanData.assembly_total || 0;
+      const packagingTotal = challanData.packaging_charges_overall || 0;
+      const discountAmount = challanData.discount_amount || 0;
+      const discountPct = challanData.discount_pct || 0;
       const taxableAmount = challanData.taxable_subtotal || challanData.taxableAmount || 0;
       const gstAmount = challanData.gst_amount || challanData.gstAmount || 0;
       const totalAmount = challanData.grand_total || challanData.totalAmount || 0;
 
+      // Debug log what we have
+      console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, taxableAmount, gstAmount, totalAmount });
+      
       // Right-align totals by using a table-like approach
       const labelCol = 350;
       const valueCol = 450;
 
-      doc.text('Taxable Amount:', labelCol, yPosition);
-      doc.text(formatCurrency(taxableAmount), valueCol, yPosition);
+      doc.text('Items Subtotal:', labelCol, yPosition);
+      doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition);
 
       yPosition += 20;
+      
+      // Show assembly charge separately (always, even if 0)
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Assembly Charges:', labelCol, yPosition);
+      doc.text(formatCurrency(assemblyTotal), valueCol, yPosition);
+      yPosition += 20;
+      
+      // Show packaging charges if present
+      if (packagingTotal > 0) {
+        doc.fontSize(9).font('Helvetica');
+        doc.text('Packaging Charges:', labelCol, yPosition);
+        doc.text(formatCurrency(packagingTotal), valueCol, yPosition);
+        yPosition += 20;
+      }
+      
+      // Show discount if present
+      if (discountAmount > 0) {
+        doc.fontSize(9).font('Helvetica');
+        const discountLabel = discountPct > 0 ? `Discount (${discountPct}%):` : 'Discount:';
+        doc.text(discountLabel, labelCol, yPosition);
+        doc.text(`-${formatCurrency(discountAmount)}`, valueCol, yPosition);
+        yPosition += 20;
+      }
+      
+      // Taxable subtotal before GST
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Taxable Subtotal:', labelCol, yPosition);
+      doc.text(formatCurrency(taxableAmount), valueCol, yPosition);
+      yPosition += 20;
+      
       if (includeGST) {
+        doc.fontSize(9).font('Helvetica');
         doc.text('GST (5%):', labelCol, yPosition);
         doc.text(formatCurrency(gstAmount), valueCol, yPosition);
         yPosition += 20;
       }
 
-      doc.font('Helvetica-Bold').fontSize(10);
+      doc.fontSize(10).font('Helvetica-Bold');
       doc.text('Grand Total:', labelCol, yPosition);
       doc.text(formatCurrency(totalAmount), valueCol, yPosition);
 

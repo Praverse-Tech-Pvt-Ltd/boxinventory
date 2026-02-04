@@ -23,17 +23,19 @@ export function getFinancialYear(date) {
   const year = dateObj.getFullYear();
   const month = dateObj.getMonth(); // 0 = January, 3 = April, 11 = December
   
-  // Financial year starts in April (month 3)
-  // If current month is April or later, FY = year-01 to year
-  // If current month is before April, FY = (year-1)-year
+  // Financial year starts in April (month 3, since 0-indexed)
+  // If current month is April (3) or later: FY = year-(year+1)
+  //   e.g., May 2025 (month=4, year=2025) → 2025-2026 → "25-26"
+  // If current month is before April (Jan-Mar): FY = (year-1)-year
+  //   e.g., Jan 2026 (month=0, year=2026) → 2025-2026 → "25-26"
   let fyStart, fyEnd;
   
   if (month >= 3) { // April (3) onwards
+    fyStart = year;
+    fyEnd = year + 1;
+  } else { // January to March (before April)
     fyStart = year - 1;
     fyEnd = year;
-  } else { // January to March
-    fyStart = year - 2;
-    fyEnd = year - 1;
   }
   
   // Get last two digits of each year

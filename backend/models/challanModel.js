@@ -99,6 +99,10 @@ const challanSchema = new mongoose.Schema(
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     items_subtotal: { type: Number, default: 0 }, // Sum of (rate * qty) before assembly/packaging/discount
     assembly_total: { type: Number, default: 0 }, // Sum of (assemblyCharge * qty)
+    // Archive flag for cleanup (non-dispatch challans)
+    archived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );

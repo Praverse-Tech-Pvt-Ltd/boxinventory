@@ -10,6 +10,7 @@ import {
   searchClients,
   editChallan,
   cancelChallan,
+  archiveNonDispatchChallans,
 } from "../controllers/challanController.js";
 
 const router = express.Router();
@@ -22,6 +23,9 @@ router.get("/search/clients", searchClients);
 
 // List unused audits as candidates
 router.get("/candidates", getChallanCandidates);
+
+// Archive non-dispatch (ADD mode) challans — admin cleanup endpoint
+router.post("/archive/non-dispatch", archiveNonDispatchChallans);
 
 // Create challan
 router.post("/", createChallan);

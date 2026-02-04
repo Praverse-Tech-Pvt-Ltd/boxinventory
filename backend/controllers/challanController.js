@@ -12,6 +12,7 @@ import {
   formatChallanSequence 
 } from "../utils/financialYearUtils.js";
 import { normalizeColor, normalizeQuantityMap } from "../utils/colorNormalization.js";
+import { calculateChallanTotals } from "../utils/calculateChallanTotals.js";
 import fsPromises from "fs/promises";
 
 /**
@@ -438,31 +439,12 @@ export const createChallan = async (req, res) => {
     const round2 = (val) => Math.round(val * 100) / 100;
 
     // Calculate totals server-side (do NOT trust frontend math)
-    // Separate items subtotal and assembly total
-    let itemsSubtotal = 0;
-    let assemblyTotal = 0;
-    
-    items.forEach((item) => {
-      const rate = Number(item.rate || 0);
-      const assembly = Number(item.assemblyCharge || 0);
-      const qty = Number(item.quantity || 0);
-      itemsSubtotal += rate * qty;
-      assemblyTotal += assembly * qty;
+    // Use shared utility for consistency across frontend and backend
+    const totals = calculateChallanTotals(items, {
+      packagingChargesOverall: Number(packaging_charges_overall) || 0,
+      discountPct: Number(req.body.discount_pct) || 0,
+      taxType: taxType,
     });
-    
-    itemsSubtotal = round2(itemsSubtotal);
-    assemblyTotal = round2(assemblyTotal);
-
-    const packagingCharges = Number(packaging_charges_overall) || 0;
-    const preDiscountSubtotal = round2(itemsSubtotal + assemblyTotal + packagingCharges);
-
-    const discountPct = Number(req.body.discount_pct) || 0;
-    const discountAmount = round2(preDiscountSubtotal * Math.min(Math.max(discountPct, 0), 100) / 100);
-    const taxableSubtotal = round2(preDiscountSubtotal - discountAmount);
-
-    const gstAmount = round2(taxableSubtotal * 0.05);
-    const totalBeforeRound = round2(taxableSubtotal + gstAmount);
-    const grandTotal = Math.round(totalBeforeRound);
 
     const challanPayload = {
       number: challanNumber,
@@ -475,14 +457,14 @@ export const createChallan = async (req, res) => {
       createdBy: req.user._id,
       inventory_mode: invMode,
       hsnCode: hsnCode || "481920",
-      items_subtotal: itemsSubtotal,
-      assembly_total: assemblyTotal,
-      packaging_charges_overall: packagingCharges,
-      discount_pct: discountPct,
-      discount_amount: discountAmount,
-      taxable_subtotal: taxableSubtotal,
-      gst_amount: gstAmount,
-      grand_total: grandTotal,
+      items_subtotal: totals.itemsSubtotal,
+      assembly_total: totals.assemblyTotal,
+      packaging_charges_overall: totals.packagingCharges,
+      discount_pct: totals.discountPct,
+      discount_amount: totals.discountAmount,
+      taxable_subtotal: totals.taxableSubtotal,
+      gst_amount: totals.gstAmount,
+      grand_total: totals.grandTotal,
     };
 
     if (payment_mode && String(payment_mode).trim()) {
@@ -532,7 +514,12 @@ export const createChallan = async (req, res) => {
 // Returns documents with mapped fields for frontend compatibility
 export const listChallans = async (req, res) => {
   try {
-    const documents = await Challan.find({})
+    // Exclude archived challans by default (non-dispatch cleanup)
+    // To include archived challans, pass ?includeArchived=true
+    const includeArchived = req.query.includeArchived === 'true';
+    const query = includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] };
+    
+    const documents = await Challan.find(query)
       .populate("createdBy", "name email")
       .lean()
       .sort({ createdAt: -1 });
@@ -649,9 +636,12 @@ export const downloadChallanPdf = async (req, res) => {
           packaging_charges_overall: document.packaging_charges_overall || 0,
           discount_pct: document.discount_pct || 0,
           discount_amount: document.discount_amount || 0,
+          items_subtotal: document.items_subtotal || 0,
+          assembly_total: document.assembly_total || 0,
           taxable_subtotal: document.taxable_subtotal || 0,
           gst_amount: document.gst_amount || 0,
           grand_total: document.grand_total || 0,
+          assembly_total: document.assembly_total || 0,
         };
         const includeGST = document.includeGST !== false;
         // Use in-memory PDF generator (returns Buffer directly)
@@ -1404,6 +1394,58 @@ export const cancelChallan = async (req, res) => {
       message: "Server error during challan cancellation", 
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+/**
+ * Admin: Archive non-dispatch challans (cleanup ADD mode challans)
+ * Archives challans with inventory_mode != "dispatch" (inward, record_only, ADD mode)
+ * Does NOT delete them, just adds archived: true flag
+ * Returns count of archived challans
+ */
+export const archiveNonDispatchChallans = async (req, res) => {
+  try {
+    console.log("[archiveNonDispatch] Starting cleanup of non-dispatch challans");
+    
+    // Find all challans that are NOT in dispatch mode
+    const nonDispatchChallans = await Challan.find({
+      inventory_mode: { $ne: "dispatch" }
+    });
+    
+    console.log(`[archiveNonDispatch] Found ${nonDispatchChallans.length} non-dispatch challans to archive`);
+    
+    if (nonDispatchChallans.length === 0) {
+      return res.status(200).json({
+        message: "No non-dispatch challans found to archive",
+        archivedCount: 0,
+      });
+    }
+    
+    // Mark them as archived
+    const result = await Challan.updateMany(
+      { inventory_mode: { $ne: "dispatch" } },
+      { 
+        $set: { 
+          archived: true,
+          archivedAt: new Date(),
+          archivedBy: req.user._id
+        }
+      }
+    );
+    
+    console.log(`[archiveNonDispatch] Archived ${result.modifiedCount} challans`);
+    
+    res.status(200).json({
+      message: `Successfully archived ${result.modifiedCount} non-dispatch challans`,
+      archivedCount: result.modifiedCount,
+      details: `Archived challans with inventory_mode in [inward, record_only, ADD]`
+    });
+  } catch (error) {
+    console.error("[archiveNonDispatch] Error:", error.message);
+    res.status(500).json({ 
+      message: "Server error during archive operation", 
+      error: error.message 
     });
   }
 };

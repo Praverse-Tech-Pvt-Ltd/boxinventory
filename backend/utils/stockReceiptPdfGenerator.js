@@ -7,7 +7,7 @@ import PDFDocument from "pdfkit";
 const COMPANY = {
   name: "VISHAL PAPER PRODUCT",
   address: "172, Khadilkar Raod, Girgaon, Mumbai - 400 004",
-  contact: "• Mob.: 8850893493 / 9004433300 • E-mail: fancycards@yahoo.com",
+  contact: "• Mob.: 8850893493 • E-mail: fancycards@yahoo.com",
   gst: "GST NO.: 27BCZPS4667K1ZD",
 };
 
