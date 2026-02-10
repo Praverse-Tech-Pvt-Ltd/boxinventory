@@ -95,6 +95,7 @@ const ChallanGeneration = () => {
   const [remarks, setRemarks] = useState("");
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
+  const [challanDate, setChallanDate] = useState(() => new Date().toISOString().split('T')[0]); // NEW: Date picker (YYYY-MM-DD format)
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -885,6 +886,7 @@ const ChallanGeneration = () => {
       remarks: remarks.trim() || null,
       packaging_charges_overall: Number(packagingChargesOverall) || 0,
       discount_pct: Number(discountPct) || 0,
+      challanDate: challanDate ? new Date(challanDate).toISOString() : undefined, // NEW: Pass challan date
     };
   };
 
@@ -1585,6 +1587,15 @@ const ChallanGeneration = () => {
                   <option value="GST">GST Challan (5% GST Applied)</option>
                   <option value="NON_GST">Non-GST Challan (No GST)</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-theme-text-secondary">Challan Date</label>
+                <input
+                  type="date"
+                  value={challanDate}
+                  onChange={(e) => setChallanDate(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent bg-theme-surface text-sm shadow-sm"
+                />
               </div>
             </div>
           </div>

@@ -378,7 +378,7 @@ const AuditHistory = () => {
       hsnCode: challan.hsnCode || "",
       packagingTotal: challan.packaging_charges_overall || 0,
       discountPercent: challan.discount_pct || 0,
-      challanDate: challan.createdAt ? new Date(challan.createdAt).toISOString().split("T")[0] : "",
+      challanDate: challan.challanDate ? new Date(challan.challanDate).toISOString().split("T")[0] : (challan.createdAt ? new Date(challan.createdAt).toISOString().split("T")[0] : ""),
       // Items array for editing
       items: challan.items?.map((item) => ({
         _id: item._id || Math.random().toString(),

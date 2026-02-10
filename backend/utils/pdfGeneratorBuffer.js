@@ -27,10 +27,10 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
         return `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
       };
 
-      // Header
+      // Header - UPDATED: Use correct mobile number format
       doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
       doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
-      doc.fontSize(9).text('Mob.: 8850893493 | E-mail: fancycards@yahoo.com', { align: 'center' });
+      doc.fontSize(9).text('Mob.: +918850893493 | E-mail: fancycards@yahoo.com', { align: 'center' });
       doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
 
       doc.moveDown(0.5);
@@ -42,7 +42,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       doc.moveDown(0.3);
 
       const challanNumber = challanData.number || challanData.challanNumber || 'N/A';
-      const challanDate = challanData.date || new Date();
+      const challanDate = challanData.challanDate || challanData.date || new Date();
       const dateStr = new Date(challanDate).toLocaleDateString('en-IN');
 
       doc.fontSize(10).font('Helvetica');
@@ -66,22 +66,24 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
 
       doc.moveDown(0.5);
 
-      // Table header
+      // Table header - UPDATED: Show separate Product Rate and Assembly Rate columns
       const tableTop = doc.y;
-      const col1 = 50;
-      const col2 = 250;
-      const col3 = 350;
-      const col4 = 450;
+      const col1 = 50;    // Item
+      const col2 = 155;   // Qty
+      const col3 = 210;   // Product Rate
+      const col4 = 290;   // Assembly Rate
+      const col5 = 370;   // Amount
 
       doc.fontSize(9).font('Helvetica-Bold');
       doc.text('Item', col1, tableTop);
       doc.text('Qty', col2, tableTop);
-      doc.text('Rate', col3, tableTop);
-      doc.text('Amount', col4, tableTop);
+      doc.text('Prod Rate', col3, tableTop);
+      doc.text('Assy Rate', col4, tableTop);
+      doc.text('Amount', col5, tableTop);
 
       doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).stroke();
 
-      // Table rows
+      // Table rows - UPDATED: Show separate product and assembly rates
       let yPosition = tableTop + 20;
       const items = challanData.items || [];
 
@@ -92,16 +94,19 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
         items.forEach((item) => {
           const itemName = item.item || item.box?.title || 'Unknown Item';
           const qty = item.quantity || 0;
-          const rate = Number(item.rate || 0);
-          const assemblyCharge = Number(item.assemblyCharge || 0);
-          const displayRate = rate + assemblyCharge; // Show combined rate with assembly
-          const amount = qty * displayRate;
+          // Support both bifurcated and combined rate formats
+          const productRate = Number(item.productRate || item.rate || 0);
+          const assemblyRate = Number(item.assemblyRate || item.assemblyCharge || 0);
+          const lineProductAmount = qty * productRate;
+          const lineAssemblyAmount = qty * assemblyRate;
+          const lineTotal = lineProductAmount + lineAssemblyAmount;
 
-          doc.fontSize(9).font('Helvetica');
-          doc.text(itemName, col1, yPosition, { width: 200, height: 40 });
+          doc.fontSize(8).font('Helvetica');
+          doc.text(itemName, col1, yPosition, { width: 100, height: 40 });
           doc.text(String(qty), col2, yPosition);
-          doc.text(formatCurrency(displayRate), col3, yPosition);
-          doc.text(formatCurrency(amount), col4, yPosition);
+          doc.text(formatCurrency(productRate), col3, yPosition);
+          doc.text(formatCurrency(assemblyRate), col4, yPosition);
+          doc.text(formatCurrency(lineTotal), col5, yPosition);
 
           yPosition += 25;
         });
@@ -110,7 +115,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
       yPosition += 10;
 
-      // Totals section
+      // Totals section - UPDATED: Reflect bifurcated rates structure
       doc.fontSize(9).font('Helvetica');
       const itemsSubtotal = challanData.items_subtotal || 0;
       const assemblyTotal = challanData.assembly_total || 0;
@@ -120,22 +125,23 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const taxableAmount = challanData.taxable_subtotal || challanData.taxableAmount || 0;
       const gstAmount = challanData.gst_amount || challanData.gstAmount || 0;
       const totalAmount = challanData.grand_total || challanData.totalAmount || 0;
+      const paymentMode = challanData.payment_mode || "Not Specified";
 
       // Debug log what we have
       console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, taxableAmount, gstAmount, totalAmount });
       
       // Right-align totals by using a table-like approach
-      const labelCol = 350;
-      const valueCol = 450;
+      const labelCol = 370;
+      const valueCol = 480;
 
       doc.text('Items Subtotal:', labelCol, yPosition);
       doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition);
 
       yPosition += 20;
       
-      // Show assembly charge separately (always, even if 0)
+      // Show assembly charge separately (always, even if 0) - RENAMED from "Assembly Charges" for clarity
       doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Assembly Charges:', labelCol, yPosition);
+      doc.text('Assembly Total:', labelCol, yPosition);
       doc.text(formatCurrency(assemblyTotal), valueCol, yPosition);
       yPosition += 20;
       
@@ -173,7 +179,12 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       doc.text('Grand Total:', labelCol, yPosition);
       doc.text(formatCurrency(totalAmount), valueCol, yPosition);
 
-      doc.moveDown(2);
+      yPosition += 30;
+
+      // NEW: Payment Mode section
+      doc.fontSize(9).font('Helvetica');
+      doc.text(`Payment Mode: ${paymentMode}`);
+      yPosition += 15;
 
       // Notes section
       if (challanData.notes) {

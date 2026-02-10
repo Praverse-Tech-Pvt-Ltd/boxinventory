@@ -118,7 +118,8 @@ export const searchBoxes = async (req, res) => {
         title: box.title,
         category: box.category,
         price: box.price,
-        totalQuantity: box.totalQuantity || 0,
+        // NEW: Calculate actual total from color quantities (source of truth)
+        totalQuantity: colors.reduce((sum, colorItem) => sum + (colorItem.available || 0), 0) || box.totalQuantity || 0,
         colors: colors
       };
     });

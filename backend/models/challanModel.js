@@ -20,6 +20,10 @@ const challanItemSchema = new mongoose.Schema(
     },
     cavity: { type: String, default: "" },
     quantity: { type: Number, required: true, min: 1 },
+    // BIFURCATED RATES: Separate product rate from assembly rate (NEW)
+    productRate: { type: Number, default: 0 }, // Base product price per unit (NEW)
+    assemblyRate: { type: Number, default: 0 }, // Assembly/packaging charge per unit (NEW)
+    // DEPRECATED: Keep for backward compatibility but prefer productRate + assemblyRate
     rate: { type: Number, default: 0 },
     assemblyCharge: { type: Number, default: 0 },
     packagingCharge: { type: Number, default: 0 },
@@ -42,6 +46,7 @@ const challanSchema = new mongoose.Schema(
     number: { type: String, required: true, unique: true }, // Format: VPP/26-27/0001 or VPP-NG/26-27/0002
     challan_seq: { type: Number, required: true, index: true }, // Sequence within year range (1-9999)
     challan_fy: { type: String, required: true, index: true }, // Year range (e.g., "26-27")
+    challanDate: { type: Date, default: () => new Date() }, // Editable challan date (NEW)
     challan_tax_type: {
       type: String,
       enum: ["GST", "NON_GST"],

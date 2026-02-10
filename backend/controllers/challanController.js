@@ -80,7 +80,7 @@ async function generateStockReceiptNumberHelper(receiptDate) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall, challanDate } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -126,9 +126,23 @@ export const createChallan = async (req, res) => {
     }
 
     // Generate challan number
+    // Use provided challanDate or default to today
+    let challanDateObj = new Date();
+    if (challanDate) {
+      try {
+        challanDateObj = new Date(challanDate);
+        if (isNaN(challanDateObj.getTime())) {
+          return res.status(400).json({ message: "Invalid challan date format" });
+        }
+      } catch (dateError) {
+        console.error("[createChallan] Date parsing error:", dateError);
+        return res.status(400).json({ message: "Invalid challan date" });
+      }
+    }
+    
     const challanDetails = taxType === "GST"
-      ? await getGSTChallanDetails(new Date())
-      : await getNonGSTChallanDetails(new Date());
+      ? await getGSTChallanDetails(challanDateObj)
+      : await getNonGSTChallanDetails(challanDateObj);
     
     const { number: challanNumber, fy: challanFY, seq: challanSeq } = challanDetails;
     
@@ -193,35 +207,46 @@ export const createChallan = async (req, res) => {
     }
     
     // Build audited items
-    const auditedItems = audits.map((a) => ({
-      audit: a._id,
-      box: {
-        _id: a.box._id,
-        title: a.box.title,
-        code: a.box.code,
-        category: a.box.category,
-        colours: Array.isArray(a.box.colours) ? a.box.colours : [],
-      },
-      cavity: lineItemMap.get(String(a._id))?.cavity || "",
-      quantity: (() => {
-        const val = Number(lineItemMap.get(String(a._id))?.quantity ?? a.quantity);
-        return Number.isFinite(val) && val > 0 ? val : a.quantity;
-      })(),
-      rate: Number(lineItemMap.get(String(a._id))?.rate || 0),
-      assemblyCharge: Number(lineItemMap.get(String(a._id))?.assemblyCharge || 0),
-      packagingCharge: Number(lineItemMap.get(String(a._id))?.packagingCharge || 0),
-      color: lineItemMap.get(String(a._id))?.color || a.color || "",
-      colours: (() => {
-        const lineColours = lineItemMap.get(String(a._id))?.colours;
-        if (Array.isArray(lineColours) && lineColours.length > 0) return lineColours;
-        const auditColor = lineItemMap.get(String(a._id))?.color || a.color;
-        if (auditColor) return [auditColor];
-        if (Array.isArray(a.box.colours)) return a.box.colours;
-        return [];
-      })(),
-      user: { _id: a.user._id, name: a.user.name, email: a.user.email },
-      auditedAt: a.createdAt,
-    }));
+    const auditedItems = audits.map((a) => {
+      const lineItemOverride = lineItemMap.get(String(a._id));
+      // Support both bifurcated (productRate/assemblyRate) and combined (rate/assemblyCharge) formats
+      const productRate = Number(lineItemOverride?.productRate || lineItemOverride?.rate || 0);
+      const assemblyRate = Number(lineItemOverride?.assemblyRate || lineItemOverride?.assemblyCharge || 0);
+      
+      return {
+        audit: a._id,
+        box: {
+          _id: a.box._id,
+          title: a.box.title,
+          code: a.box.code,
+          category: a.box.category,
+          colours: Array.isArray(a.box.colours) ? a.box.colours : [],
+        },
+        cavity: lineItemOverride?.cavity || "",
+        quantity: (() => {
+          const val = Number(lineItemOverride?.quantity ?? a.quantity);
+          return Number.isFinite(val) && val > 0 ? val : a.quantity;
+        })(),
+        // NEW: Bifurcated rates (preferred)
+        productRate,
+        assemblyRate,
+        // DEPRECATED: Keep for backward compatibility
+        rate: productRate,
+        assemblyCharge: assemblyRate,
+        packagingCharge: Number(lineItemOverride?.packagingCharge || 0),
+        color: lineItemOverride?.color || a.color || "",
+        colours: (() => {
+          const lineColours = lineItemOverride?.colours;
+          if (Array.isArray(lineColours) && lineColours.length > 0) return lineColours;
+          const auditColor = lineItemOverride?.color || a.color;
+          if (auditColor) return [auditColor];
+          if (Array.isArray(a.box.colours)) return a.box.colours;
+          return [];
+        })(),
+        user: { _id: a.user._id, name: a.user.name, email: a.user.email },
+        auditedAt: a.createdAt,
+      };
+    });
 
     // Build manual items
     const manualBoxIds = [];
@@ -272,6 +297,10 @@ export const createChallan = async (req, res) => {
       const assemblyCharge = Number(manualItem.assemblyCharge || 0);
       const packagingCharge = Number(manualItem.packagingCharge || 0);
       
+      // Support bifurcated rates (NEW)
+      const productRate = Number(manualItem.productRate !== undefined ? manualItem.productRate : rate);
+      const assemblyRate = Number(manualItem.assemblyRate !== undefined ? manualItem.assemblyRate : assemblyCharge);
+      
       // Handle colorLines (color-wise quantities)
       const colorLines = Array.isArray(manualItem.colorLines)
         ? manualItem.colorLines
@@ -319,8 +348,12 @@ export const createChallan = async (req, res) => {
         },
         cavity: manualItem.cavity || matchedBox.boxInnerSize || "",
         quantity: qty,
-        rate,
-        assemblyCharge,
+        // NEW: Bifurcated rates
+        productRate,
+        assemblyRate,
+        // DEPRECATED: Keep for backward compatibility
+        rate: productRate,
+        assemblyCharge: assemblyRate,
         packagingCharge,
         color: manualItem.color || "",
         colours: manualColours,
@@ -450,6 +483,7 @@ export const createChallan = async (req, res) => {
       number: challanNumber,
       challan_seq: challanSeq,
       challan_fy: challanFY,
+      challanDate: challanDateObj, // NEW: Use provided or default challan date
       challan_tax_type: taxType,
       items,
       notes: typeof terms === "string" ? terms : notes || "",
@@ -595,8 +629,12 @@ export const downloadChallanPdf = async (req, res) => {
           : item.box?.colours || [],
       colorLines: item.colorLines || [],
       quantity: item.quantity || 0,
-      rate: item.rate || 0,
-      assemblyCharge: item.assemblyCharge || 0,
+      // NEW: Bifurcated rates (prefer new format, fallback to combined)
+      productRate: item.productRate || item.rate || 0,
+      assemblyRate: item.assemblyRate || item.assemblyCharge || 0,
+      // DEPRECATED: Keep for backward compatibility
+      rate: item.productRate || item.rate || 0,
+      assemblyCharge: item.assemblyRate || item.assemblyCharge || 0,
     }));
 
     const commonData = {
@@ -627,7 +665,8 @@ export const downloadChallanPdf = async (req, res) => {
         // Generate challan PDF for outbound (dispatch/subtract) operations using IN-MEMORY generator
         const challanData = {
           ...commonData,
-          date: document.createdAt || new Date(),
+          challanDate: document.challanDate || document.createdAt || new Date(), // NEW: Use challanDate field
+          date: document.challanDate || document.createdAt || new Date(),
           notes: document.notes,
           hsnCode: document.hsnCode || "",
           taxType: document.challan_tax_type || "GST",
@@ -1044,14 +1083,14 @@ export const editChallan = async (req, res) => {
       updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
     }
 
-    // Handle challan date if provided
+    // Handle challan date if provided (NEW: Use challanDate field)
     if (challanDate !== undefined && challanDate) {
       try {
         const parsedDate = new Date(challanDate);
         if (isNaN(parsedDate.getTime())) {
           return res.status(400).json({ message: "Invalid challan date format" });
         }
-        updateData.createdAt = parsedDate;
+        updateData.challanDate = parsedDate;
       } catch (dateError) {
         console.error("Date parsing error:", dateError);
         return res.status(400).json({ message: "Invalid challan date" });
@@ -1062,9 +1101,11 @@ export const editChallan = async (req, res) => {
     let itemsForCalculation = challan.items;
     if (Array.isArray(items) && items.length > 0) {
       console.log("[editChallan] Processing", items.length, "items");
-      // Validate items
+      // Validate items - support both bifurcated and combined rate formats
       const newItems = items.map((item) => {
-        console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, rate: item.rate });
+        const productRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
+        const assemblyRate = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));
+        console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, productRate, assemblyRate });
         return {
           box: {
             _id: item.box || item.boxId,
@@ -1074,8 +1115,12 @@ export const editChallan = async (req, res) => {
             colours: item.colours || [],
           },
           quantity: Number(item.quantity) || 0,
-          rate: Number(item.rate) || 0,
-          assemblyCharge: Number(item.assemblyCharge) || 0,
+          // NEW: Bifurcated rates
+          productRate,
+          assemblyRate,
+          // DEPRECATED: Keep for backward compatibility
+          rate: productRate,
+          assemblyCharge: assemblyRate,
           color: item.color || "",
           user: {
             _id: req.user._id,
