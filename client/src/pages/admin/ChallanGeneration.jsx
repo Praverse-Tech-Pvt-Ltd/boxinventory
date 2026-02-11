@@ -918,6 +918,10 @@ const ChallanGeneration = () => {
     try {
       const payload = buildCurrentClientPayload();
       console.log("[Frontend] Sending payload with inventory_mode:", payload.inventory_mode, "taxType:", payload.challanTaxType);
+      console.log("[Frontend] Packaging & Discount values:", { 
+        packaging_charges_overall: payload.packaging_charges_overall, 
+        discount_pct: payload.discount_pct 
+      });
       setSubmitting(true);
       const challan = await createChallan(payload);
       toast.success(`Challan ${challan.number} created`);

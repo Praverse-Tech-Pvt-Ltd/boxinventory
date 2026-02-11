@@ -527,6 +527,14 @@ export const createChallan = async (req, res) => {
     }
 
     const challan = await Challan.create(challanPayload);
+    
+    console.log('[createChallan] Saved to DB:', {
+      number: challan.number,
+      packaging_charges_overall: challan.packaging_charges_overall,
+      discount_pct: challan.discount_pct,
+      discount_amount: challan.discount_amount,
+      grand_total: challan.grand_total
+    });
 
     // Mark audits as used
     if (auditIdsArray.length > 0) {
@@ -699,8 +707,13 @@ export const downloadChallanPdf = async (req, res) => {
           taxable_subtotal: document.taxable_subtotal || 0,
           gst_amount: document.gst_amount || 0,
           grand_total: document.grand_total || 0,
-          assembly_total: document.assembly_total || 0,
         };
+        console.log('[Download] Challan data for PDF:', {
+          number: challanData.number,
+          packaging_charges_overall: challanData.packaging_charges_overall,
+          discount_pct: challanData.discount_pct,
+          discount_amount: challanData.discount_amount
+        });
         const includeGST = document.includeGST !== false;
         // Use in-memory PDF generator (returns Buffer directly)
         pdfBuffer = await generateChallanPdfBuffer(challanData, includeGST);
