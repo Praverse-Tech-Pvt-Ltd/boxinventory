@@ -113,9 +113,9 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       }
 
       doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
-      yPosition += 8;
+      yPosition += 15;
 
-      // Totals section - UPDATED: Reflect bifurcated rates structure with reduced spacing
+      // SUMMARY BOX - Professional format like the UI
       const itemsSubtotal = challanData.items_subtotal || 0;
       const assemblyTotal = challanData.assembly_total || 0;
       const packagingTotal = challanData.packaging_charges_overall || 0;
@@ -128,47 +128,79 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
 
       console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, taxableAmount, gstAmount, totalAmount });
       
-      // Right-align totals using table-like positioning
-      const labelCol = 350;
-      const valueCol = 480;
-      const lineHeight = 15;
-
+      // Draw summary box
+      const boxX = 340;
+      const boxY = yPosition;
+      const boxWidth = 205;
+      const boxPadding = 10;
+      
+      // Box border
+      doc.rect(boxX, boxY, boxWidth, 200).stroke();
+      
+      // Box header
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('SUMMARY', boxX + boxPadding, boxY + 10);
+      
+      // Draw line under header
+      doc.moveTo(boxX, boxY + 25).lineTo(boxX + boxWidth, boxY + 25).stroke();
+      
+      let summaryY = boxY + 35;
+      const labelX = boxX + boxPadding;
+      const valueX = boxX + boxWidth - boxPadding - 70;
+      const lineSpacing = 18;
+      
       doc.fontSize(8).font('Helvetica');
-      doc.text('Items Subtotal:', labelCol, yPosition);
-      doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition);
-      yPosition += lineHeight;
       
-      doc.text('Assembly Total:', labelCol, yPosition);
-      doc.text(formatCurrency(assemblyTotal), valueCol, yPosition);
-      yPosition += lineHeight;
+      // Items Total
+      doc.text('Items Total', labelX, summaryY);
+      doc.text(formatCurrency(itemsSubtotal), valueX, summaryY, { width: 65, align: 'right' });
+      summaryY += lineSpacing;
       
-      // Always show packaging charges (even if 0 for transparency)
-      doc.text('Packaging Charges:', labelCol, yPosition);
-      doc.text(formatCurrency(packagingTotal), valueCol, yPosition);
-      yPosition += lineHeight;
+      // Assembly Charges
+      doc.text('Assembly Charges', labelX, summaryY);
+      doc.text(formatCurrency(assemblyTotal), valueX, summaryY, { width: 65, align: 'right' });
+      summaryY += lineSpacing;
       
-      // Always show discount (even if 0 for transparency)
-      const discountLabel = discountPct > 0 ? `Discount (${discountPct}%):` : 'Discount (0%):';
-      doc.text(discountLabel, labelCol, yPosition);
-      doc.text(discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0), valueCol, yPosition);
-      yPosition += lineHeight;
+      // Packaging Charges
+      doc.text('Packaging Charges', labelX, summaryY);
+      doc.text(formatCurrency(packagingTotal), valueX, summaryY, { width: 65, align: 'right' });
+      summaryY += lineSpacing;
       
-      doc.font('Helvetica-Bold');
-      doc.text('Taxable Subtotal:', labelCol, yPosition);
-      doc.text(formatCurrency(taxableAmount), valueCol, yPosition);
-      yPosition += lineHeight;
+      // Discount
+      const discountText = discountPct > 0 ? `Discount (${discountPct}%)` : 'Discount (0%)';
+      doc.text(discountText, labelX, summaryY);
+      doc.fillColor('#FF6B35');
+      doc.text(discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0), valueX, summaryY, { width: 65, align: 'right' });
+      doc.fillColor('#000000');
+      summaryY += lineSpacing + 3;
       
+      // Separator line
+      doc.moveTo(labelX, summaryY).lineTo(boxX + boxWidth - boxPadding, summaryY).stroke();
+      summaryY += 8;
+      
+      // Taxable Subtotal
+      doc.text('Taxable Subtotal', labelX, summaryY);
+      doc.text(formatCurrency(taxableAmount), valueX, summaryY, { width: 65, align: 'right' });
+      summaryY += lineSpacing;
+      
+      // GST (if applicable)
       if (includeGST) {
-        doc.font('Helvetica');
-        doc.text('GST (5%):', labelCol, yPosition);
-        doc.text(formatCurrency(gstAmount), valueCol, yPosition);
-        yPosition += lineHeight;
+        doc.text('GST (5%)', labelX, summaryY);
+        doc.text(formatCurrency(gstAmount), valueX, summaryY, { width: 65, align: 'right' });
+        summaryY += lineSpacing + 3;
       }
-
-      doc.font('Helvetica-Bold').fontSize(9);
-      doc.text('Grand Total:', labelCol, yPosition);
-      doc.text(formatCurrency(totalAmount), valueCol, yPosition);
-      yPosition += 18;
+      
+      // Final separator
+      doc.moveTo(labelX, summaryY).lineTo(boxX + boxWidth - boxPadding, summaryY).stroke();
+      summaryY += 10;
+      
+      // Total Payable (bold and larger)
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Total Payable', labelX, summaryY);
+      doc.text(formatCurrency(totalAmount), valueX, summaryY, { width: 65, align: 'right' });
+      
+      // Move yPosition below the summary box
+      yPosition = boxY + 210;
 
       // KEEP-TOGETHER BLOCK: Payment Mode + Notes + Terms (move entire block if doesn't fit)
       // Calculate required space for this block
@@ -206,7 +238,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       // Footer
       doc.moveDown(1);
       doc.fontSize(7).text('Generated by: Vishal Paper Product | Challan Management System', { align: 'center' });
-      doc.fontSize(6).text('[PDF Generator v1.4 - Packaging/Discount/Remarks Fix]', { align: 'center', color: '#999999' });
+      doc.fontSize(6).text('[PDF Generator v1.5 - Summary Box Added]', { align: 'center', color: '#999999' });
 
       doc.end();
     } catch (error) {
