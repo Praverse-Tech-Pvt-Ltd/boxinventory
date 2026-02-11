@@ -324,7 +324,10 @@ const BoxesInventory = () => {
                     </div>
                     <div>
                       <span className="font-semibold">Total Available:</span>{" "}
-                      {typeof box.totalQuantity === "number" ? box.totalQuantity : 0}
+                      {Array.isArray(box.colours) && box.colours.length > 0 
+                        ? box.colours.reduce((sum, color) => sum + (box.quantityByColor?.[color] || 0), 0)
+                        : 0
+                      }
                     </div>
                     <div>
                       <span className="font-semibold">Bag Size:</span> {box.bagSize}

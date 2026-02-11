@@ -30,7 +30,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       // Header - UPDATED: Use correct mobile number format with two numbers
       doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
       doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
-      doc.fontSize(9).text('Mob.: +918850893493 | 9004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
+      doc.fontSize(9).text('Mob.: +918850893493, +919004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
       doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
 
       doc.moveDown(0.5);
@@ -113,10 +113,9 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       }
 
       doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
-      yPosition += 10;
+      yPosition += 8;
 
-      // Totals section - UPDATED: Reflect bifurcated rates structure
-      doc.fontSize(9).font('Helvetica');
+      // Totals section - UPDATED: Reflect bifurcated rates structure with reduced spacing
       const itemsSubtotal = challanData.items_subtotal || 0;
       const assemblyTotal = challanData.assembly_total || 0;
       const packagingTotal = challanData.packaging_charges_overall || 0;
@@ -127,71 +126,78 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const totalAmount = challanData.grand_total || challanData.totalAmount || 0;
       const paymentMode = challanData.payment_mode || "Not Specified";
 
-      // Debug log what we have
       console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, taxableAmount, gstAmount, totalAmount });
       
-      // Right-align totals by using a table-like approach
-      const labelCol = 370;
+      // Right-align totals using table-like positioning
+      const labelCol = 350;
       const valueCol = 480;
+      const lineHeight = 15;
 
+      doc.fontSize(8).font('Helvetica');
       doc.text('Items Subtotal:', labelCol, yPosition);
       doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition);
-
-      yPosition += 20;
+      yPosition += lineHeight;
       
-      // Show assembly charge separately (always, even if 0) - RENAMED from "Assembly Charges" for clarity
-      doc.fontSize(9).font('Helvetica-Bold');
       doc.text('Assembly Total:', labelCol, yPosition);
       doc.text(formatCurrency(assemblyTotal), valueCol, yPosition);
-      yPosition += 20;
+      yPosition += lineHeight;
       
-      // Show packaging charges if present
       if (packagingTotal > 0) {
-        doc.fontSize(9).font('Helvetica');
         doc.text('Packaging Charges:', labelCol, yPosition);
         doc.text(formatCurrency(packagingTotal), valueCol, yPosition);
-        yPosition += 20;
+        yPosition += lineHeight;
       }
       
-      // Show discount if present
       if (discountAmount > 0) {
-        doc.fontSize(9).font('Helvetica');
         const discountLabel = discountPct > 0 ? `Discount (${discountPct}%):` : 'Discount:';
         doc.text(discountLabel, labelCol, yPosition);
         doc.text(`-${formatCurrency(discountAmount)}`, valueCol, yPosition);
-        yPosition += 20;
+        yPosition += lineHeight;
       }
       
-      // Taxable subtotal before GST
-      doc.fontSize(9).font('Helvetica-Bold');
+      doc.font('Helvetica-Bold');
       doc.text('Taxable Subtotal:', labelCol, yPosition);
       doc.text(formatCurrency(taxableAmount), valueCol, yPosition);
-      yPosition += 20;
+      yPosition += lineHeight;
       
       if (includeGST) {
-        doc.fontSize(9).font('Helvetica');
+        doc.font('Helvetica');
         doc.text('GST (5%):', labelCol, yPosition);
         doc.text(formatCurrency(gstAmount), valueCol, yPosition);
-        yPosition += 20;
+        yPosition += lineHeight;
       }
 
-      doc.fontSize(10).font('Helvetica-Bold');
+      doc.font('Helvetica-Bold').fontSize(9);
       doc.text('Grand Total:', labelCol, yPosition);
       doc.text(formatCurrency(totalAmount), valueCol, yPosition);
+      yPosition += 18;
 
-      yPosition += 30;
+      // KEEP-TOGETHER BLOCK: Payment Mode + Notes + Terms (move entire block if doesn't fit)
+      // Calculate required space for this block
+      const keepTogetherBlockSize = 50; // Approximate height needed
+      const pageHeight = 841.89; // A4 height in points
+      const footerMargin = 50;
+      
+      if (yPosition + keepTogetherBlockSize > pageHeight - footerMargin) {
+        // Block doesn't fit on current page, add new page
+        doc.addPage();
+        yPosition = 50;
+      }
 
-      // NEW: Payment Mode section
-      doc.fontSize(9).font('Helvetica');
-      doc.text(`Payment Mode: ${paymentMode}`);
-      yPosition += 15;
+      // Payment Mode section
+      doc.fontSize(8).font('Helvetica');
+      doc.text(`Payment Mode: ${paymentMode}`, 50, yPosition);
+      yPosition += 12;
 
       // Notes section
       if (challanData.notes) {
-        doc.fontSize(8).font('Helvetica').text('Notes:', 50, doc.y);
-        doc.fontSize(8).text(challanData.notes, 50, doc.y + 10, { width: 495 });
+        doc.fontSize(8).font('Helvetica-Bold').text('Notes:', 50, yPosition);
+        yPosition += 10;
+        doc.fontSize(8).font('Helvetica').text(challanData.notes, 50, yPosition, { width: 495 });
+        yPosition += 15;
       }
 
+      // Footer
       doc.moveDown(1);
       doc.fontSize(7).text('Generated by: Vishal Paper Product | Challan Management System', { align: 'center' });
 

@@ -552,10 +552,14 @@ export const listChallans = async (req, res) => {
     // Exclude archived challans by default (non-dispatch cleanup)
     // To include archived challans, pass ?includeArchived=true
     // Also exclude "inward" mode challans (stock additions are not shown in challan list)
+    // Also exclude cancelled challans by default
     const includeArchived = req.query.includeArchived === 'true';
+    const includeCancelled = req.query.includeCancelled === 'true';
+    
     const query = {
       inventory_mode: { $ne: 'inward' }, // Exclude stock inward/addition challans
-      ...(includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] })
+      ...(includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] }),
+      ...(includeCancelled ? {} : { $or: [{ status: { $ne: 'CANCELLED' } }, { status: { $exists: false } }] })
     };
     
     const documents = await Challan.find(query)
@@ -1538,5 +1542,129 @@ export const archiveNonDispatchChallans = async (req, res) => {
       message: "Server error during archive operation", 
       error: error.message 
     });
+  }
+};
+
+/**
+ * Get recent challans (dispatch-only, non-cancelled)
+ * Used for "Recent Challans" dashboard widget
+ * Returns last 10 dispatch challans
+ */
+export const getRecentChallans = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || 10, 10);
+    
+    const challans = await Challan.find({
+      inventory_mode: 'dispatch',
+      $or: [{ status: { $ne: 'CANCELLED' } }, { status: { $exists: false } }],
+      archived: { $in: [false, null] },
+    })
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    const mapped = challans.map((c) => ({
+      _id: c._id,
+      number: c.number,
+      challanDate: c.challanDate || c.createdAt,
+      clientName: c.clientDetails?.name || 'Unnamed',
+      totalAmount: c.grand_total || 0,
+      itemCount: (c.items || []).length,
+      status: c.status || 'ACTIVE',
+    }));
+
+    res.status(200).json(mapped);
+  } catch (error) {
+    console.error('[getRecentChallans] Error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Get client-wise summary
+ * Aggregates dispatch challans by client (dispatch-only, non-cancelled)
+ * Shows total sales and challan count per client
+ */
+export const getClientWiseSummary = async (req, res) => {
+  try {
+    const summary = await Challan.aggregate([
+      {
+        $match: {
+          inventory_mode: 'dispatch',
+          status: { $ne: 'CANCELLED' },
+          archived: { $in: [false, null] },
+        },
+      },
+      {
+        $group: {
+          _id: '$clientDetails.name',
+          totalSales: { $sum: '$grand_total' },
+          challanCount: { $sum: 1 },
+          lastChallanDate: { $max: '$challanDate' },
+          totalItems: { $sum: { $size: { $ifNull: ['$items', []] } } },
+        },
+      },
+      {
+        $sort: { totalSales: -1 },
+      },
+    ]);
+
+    const mapped = summary.map((row) => ({
+      clientName: row._id || 'Unnamed',
+      totalSales: row.totalSales || 0,
+      challanCount: row.challanCount || 0,
+      totalItems: row.totalItems || 0,
+      lastChallanDate: row.lastChallanDate || null,
+    }));
+
+    res.status(200).json(mapped);
+  } catch (error) {
+    console.error('[getClientWiseSummary] Error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Get total sales summary
+ * Aggregates all dispatch challans (non-cancelled)
+ * Shows total revenue, challan count, and average order value
+ */
+export const getTotalSalesSummary = async (req, res) => {
+  try {
+    const summary = await Challan.aggregate([
+      {
+        $match: {
+          inventory_mode: 'dispatch',
+          status: { $ne: 'CANCELLED' },
+          archived: { $in: [false, null] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$grand_total' },
+          totalChallan: { $sum: 1 },
+          totalItems: { $sum: { $size: { $ifNull: ['$items', []] } } },
+          avgOrderValue: { $avg: '$grand_total' },
+        },
+      },
+    ]);
+
+    const data = summary[0] || {
+      totalRevenue: 0,
+      totalChallan: 0,
+      totalItems: 0,
+      avgOrderValue: 0,
+    };
+
+    res.status(200).json({
+      totalRevenue: data.totalRevenue || 0,
+      totalChallanCount: data.totalChallan || 0,
+      totalItemsDispatched: data.totalItems || 0,
+      avgOrderValue: data.avgOrderValue ? Math.round(data.avgOrderValue * 100) / 100 : 0,
+    });
+  } catch (error) {
+    console.error('[getTotalSalesSummary] Error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -11,6 +11,9 @@ import {
   editChallan,
   cancelChallan,
   archiveNonDispatchChallans,
+  getRecentChallans,
+  getClientWiseSummary,
+  getTotalSalesSummary,
 } from "../controllers/challanController.js";
 
 const router = express.Router();
@@ -20,6 +23,11 @@ router.use(protect, adminOnly);
 
 // Search existing clients
 router.get("/search/clients", searchClients);
+
+// Summary endpoints (must be before /:id route)
+router.get("/summary/recent", getRecentChallans);
+router.get("/summary/client-wise", getClientWiseSummary);
+router.get("/summary/totals", getTotalSalesSummary);
 
 // List unused audits as candidates
 router.get("/candidates", getChallanCandidates);
