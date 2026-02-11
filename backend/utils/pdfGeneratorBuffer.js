@@ -27,10 +27,10 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
         return `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
       };
 
-      // Header - UPDATED: Use correct mobile number format
+      // Header - UPDATED: Use correct mobile number format with two numbers
       doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
       doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
-      doc.fontSize(9).text('Mob.: +918850893493 | E-mail: fancycards@yahoo.com', { align: 'center' });
+      doc.fontSize(9).text('Mob.: +918850893493 | 9004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
       doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
 
       doc.moveDown(0.5);

@@ -1,0 +1,145 @@
+import PDFDocument from "pdfkit";
+
+/**
+ * Generate a stock receipt PDF as a Buffer (in-memory) using PDFKit.
+ * This is serverless-friendly and avoids filesystem writes.
+ * 
+ * @param {Object} receiptData - Receipt data with items, client details, etc.
+ * @returns {Promise<Buffer>} PDF buffer
+ */
+export const generateStockReceiptPdfBuffer = async (receiptData) => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!receiptData) {
+        throw new Error("Receipt data is required to generate PDF");
+      }
+
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 40,
+      });
+
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Helper function to format currency
+      const formatCurrency = (amount) => {
+        const num = typeof amount === 'number' ? amount : parseFloat(amount || 0);
+        return `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+      };
+
+      // Header
+      doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
+      doc.fontSize(9).text('Mob.: +918850893493 | 9004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
+      doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
+
+      doc.moveDown(0.5);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      // Title
+      doc.fontSize(14).font('Helvetica-Bold').text('STOCK RECEIPT (INWARD)', { align: 'center' });
+      doc.moveDown(0.3);
+
+      const receiptNumber = receiptData.number || 'N/A';
+      const receiptDate = receiptData.createdAt || new Date();
+      const dateStr = new Date(receiptDate).toLocaleDateString('en-IN');
+
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Receipt No.: ${receiptNumber}`, 40, doc.y);
+      doc.text(`Date: ${dateStr}`, 350, doc.y - 15);
+
+      doc.moveDown(1);
+
+      // Client/Supplier details
+      const clientName = receiptData.clientDetails?.name || receiptData.supplier || 'Unnamed Supplier';
+      const clientAddress = receiptData.clientDetails?.address || '';
+      const clientMobile = receiptData.clientDetails?.mobile || '';
+      const clientGST = receiptData.clientDetails?.gstNumber || '';
+
+      doc.fontSize(10).font('Helvetica-Bold').text('Supplier Details:');
+      doc.fontSize(9).font('Helvetica');
+      doc.text(`Name: ${clientName}`);
+      if (clientAddress) doc.text(`Address: ${clientAddress}`);
+      if (clientMobile) doc.text(`Mobile: ${clientMobile}`);
+      if (clientGST) doc.text(`GST: ${clientGST}`);
+
+      doc.moveDown(0.5);
+
+      // Table header
+      const tableTop = doc.y;
+      const col1 = 40;    // Item
+      const col2 = 180;   // Qty
+      const col3 = 270;   // Rate
+      const col4 = 370;   // Amount
+
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Item', col1, tableTop);
+      doc.text('Qty', col2, tableTop);
+      doc.text('Rate', col3, tableTop);
+      doc.text('Amount', col4, tableTop);
+
+      doc.moveTo(40, tableTop + 15).lineTo(555, tableTop + 15).stroke();
+
+      // Table rows
+      let yPosition = tableTop + 20;
+      const items = receiptData.items || [];
+
+      if (items.length === 0) {
+        doc.fontSize(9).font('Helvetica').text('(No items)', col1, yPosition);
+        yPosition += 20;
+      } else {
+        items.forEach((item) => {
+          const itemName = item.item || item.box?.title || 'Unknown Item';
+          const qty = item.quantity || 0;
+          const rate = Number(item.rate || item.productRate || 0);
+          const amount = qty * rate;
+
+          doc.fontSize(8).font('Helvetica');
+          doc.text(itemName, col1, yPosition, { width: 130, height: 40 });
+          doc.text(String(qty), col2, yPosition);
+          doc.text(formatCurrency(rate), col3, yPosition);
+          doc.text(formatCurrency(amount), col4, yPosition);
+
+          yPosition += 25;
+        });
+      }
+
+      doc.moveTo(40, yPosition).lineTo(555, yPosition).stroke();
+      yPosition += 10;
+
+      // Totals section
+      doc.fontSize(9).font('Helvetica');
+      let totalAmount = 0;
+      items.forEach(item => {
+        const qty = item.quantity || 0;
+        const rate = Number(item.rate || item.productRate || 0);
+        totalAmount += qty * rate;
+      });
+
+      const labelCol = 370;
+      const valueCol = 480;
+
+      doc.text('Subtotal:', labelCol, yPosition);
+      doc.text(formatCurrency(totalAmount), valueCol, yPosition);
+
+      yPosition += 20;
+
+      // Notes
+      if (receiptData.notes) {
+        doc.fontSize(8).font('Helvetica').text('Notes:', 40, doc.y);
+        doc.fontSize(8).text(receiptData.notes, 40, doc.y + 10, { width: 495 });
+      }
+
+      doc.moveDown(1);
+      doc.fontSize(7).text('Generated by: Vishal Paper Product | Stock Receipt Management System', { align: 'center' });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};

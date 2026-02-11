@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiCheckSquare, FiSquare, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import "../../styles/dashboard.css";
-import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients } from "../../services/challanService";
+import { getChallanCandidates, createChallan, downloadChallanPdf, listChallans, searchClients, editChallan, cancelChallan } from "../../services/challanService";
 import { getAllBoxes, addColorToBox, getBoxAvailability } from "../../services/boxService";
 import { getTotalAvailableQty, getTotalDispatchQty } from "../../utils/getTotalQty";
 import { calculateChallanTotals, round2 } from "../../utils/calculateChallanTotals";
@@ -96,6 +96,30 @@ const ChallanGeneration = () => {
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
   const [challanDate, setChallanDate] = useState(() => new Date().toISOString().split('T')[0]); // NEW: Date picker (YYYY-MM-DD format)
+  
+  // Edit Challan Modal state (NEW)
+  const [showEditChallanModal, setShowEditChallanModal] = useState(false);
+  const [editingChallan, setEditingChallan] = useState(null);
+  const [editChallanFormData, setEditChallanFormData] = useState({
+    clientName: "",
+    paymentMode: "",
+    remarks: "",
+    termsAndConditions: "",
+    hsnCode: "",
+    packagingTotal: 0,
+    discountPercent: 0,
+    challanDate: "",
+    items: [],
+  });
+  const [editChallanItems, setEditChallanItems] = useState([]); // Items being edited in modal
+  const [editingItemIndex, setEditingItemIndex] = useState(null); // Which item is being edited (inline)
+  const [savingEditChallan, setSavingEditChallan] = useState(false);
+  
+  // Cancel Challan state (NEW)
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelingChallanId, setCancelingChallanId] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelingLoading, setCancelingLoading] = useState(false);
   
   // Client autosuggest
   const [clientSearchQuery, setClientSearchQuery] = useState("");
@@ -932,6 +956,153 @@ const ChallanGeneration = () => {
       const msg = error?.response?.data?.message || error.message || "Failed to download challan PDF";
       console.error("PDF download error:", error);
       toast.error(msg);
+    }
+  };
+
+  // NEW: Open Edit Challan Modal
+  const openEditChallanModal = (challan) => {
+    if (!challan) return;
+    setEditingChallan(challan);
+    setEditChallanFormData({
+      clientName: challan.clientDetails?.name || "",
+      paymentMode: challan.payment_mode || "",
+      remarks: challan.remarks || "",
+      termsAndConditions: challan.notes || "",
+      hsnCode: challan.hsnCode || "",
+      packagingTotal: Number(challan.packaging_charges_overall || 0),
+      discountPercent: Number(challan.discount_pct || 0),
+      challanDate: new Date(challan.challanDate || new Date()).toISOString().split('T')[0],
+      items: challan.items || [],
+    });
+    setEditChallanItems((challan.items || []).map(item => ({ ...item })));
+    setShowEditChallanModal(true);
+  };
+
+  // NEW: Close Edit Challan Modal
+  const closeEditChallanModal = () => {
+    setShowEditChallanModal(false);
+    setEditingChallan(null);
+    setEditChallanFormData({
+      clientName: "",
+      paymentMode: "",
+      remarks: "",
+      termsAndConditions: "",
+      hsnCode: "",
+      packagingTotal: 0,
+      discountPercent: 0,
+      challanDate: "",
+      items: [],
+    });
+    setEditChallanItems([]);
+    setEditingItemIndex(null);
+  };
+
+  // NEW: Update item in edit modal
+  const updateEditItem = (index, field, value) => {
+    setEditChallanItems(prev => {
+      const updated = [...prev];
+      if (field === "quantity") {
+        updated[index] = { ...updated[index], quantity: Number(value) || 0 };
+      } else if (field === "productRate") {
+        updated[index] = { ...updated[index], productRate: Number(value) || 0, rate: Number(value) || 0 };
+      } else if (field === "assemblyRate") {
+        updated[index] = { ...updated[index], assemblyRate: Number(value) || 0, assemblyCharge: Number(value) || 0 };
+      } else {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return updated;
+    });
+  };
+
+  // NEW: Add item row in edit modal
+  const addEditItemRow = () => {
+    setEditChallanItems(prev => [...prev, {
+      box: { _id: "", title: "", code: "", category: "", colours: [] },
+      quantity: 0,
+      productRate: 0,
+      assemblyRate: 0,
+      rate: 0,
+      assemblyCharge: 0,
+      color: "",
+      manualEntry: true,
+    }]);
+  };
+
+  // NEW: Remove item row in edit modal
+  const removeEditItemRow = (index) => {
+    setEditChallanItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // NEW: Save edited challan
+  const saveEditedChallan = async () => {
+    if (!editingChallan) return;
+    if (!editChallanFormData.clientName?.trim()) {
+      toast.error("Client name is required");
+      return;
+    }
+    if (editChallanItems.length === 0) {
+      toast.error("Challan must have at least one item");
+      return;
+    }
+    
+    try {
+      setSavingEditChallan(true);
+      const updatePayload = {
+        clientName: editChallanFormData.clientName,
+        paymentMode: editChallanFormData.paymentMode,
+        remarks: editChallanFormData.remarks,
+        termsAndConditions: editChallanFormData.termsAndConditions,
+        hsnCode: editChallanFormData.hsnCode,
+        packagingTotal: editChallanFormData.packagingTotal,
+        discountPercent: editChallanFormData.discountPercent,
+        challanDate: editChallanFormData.challanDate,
+        items: editChallanItems,
+      };
+      
+      const result = await editChallan(editingChallan._id, updatePayload);
+      toast.success("Challan updated successfully");
+      closeEditChallanModal();
+      // Refresh the challans list
+      await loadChallans();
+    } catch (error) {
+      const msg = error?.response?.data?.message || error.message || "Failed to update challan";
+      console.error("Edit challan error:", error);
+      toast.error(msg);
+    } finally {
+      setSavingEditChallan(false);
+    }
+  };
+
+  // NEW: Open Cancel Challan Modal
+  const openCancelModal = (challanId) => {
+    setCancelingChallanId(challanId);
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  // NEW: Cancel Challan
+  const handleCancelChallan = async () => {
+    if (!cancelingChallanId) return;
+    if (!cancelReason?.trim()) {
+      toast.error("Cancellation reason is required");
+      return;
+    }
+    
+    try {
+      setCancelingLoading(true);
+      await cancelChallan(cancelingChallanId, cancelReason);
+      toast.success("Challan cancelled successfully");
+      setShowCancelModal(false);
+      setCancelingChallanId(null);
+      setCancelReason("");
+      // Refresh the challans list
+      await loadChallans();
+    } catch (error) {
+      const msg = error?.response?.data?.message || error.message || "Failed to cancel challan";
+      console.error("Cancel challan error:", error);
+      toast.error(msg);
+    } finally {
+      setCancelingLoading(false);
     }
   };
 
@@ -2202,13 +2373,33 @@ const ChallanGeneration = () => {
                         ₹{Number(c.grand_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <button
-                          onClick={() => downloadPdf(c._id, c.number)}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-red-700 transition-all"
-                          title="Download PDF"
-                        >
-                          <FiDownload size={14} /> PDF
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => downloadPdf(c._id, c.number)}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-red-700 transition-all"
+                            title="Download PDF"
+                          >
+                            <FiDownload size={14} /> PDF
+                          </button>
+                          {c.status !== "CANCELLED" && (
+                            <>
+                              <button
+                                onClick={() => openEditChallanModal(c)}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-blue-700 transition-all"
+                                title="Edit Challan"
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                onClick={() => openCancelModal(c._id)}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-600 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:bg-orange-700 transition-all"
+                                title="Cancel Challan"
+                              >
+                                ✕ Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2218,6 +2409,250 @@ const ChallanGeneration = () => {
           </table>
         </div>
       </motion.div>
+
+      {/* EDIT CHALLAN MODAL */}
+      <AnimatePresence>
+        {showEditChallanModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeEditChallanModal}
+          >
+            <motion.div
+              className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-blue-600 text-white px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-bold">Edit Challan: {editingChallan?.number}</h3>
+                <button
+                  onClick={closeEditChallanModal}
+                  className="text-white hover:text-gray-200 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Client Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Client Name</label>
+                  <input
+                    type="text"
+                    value={editChallanFormData.clientName}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, clientName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                  />
+                </div>
+
+                {/* Payment Mode */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Payment Mode</label>
+                  <select
+                    value={editChallanFormData.paymentMode}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, paymentMode: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="Cash">Cash</option>
+                    <option value="GPay">GPay</option>
+                    <option value="Bank Account">Bank Account</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                </div>
+
+                {/* Challan Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Challan Date</label>
+                  <input
+                    type="date"
+                    value={editChallanFormData.challanDate}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, challanDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                  />
+                </div>
+
+                {/* Packaging & Discount */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-theme-text-primary mb-2">Packaging Total (₹)</label>
+                    <input
+                      type="number"
+                      value={editChallanFormData.packagingTotal}
+                      onChange={(e) => setEditChallanFormData(prev => ({ ...prev, packagingTotal: Number(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-theme-text-primary mb-2">Discount (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editChallanFormData.discountPercent}
+                      onChange={(e) => setEditChallanFormData(prev => ({ ...prev, discountPercent: Number(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-semibold text-theme-text-primary">Items</label>
+                    <button
+                      onClick={addEditItemRow}
+                      className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                    >
+                      + Add Item
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {editChallanItems.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 items-start p-2 bg-gray-100 rounded">
+                        <div className="flex-1 space-y-1 text-xs">
+                          <input
+                            type="text"
+                            placeholder="Product"
+                            value={item.box?.title || ""}
+                            onChange={(e) => updateEditItem(idx, "title", e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                          />
+                          <div className="grid grid-cols-3 gap-1">
+                            <input
+                              type="number"
+                              placeholder="Qty"
+                              value={item.quantity}
+                              onChange={(e) => updateEditItem(idx, "quantity", e.target.value)}
+                              className="px-2 py-1 border rounded text-xs"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Prod Rate"
+                              value={item.productRate || item.rate || 0}
+                              onChange={(e) => updateEditItem(idx, "productRate", e.target.value)}
+                              className="px-2 py-1 border rounded text-xs"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Assy Rate"
+                              value={item.assemblyRate || item.assemblyCharge || 0}
+                              onChange={(e) => updateEditItem(idx, "assemblyRate", e.target.value)}
+                              className="px-2 py-1 border rounded text-xs"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeEditItemRow(idx)}
+                          className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 mt-2"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Remarks */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Remarks</label>
+                  <textarea
+                    value={editChallanFormData.remarks}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg text-xs"
+                    rows="2"
+                  />
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 bg-gray-100 px-6 py-4 flex justify-end gap-3 border-t">
+                <button
+                  onClick={closeEditChallanModal}
+                  className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                  disabled={savingEditChallan}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditedChallan}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  disabled={savingEditChallan}
+                >
+                  {savingEditChallan ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CANCEL CHALLAN MODAL */}
+      <AnimatePresence>
+        {showCancelModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowCancelModal(false)}
+          >
+            <motion.div
+              className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-red-600 text-white px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-bold">Cancel Challan</h3>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="text-white hover:text-gray-200 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-theme-text-primary">Are you sure you want to cancel this challan?</p>
+                <p className="text-sm text-theme-text-secondary">This action cannot be undone.</p>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Cancellation Reason *</label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Why are you cancelling this challan?"
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg text-sm"
+                    rows="3"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-gray-100 px-6 py-4 flex justify-end gap-3 border-t">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                  disabled={cancelingLoading}
+                >
+                  Keep Challan
+                </button>
+                <button
+                  onClick={handleCancelChallan}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                  disabled={cancelingLoading || !cancelReason?.trim()}
+                >
+                  {cancelingLoading ? "Cancelling..." : "Cancel Challan"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

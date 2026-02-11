@@ -5,6 +5,7 @@ import ChallanCounter from "../models/challanCounterModel.js";
 import { generateChallanPdf } from "../utils/pdfRenderer.js";
 import { generateChallanPdfBuffer } from "../utils/pdfGeneratorBuffer.js";
 import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
+import { generateStockReceiptPdfBuffer } from "../utils/stockReceiptPdfGeneratorBuffer.js";
 import { 
   getFinancialYear, 
   generateGSTChallanNumber, 
@@ -550,8 +551,12 @@ export const listChallans = async (req, res) => {
   try {
     // Exclude archived challans by default (non-dispatch cleanup)
     // To include archived challans, pass ?includeArchived=true
+    // Also exclude "inward" mode challans (stock additions are not shown in challan list)
     const includeArchived = req.query.includeArchived === 'true';
-    const query = includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] };
+    const query = {
+      inventory_mode: { $ne: 'inward' }, // Exclude stock inward/addition challans
+      ...(includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] })
+    };
     
     const documents = await Challan.find(query)
       .populate("createdBy", "name email")
@@ -652,15 +657,13 @@ export const downloadChallanPdf = async (req, res) => {
       console.log(`[Download] Generating ${isStockReceipt ? "stock receipt" : "challan"} PDF...`);
       
       if (isStockReceipt) {
-        // Generate stock receipt PDF for inbound (add) operations using file-based generator
+        // Generate stock receipt PDF for inbound (add) operations using IN-MEMORY generator (Vercel-friendly)
         const stockReceiptData = {
           ...commonData,
           taxType: document.challan_tax_type || "GST",
+          createdAt: document.challanDate || document.createdAt || new Date(),
         };
-        const pdfPath = await generateStockReceiptPdf(stockReceiptData);
-        // Read the file into a buffer and delete it
-        pdfBuffer = await fsPromises.readFile(pdfPath);
-        await fsPromises.unlink(pdfPath);
+        pdfBuffer = await generateStockReceiptPdfBuffer(stockReceiptData);
       } else {
         // Generate challan PDF for outbound (dispatch/subtract) operations using IN-MEMORY generator
         const challanData = {
@@ -1023,6 +1026,10 @@ export const editChallan = async (req, res) => {
     console.log("[editChallan] Starting - user:", req.user?.email, "ID:", req.user?._id);
     
     const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: "Challan ID is required" });
+    }
+
     const { 
       clientName, 
       paymentMode, 
@@ -1098,158 +1105,174 @@ export const editChallan = async (req, res) => {
     }
 
     // NEW: Handle items array if provided
-    let itemsForCalculation = challan.items;
+    let itemsForCalculation = challan.items || [];
     if (Array.isArray(items) && items.length > 0) {
       console.log("[editChallan] Processing", items.length, "items");
-      // Validate items - support both bifurcated and combined rate formats
-      const newItems = items.map((item) => {
-        const productRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
-        const assemblyRate = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));
-        console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, productRate, assemblyRate });
-        return {
-          box: {
-            _id: item.box || item.boxId,
-            title: item.title || item.name,
-            code: item.code,
-            category: item.category || "",
-            colours: item.colours || [],
-          },
-          quantity: Number(item.quantity) || 0,
-          // NEW: Bifurcated rates
-          productRate,
-          assemblyRate,
-          // DEPRECATED: Keep for backward compatibility
-          rate: productRate,
-          assemblyCharge: assemblyRate,
-          color: item.color || "",
-          user: {
-            _id: req.user._id,
-            name: req.user.name,
-            email: req.user.email,
-          },
-          manualEntry: true,
-        };
-      });
-      updateData.items = newItems;
-      itemsForCalculation = newItems;
+      try {
+        // Validate items - support both bifurcated and combined rate formats
+        const newItems = items.map((item) => {
+          if (!item) return null;
+          const productRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
+          const assemblyRate = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));
+          console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, productRate, assemblyRate });
+          return {
+            box: {
+              _id: item.box || item.boxId,
+              title: item.title || item.name || "",
+              code: item.code || "",
+              category: item.category || "",
+              colours: Array.isArray(item.colours) ? item.colours : [],
+            },
+            quantity: Number(item.quantity) || 0,
+            // NEW: Bifurcated rates
+            productRate,
+            assemblyRate,
+            // DEPRECATED: Keep for backward compatibility
+            rate: productRate,
+            assemblyCharge: assemblyRate,
+            color: String(item.color || "").trim(),
+            user: {
+              _id: req.user._id,
+              name: req.user.name || "",
+              email: req.user.email || "",
+            },
+            manualEntry: true,
+          };
+        }).filter(item => item !== null);
+        
+        if (newItems.length === 0 && items.length > 0) {
+          return res.status(400).json({ message: "Invalid items array: no valid items to process" });
+        }
+        
+        updateData.items = newItems;
+        itemsForCalculation = newItems;
 
-      // If dispatch mode: handle inventory reversal/re-apply
-      if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
-        console.log("[editChallan] Dispatch mode detected, reversing old and applying new inventory");
-        try {
-          // Step 1: Revert old quantities back to boxes
-          console.log("[editChallan] Step 1: Reverting old items");
-          for (const oldItem of challan.items) {
-            const boxId = oldItem.box?._id;
-            if (!boxId) {
-              console.log("[editChallan] Skipping old item with no boxId");
-              continue;
-            }
-            const qty = Number(oldItem.quantity) || 0;
-            const color = String(oldItem.color || "").trim();
-            if (qty > 0) {
-              console.log("[editChallan] Reverting boxId: " + boxId + ", qty: " + qty + ", color: " + color);
-              if (color) {
-                await Box.updateOne(
-                  { _id: boxId },
-                  { $inc: { [`quantityByColor.${color}`]: qty, totalQuantity: qty } }
-                );
-              } else {
-                await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: qty } });
+        // If dispatch mode: handle inventory reversal/re-apply
+        if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
+          console.log("[editChallan] Dispatch mode detected, reversing old and applying new inventory");
+          try {
+            // Step 1: Revert old quantities back to boxes
+            console.log("[editChallan] Step 1: Reverting old items");
+            for (const oldItem of (challan.items || [])) {
+              if (!oldItem) continue;
+              const boxId = oldItem.box?._id;
+              if (!boxId) {
+                console.log("[editChallan] Skipping old item with no boxId");
+                continue;
               }
-            }
-          }
-
-          // Step 2: Check new quantities are available
-          console.log("[editChallan] Step 2: Checking new item availability");
-          for (const newItem of newItems) {
-            const boxId = newItem.box?._id;
-            const qty = Number(newItem.quantity) || 0;
-            const color = String(newItem.color || "").trim();
-            if (!boxId || qty <= 0) continue;
-
-            console.log("[editChallan] Checking boxId: " + boxId + ", qty: " + qty);
-            const box = await Box.findById(boxId);
-            if (!box) {
-              console.log("[editChallan] Box not found: " + boxId);
-              return res.status(400).json({ message: `Product ${newItem.box.code} not found` });
-            }
-
-            const available = color 
-              ? (box.quantityByColor?.[color] || 0)
-              : box.totalQuantity;
-
-            console.log("[editChallan] Box: " + box.code + ", color: " + color + ", available: " + available + ", required: " + qty);
-
-            if (available < qty) {
-              console.log("[editChallan] Insufficient stock, rolling back");
-              // Rollback: revert the revert we just did
-              for (const revertItem of challan.items) {
-                const rBoxId = revertItem.box?._id;
-                if (!rBoxId) continue;
-                const rQty = Number(revertItem.quantity) || 0;
-                const rColor = String(revertItem.color || "").trim();
-                if (rQty > 0) {
-                  if (rColor) {
-                    await Box.updateOne(
-                      { _id: rBoxId },
-                      { $inc: { [`quantityByColor.${rColor}`]: -rQty, totalQuantity: -rQty } }
-                    );
-                  } else {
-                    await Box.updateOne({ _id: rBoxId }, { $inc: { totalQuantity: -rQty } });
-                  }
+              const qty = Number(oldItem.quantity) || 0;
+              const color = String(oldItem.color || "").trim();
+              if (qty > 0) {
+                console.log("[editChallan] Reverting boxId: " + boxId + ", qty: " + qty + ", color: " + color);
+                if (color) {
+                  await Box.updateOne(
+                    { _id: boxId },
+                    { $inc: { [`quantityByColor.${color}`]: qty, totalQuantity: qty } }
+                  );
+                } else {
+                  await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: qty } });
                 }
               }
-              return res.status(400).json({ 
-                message: `Insufficient stock for ${newItem.box.code} ${color || ""}. Available: ${available}, Required: ${qty}` 
-              });
             }
-          }
 
-          // Step 3: Apply new quantities
-          console.log("[editChallan] Step 3: Applying new item quantities");
-          for (const newItem of newItems) {
-            const boxId = newItem.box?._id;
-            const qty = Number(newItem.quantity) || 0;
-            const color = String(newItem.color || "").trim();
-            if (qty > 0) {
-              console.log("[editChallan] Applying boxId: " + boxId + ", qty: " + qty + ", color: " + color);
-              if (color) {
-                await Box.updateOne(
-                  { _id: boxId },
-                  { $inc: { [`quantityByColor.${color}`]: -qty, totalQuantity: -qty } }
-                );
-              } else {
-                await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: -qty } });
+            // Step 2: Check new quantities are available
+            console.log("[editChallan] Step 2: Checking new item availability");
+            for (const newItem of newItems) {
+              if (!newItem) continue;
+              const boxId = newItem.box?._id;
+              const qty = Number(newItem.quantity) || 0;
+              const color = String(newItem.color || "").trim();
+              if (!boxId || qty <= 0) continue;
+
+              console.log("[editChallan] Checking boxId: " + boxId + ", qty: " + qty);
+              const box = await Box.findById(boxId);
+              if (!box) {
+                console.log("[editChallan] Box not found: " + boxId);
+                return res.status(400).json({ message: `Product ${newItem.box?.code || 'unknown'} not found` });
+              }
+
+              const available = color 
+                ? (box.quantityByColor?.[color] || 0)
+                : (box.totalQuantity || 0);
+
+              console.log("[editChallan] Box: " + box.code + ", color: " + color + ", available: " + available + ", required: " + qty);
+
+              if (available < qty) {
+                console.log("[editChallan] Insufficient stock, rolling back");
+                // Rollback: revert the revert we just did
+                for (const revertItem of (challan.items || [])) {
+                  if (!revertItem) continue;
+                  const rBoxId = revertItem.box?._id;
+                  if (!rBoxId) continue;
+                  const rQty = Number(revertItem.quantity) || 0;
+                  const rColor = String(revertItem.color || "").trim();
+                  if (rQty > 0) {
+                    if (rColor) {
+                      await Box.updateOne(
+                        { _id: rBoxId },
+                        { $inc: { [`quantityByColor.${rColor}`]: -rQty, totalQuantity: -rQty } }
+                      );
+                    } else {
+                      await Box.updateOne({ _id: rBoxId }, { $inc: { totalQuantity: -rQty } });
+                    }
+                  }
+                }
+                return res.status(400).json({ 
+                  message: `Insufficient stock for ${newItem.box?.code || 'unknown'} ${color || ""}. Available: ${available}, Required: ${qty}` 
+                });
               }
             }
-          }
-        } catch (error) {
-          console.error("Inventory update error:", error);
-          return res.status(500).json({ message: "Failed to update inventory", error: error.message });
-        }
-      }
-    }
 
-    // Recompute totals based on items + updated packaging/discount
+            // Step 3: Apply new quantities
+            console.log("[editChallan] Step 3: Applying new item quantities");
+            for (const newItem of newItems) {
+              if (!newItem) continue;
+              const boxId = newItem.box?._id;
+              const qty = Number(newItem.quantity) || 0;
+              const color = String(newItem.color || "").trim();
+              if (qty > 0) {
+                console.log("[editChallan] Applying boxId: " + boxId + ", qty: " + qty + ", color: " + color);
+                if (color) {
+                  await Box.updateOne(
+                    { _id: boxId },
+                    { $inc: { [`quantityByColor.${color}`]: -qty, totalQuantity: -qty } }
+                  );
+                } else {
+                  await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: -qty } });
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Inventory update error:", error);
+            return res.status(500).json({ message: "Failed to update inventory", error: error.message });
+          }
+        }
+      } catch (itemError) {
+        console.error("[editChallan] Error processing items:", itemError);
+        return res.status(400).json({ message: "Invalid items array format", error: itemError.message });
+      }    // Recompute totals based on items + updated packaging/discount
     // Calculate items subtotal (rate * qty) and assembly total separately
     let itemsSubtotal = 0;
     let assemblyTotal = 0;
     
-    itemsForCalculation.forEach((item) => {
-      const itemQty = Number(item.quantity) || 0;
-      const itemRate = Number(item.rate) || 0;
-      const itemAssembly = Number(item.assemblyCharge) || 0;
-      
-      itemsSubtotal += itemRate * itemQty;
-      assemblyTotal += itemAssembly * itemQty;
-    });
+    if (Array.isArray(itemsForCalculation)) {
+      itemsForCalculation.forEach((item) => {
+        if (!item) return; // Skip null/undefined items
+        const itemQty = Number(item.quantity) || 0;
+        // Support both bifurcated (productRate + assemblyRate) and combined (rate + assemblyCharge) formats
+        const itemRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
+        const itemAssembly = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));
+        
+        itemsSubtotal += itemRate * itemQty;
+        assemblyTotal += itemAssembly * itemQty;
+      });
+    }
 
     updateData.items_subtotal = Math.round(itemsSubtotal * 100) / 100;
     updateData.assembly_total = Math.round(assemblyTotal * 100) / 100;
     
-    const packaging = updateData.packaging_charges_overall !== undefined ? updateData.packaging_charges_overall : challan.packaging_charges_overall;
-    const discountPct = updateData.discount_pct !== undefined ? updateData.discount_pct : challan.discount_pct;
+    const packaging = updateData.packaging_charges_overall !== undefined ? updateData.packaging_charges_overall : (challan.packaging_charges_overall || 0);
+    const discountPct = updateData.discount_pct !== undefined ? updateData.discount_pct : (challan.discount_pct || 0);
     
     const preDiscountSubtotal = itemsSubtotal + assemblyTotal + packaging;
     const discountAmount = preDiscountSubtotal * (discountPct / 100);
@@ -1310,12 +1333,21 @@ export const cancelChallan = async (req, res) => {
     console.log("[cancelChallan] Starting - user:", req.user?.email);
     
     const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: "Challan ID is required" });
+    }
+
     const { reason } = req.body;
 
     console.log("[cancelChallan] Params - id:", id, ", reason:", reason);
 
     if (!reason || !String(reason).trim()) {
       return res.status(400).json({ message: "Cancellation reason is required" });
+    }
+
+    // Verify user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
     // Fetch challan
@@ -1326,12 +1358,11 @@ export const cancelChallan = async (req, res) => {
     }
     console.log("[cancelChallan] Challan found:", challan.number);
 
-    // Idempotency: if already cancelled, return success
+    // Idempotency: if already cancelled, return 400 as requested
     if (challan.status === "CANCELLED") {
       console.log("[cancelChallan] Challan already cancelled:", challan.number);
-      return res.status(200).json({
-        message: "Challan already cancelled",
-        challan,
+      return res.status(400).json({
+        message: "Already cancelled"
       });
     }
 
@@ -1341,10 +1372,13 @@ export const cancelChallan = async (req, res) => {
     
     if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
       try {
-        console.log("[cancelChallan] Starting inventory reversal for", challan.items.length, 'items');
+        const itemsToReverse = Array.isArray(challan.items) ? challan.items : [];
+        console.log("[cancelChallan] Starting inventory reversal for", itemsToReverse.length, 'items');
         
         // Reverse quantities for each item
-        for (const item of challan.items) {
+        for (const item of itemsToReverse) {
+          if (!item) continue; // Skip null/undefined items
+          
           const boxId = item.box?._id;
           if (!boxId) {
             console.log("[cancelChallan] Skipping item with no boxId");
@@ -1358,25 +1392,30 @@ export const cancelChallan = async (req, res) => {
 
           if (quantity > 0) {
             // Increment inventory back
-            if (color) {
-              // Update color-specific quantity
-              const updateResult = await Box.updateOne(
-                { _id: boxId },
-                { 
-                  $inc: { 
-                    [`quantityByColor.${color}`]: quantity,
-                    totalQuantity: quantity
+            try {
+              if (color) {
+                // Update color-specific quantity
+                const updateResult = await Box.updateOne(
+                  { _id: boxId },
+                  { 
+                    $inc: { 
+                      [`quantityByColor.${color}`]: quantity,
+                      totalQuantity: quantity
+                    }
                   }
-                }
-              );
-              console.log("[cancelChallan] Color update result: " + updateResult.modifiedCount);
-            } else {
-              // Update total quantity only
-              const updateResult = await Box.updateOne(
-                { _id: boxId },
-                { $inc: { totalQuantity: quantity } }
-              );
-              console.log("[cancelChallan] Total quantity update result: " + updateResult.modifiedCount);
+                );
+                console.log("[cancelChallan] Color update result: " + updateResult.modifiedCount);
+              } else {
+                // Update total quantity only
+                const updateResult = await Box.updateOne(
+                  { _id: boxId },
+                  { $inc: { totalQuantity: quantity } }
+                );
+                console.log("[cancelChallan] Total quantity update result: " + updateResult.modifiedCount);
+              }
+            } catch (itemError) {
+              console.error("[cancelChallan] Error updating item:", itemError);
+              throw itemError;
             }
           }
         }
@@ -1407,13 +1446,16 @@ export const cancelChallan = async (req, res) => {
       cancelledChallan = await Challan.findByIdAndUpdate(id, updateData, { new: true })
         .populate("createdBy", "name email")
         .populate("cancelledBy", "name email");
-      console.log("[cancelChallan] Update successful, challan status: " + cancelledChallan.status);
+      console.log("[cancelChallan] Update successful, challan status: " + (cancelledChallan?.status || 'unknown'));
     } catch (updateError) {
       console.error("[cancelChallan] Error during update/populate:", updateError.message);
-      throw updateError;
+      return res.status(500).json({ 
+        message: "Failed to cancel challan", 
+        error: updateError.message 
+      });
     }
 
-    // Log audit event
+    // Log audit event (non-blocking)
     try {
       console.log("[cancelChallan] Creating audit log");
       await BoxAudit.create({
@@ -1424,7 +1466,8 @@ export const cancelChallan = async (req, res) => {
       });
       console.log("[cancelChallan] Audit log created");
     } catch (auditError) {
-      console.error('[cancelChallan] Audit log error:', auditError);
+      console.error('[cancelChallan] Audit log error (non-blocking):', auditError);
+      // Don't return error - audit logging is non-blocking
     }
 
     console.log("[cancelChallan] Sending success response");
