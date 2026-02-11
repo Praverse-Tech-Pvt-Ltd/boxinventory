@@ -79,7 +79,7 @@ async function generateStockReceiptNumberHelper(receiptDate) {
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall, challanDate } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall, discount_pct, challanDate } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -474,7 +474,7 @@ export const createChallan = async (req, res) => {
     // Use shared utility for consistency across frontend and backend
     const totals = calculateChallanTotals(items, {
       packagingChargesOverall: Number(packaging_charges_overall) || 0,
-      discountPct: Number(req.body.discount_pct) || 0,
+      discountPct: Number(discount_pct) || 0,
       taxType: taxType,
     });
 

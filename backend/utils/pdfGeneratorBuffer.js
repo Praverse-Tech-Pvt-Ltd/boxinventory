@@ -113,96 +113,85 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       }
 
       doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
-      yPosition += 15;
+      yPosition += 10;
 
-      // SUMMARY BOX - Professional format like the UI
-      const itemsSubtotal = challanData.items_subtotal || 0;
-      const assemblyTotal = challanData.assembly_total || 0;
-      const packagingTotal = challanData.packaging_charges_overall || 0;
-      const discountAmount = challanData.discount_amount || 0;
-      const discountPct = challanData.discount_pct || 0;
-      const taxableAmount = challanData.taxable_subtotal || challanData.taxableAmount || 0;
-      const gstAmount = challanData.gst_amount || challanData.gstAmount || 0;
-      const totalAmount = challanData.grand_total || challanData.totalAmount || 0;
+      // Totals section - Clean right-aligned format
+      const itemsSubtotal = Number(challanData.items_subtotal) || 0;
+      const assemblyTotal = Number(challanData.assembly_total) || 0;
+      const packagingTotal = Number(challanData.packaging_charges_overall) || 0;
+      const discountAmount = Number(challanData.discount_amount) || 0;
+      const discountPct = Number(challanData.discount_pct) || 0;
+      const taxableAmount = Number(challanData.taxable_subtotal || challanData.taxableAmount) || 0;
+      const gstAmount = Number(challanData.gst_amount || challanData.gstAmount) || 0;
+      const totalAmount = Number(challanData.grand_total || challanData.totalAmount) || 0;
       const paymentMode = challanData.payment_mode || "Not Specified";
 
-      console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, taxableAmount, gstAmount, totalAmount });
+      console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, discountPct, taxableAmount, gstAmount, totalAmount });
       
-      // Draw summary box
-      const boxX = 340;
-      const boxY = yPosition;
-      const boxWidth = 205;
-      const boxPadding = 10;
+      // Right-align totals
+      const labelCol = 380;
+      const valueCol = 490;
+      const lineHeight = 16;
+
+      doc.fontSize(9).font('Helvetica');
       
-      // Box border
-      doc.rect(boxX, boxY, boxWidth, 200).stroke();
+      // Items Subtotal
+      doc.text('Items Subtotal:', labelCol, yPosition);
+      doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += lineHeight;
       
-      // Box header
-      doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('SUMMARY', boxX + boxPadding, boxY + 10);
+      // Assembly Total
+      doc.text('Assembly Total:', labelCol, yPosition);
+      doc.text(formatCurrency(assemblyTotal), valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += lineHeight;
       
-      // Draw line under header
-      doc.moveTo(boxX, boxY + 25).lineTo(boxX + boxWidth, boxY + 25).stroke();
+      // Packaging Charges (always show)
+      doc.text('Packaging Charges:', labelCol, yPosition);
+      doc.text(formatCurrency(packagingTotal), valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += lineHeight;
       
-      let summaryY = boxY + 35;
-      const labelX = boxX + boxPadding;
-      const valueX = boxX + boxWidth - boxPadding - 70;
-      const lineSpacing = 18;
-      
-      doc.fontSize(8).font('Helvetica');
-      
-      // Items Total
-      doc.text('Items Total', labelX, summaryY);
-      doc.text(formatCurrency(itemsSubtotal), valueX, summaryY, { width: 65, align: 'right' });
-      summaryY += lineSpacing;
-      
-      // Assembly Charges
-      doc.text('Assembly Charges', labelX, summaryY);
-      doc.text(formatCurrency(assemblyTotal), valueX, summaryY, { width: 65, align: 'right' });
-      summaryY += lineSpacing;
-      
-      // Packaging Charges
-      doc.text('Packaging Charges', labelX, summaryY);
-      doc.text(formatCurrency(packagingTotal), valueX, summaryY, { width: 65, align: 'right' });
-      summaryY += lineSpacing;
-      
-      // Discount
-      const discountText = discountPct > 0 ? `Discount (${discountPct}%)` : 'Discount (0%)';
-      doc.text(discountText, labelX, summaryY);
-      doc.fillColor('#FF6B35');
-      doc.text(discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0), valueX, summaryY, { width: 65, align: 'right' });
-      doc.fillColor('#000000');
-      summaryY += lineSpacing + 3;
+      // Discount (always show with percentage)
+      const discountLabel = discountPct > 0 ? `Discount (${discountPct}%):` : 'Discount (0%):';
+      doc.text(discountLabel, labelCol, yPosition);
+      const discountDisplay = discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0);
+      doc.text(discountDisplay, valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += lineHeight + 3;
       
       // Separator line
-      doc.moveTo(labelX, summaryY).lineTo(boxX + boxWidth - boxPadding, summaryY).stroke();
-      summaryY += 8;
+      doc.moveTo(labelCol, yPosition).lineTo(545, yPosition).stroke();
+      yPosition += 8;
       
-      // Taxable Subtotal
-      doc.text('Taxable Subtotal', labelX, summaryY);
-      doc.text(formatCurrency(taxableAmount), valueX, summaryY, { width: 65, align: 'right' });
-      summaryY += lineSpacing;
+      // Taxable Subtotal (bold)
+      doc.font('Helvetica-Bold');
+      doc.text('Taxable Subtotal:', labelCol, yPosition);
+      doc.text(formatCurrency(taxableAmount), valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += lineHeight;
       
       // GST (if applicable)
       if (includeGST) {
-        doc.text('GST (5%)', labelX, summaryY);
-        doc.text(formatCurrency(gstAmount), valueX, summaryY, { width: 65, align: 'right' });
-        summaryY += lineSpacing + 3;
+        doc.font('Helvetica');
+        doc.text('GST (5%):', labelCol, yPosition);
+        doc.text(formatCurrency(gstAmount), valueCol, yPosition, { width: 55, align: 'right' });
+        yPosition += lineHeight + 3;
       }
       
       // Final separator
-      doc.moveTo(labelX, summaryY).lineTo(boxX + boxWidth - boxPadding, summaryY).stroke();
-      summaryY += 10;
+      doc.moveTo(labelCol, yPosition).lineTo(545, yPosition).stroke();
+      yPosition += 8;
       
-      // Total Payable (bold and larger)
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Total Payable', labelX, summaryY);
-      doc.text(formatCurrency(totalAmount), valueX, summaryY, { width: 65, align: 'right' });
+      // Grand Total (bold and larger)
+      doc.fontSize(11).font('Helvetica-Bold');
+      doc.text('Grand Total:', labelCol, yPosition);
+      doc.text(formatCurrency(totalAmount), valueCol, yPosition, { width: 55, align: 'right' });
+      yPosition += 20;
       
-      // Move yPosition below the summary box
-      yPosition = boxY + 210;
+      // Payment Mode
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Payment Mode: ', 50, yPosition, { continued: true });
+      doc.font('Helvetica').text(paymentMode);
+      yPosition += 20;
 
-      // KEEP-TOGETHER BLOCK: Payment Mode + Notes + Terms (move entire block if doesn't fit)
+      // KEEP-TOGETHER BLOCK: Remarks + Notes + Terms (move entire block if doesn't fit)
       // Calculate required space for this block
       const keepTogetherBlockSize = 50; // Approximate height needed
       const pageHeight = 841.89; // A4 height in points
@@ -238,7 +227,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       // Footer
       doc.moveDown(1);
       doc.fontSize(7).text('Generated by: Vishal Paper Product | Challan Management System', { align: 'center' });
-      doc.fontSize(6).text('[PDF Generator v1.5 - Summary Box Added]', { align: 'center', color: '#999999' });
+      doc.fontSize(6).text('[PDF Generator v1.6 - Clean Totals + Discount Fix]', { align: 'center', color: '#999999' });
 
       doc.end();
     } catch (error) {
