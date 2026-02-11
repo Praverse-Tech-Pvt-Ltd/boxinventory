@@ -1250,7 +1250,10 @@ export const editChallan = async (req, res) => {
       } catch (itemError) {
         console.error("[editChallan] Error processing items:", itemError);
         return res.status(400).json({ message: "Invalid items array format", error: itemError.message });
-      }    // Recompute totals based on items + updated packaging/discount
+      }
+    }
+
+    // Recompute totals based on items + updated packaging/discount
     // Calculate items subtotal (rate * qty) and assembly total separately
     let itemsSubtotal = 0;
     let assemblyTotal = 0;
