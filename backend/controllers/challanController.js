@@ -2,9 +2,7 @@ import BoxAudit from "../models/boxAuditModel.js";
 import Box from "../models/boxModel.js";
 import Challan from "../models/challanModel.js";
 import ChallanCounter from "../models/challanCounterModel.js";
-import { generateChallanPdf } from "../utils/pdfRenderer.js";
 import { generateChallanPdfBuffer } from "../utils/pdfGeneratorBuffer.js";
-import { generateStockReceiptPdf } from "../utils/stockReceiptPdfGenerator.js";
 import { generateStockReceiptPdfBuffer } from "../utils/stockReceiptPdfGeneratorBuffer.js";
 import { 
   getFinancialYear, 
@@ -707,9 +705,19 @@ export const downloadChallanPdf = async (req, res) => {
     }
 
     console.log(`[Download] Sending PDF buffer (${pdfBuffer.length} bytes)`);
+    
+    // Generate unique filename with timestamp to prevent browser caching
+    const timestamp = Date.now();
+    const safeNumber = document.number.replace(/\//g, "_");
+    const filename = `${safeNumber}_${timestamp}.pdf`;
+    
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${document.number.replace(/\//g, "_")}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", pdfBuffer.length);
+    // Prevent caching to ensure fresh PDF is always generated
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
 
     return res.status(200).send(pdfBuffer);
   } catch (error) {
