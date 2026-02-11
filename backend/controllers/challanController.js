@@ -470,12 +470,26 @@ export const createChallan = async (req, res) => {
     // Helper: round to 2 decimals (monetary values)
     const round2 = (val) => Math.round(val * 100) / 100;
 
+    // Log received packaging and discount values for debugging
+    console.log('[createChallan] Received from frontend:', { 
+      packaging_charges_overall, 
+      discount_pct, 
+      payment_mode 
+    });
+
     // Calculate totals server-side (do NOT trust frontend math)
     // Use shared utility for consistency across frontend and backend
     const totals = calculateChallanTotals(items, {
       packagingChargesOverall: Number(packaging_charges_overall) || 0,
       discountPct: Number(discount_pct) || 0,
       taxType: taxType,
+    });
+
+    console.log('[createChallan] Calculated totals:', {
+      packagingCharges: totals.packagingCharges,
+      discountPct: totals.discountPct,
+      discountAmount: totals.discountAmount,
+      grandTotal: totals.grandTotal
     });
 
     const challanPayload = {
