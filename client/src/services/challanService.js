@@ -17,6 +17,10 @@ export const createChallan = async ({
   challanTaxType,
   payment_mode,
   remarks,
+  packaging_charges_overall,
+  discount_pct,
+  challanDate,
+  inventory_mode,
 }) => {
   const payload = {
     auditIds,
@@ -53,6 +57,20 @@ export const createChallan = async ({
   }
   if (remarks && remarks.trim()) {
     payload.remarks = remarks.trim();
+  }
+  
+  // Include packaging and discount (CRITICAL FIX)
+  if (typeof packaging_charges_overall === 'number') {
+    payload.packaging_charges_overall = packaging_charges_overall;
+  }
+  if (typeof discount_pct === 'number') {
+    payload.discount_pct = discount_pct;
+  }
+  if (challanDate) {
+    payload.challanDate = challanDate;
+  }
+  if (inventory_mode) {
+    payload.inventory_mode = inventory_mode;
   }
 
   const res = await axiosInstance.post('/api/challans', payload);
