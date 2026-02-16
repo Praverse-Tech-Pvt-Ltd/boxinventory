@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middlewares/authMiddleware.js";
 import { adminOnly } from "../middlewares/adminMiddleware.js";
+import { testAuth } from "../controllers/authTestController.js";
 import {
   getChallanCandidates,
   createChallan,
@@ -17,6 +18,9 @@ import {
 } from "../controllers/challanController.js";
 
 const router = express.Router();
+
+// DEBUG: Test endpoint (no auth required) - can be removed after debugging
+router.get("/test/auth-status", protect, testAuth);
 
 // Admin only
 router.use(protect, adminOnly);

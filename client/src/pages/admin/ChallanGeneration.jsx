@@ -1086,7 +1086,10 @@ const ChallanGeneration = () => {
 
   // NEW: Cancel Challan
   const handleCancelChallan = async () => {
-    if (!cancelingChallanId) return;
+    if (!cancelingChallanId) {
+      toast.error("No challan selected for cancellation");
+      return;
+    }
     if (!cancelReason?.trim()) {
       toast.error("Cancellation reason is required");
       return;
@@ -1094,7 +1097,9 @@ const ChallanGeneration = () => {
     
     try {
       setCancelingLoading(true);
-      await cancelChallan(cancelingChallanId, cancelReason);
+      console.log("[Cancel] Sending cancel request for challan:", cancelingChallanId, "Reason:", cancelReason);
+      const result = await cancelChallan(cancelingChallanId, cancelReason);
+      console.log("[Cancel] Success response:", result);
       toast.success("Challan cancelled successfully");
       setShowCancelModal(false);
       setCancelingChallanId(null);
@@ -1102,8 +1107,11 @@ const ChallanGeneration = () => {
       // Refresh the challans list
       await loadChallans();
     } catch (error) {
+      console.error("[Cancel] Full error object:", error);
+      console.error("[Cancel] Error response:", error?.response);
+      console.error("[Cancel] Error message:", error?.message);
       const msg = error?.response?.data?.message || error.message || "Failed to cancel challan";
-      console.error("Cancel challan error:", error);
+      console.error("Cancel challan error:", msg);
       toast.error(msg);
     } finally {
       setCancelingLoading(false);

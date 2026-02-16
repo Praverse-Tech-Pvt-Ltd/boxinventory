@@ -1373,23 +1373,25 @@ export const editChallan = async (req, res) => {
 // Admin: Cancel challan (mark as CANCELLED, reverse inventory if dispatch)
 export const cancelChallan = async (req, res) => {
   try {
-    console.log("[cancelChallan] Starting - user:", req.user?.email);
+    console.log("[cancelChallan] Starting - user:", req.user?.email, "authenticated:", !!req.user);
     
     const { id } = req.params;
     if (!id) {
+      console.log("[cancelChallan] Missing challan ID");
       return res.status(400).json({ message: "Challan ID is required" });
     }
 
     const { reason } = req.body;
-
-    console.log("[cancelChallan] Params - id:", id, ", reason:", reason);
+    console.log("[cancelChallan] Params - id:", id, ", reason:", reason, ", reason type:", typeof reason);
 
     if (!reason || !String(reason).trim()) {
+      console.log("[cancelChallan] Missing or empty reason");
       return res.status(400).json({ message: "Cancellation reason is required" });
     }
 
     // Verify user is authenticated
     if (!req.user || !req.user._id) {
+      console.log("[cancelChallan] User not authenticated");
       return res.status(401).json({ message: "Not authenticated" });
     }
 
@@ -1397,6 +1399,7 @@ export const cancelChallan = async (req, res) => {
     console.log("[cancelChallan] Fetching challan:", id);
     const challan = await Challan.findById(id);
     if (!challan) {
+      console.log("[cancelChallan] Challan not found");
       return res.status(404).json({ message: "Challan not found" });
     }
     console.log("[cancelChallan] Challan found:", challan.number);
@@ -1519,7 +1522,7 @@ export const cancelChallan = async (req, res) => {
       challan: cancelledChallan,
     });
   } catch (error) {
-    console.error("[cancelChallan] MAIN ERROR:", error.message);
+    console.error("[cancelChallan] MAIN ERROR:", error.name, "-", error.message);
     console.error("[cancelChallan] Stack:", error.stack);
     res.status(500).json({ 
       message: "Server error during challan cancellation", 
