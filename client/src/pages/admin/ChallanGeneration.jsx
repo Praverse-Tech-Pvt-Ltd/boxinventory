@@ -713,7 +713,7 @@ const ChallanGeneration = () => {
     const totals = calculateChallanTotals(allItems, {
       packagingChargesOverall: Number(packagingChargesOverall) || 0,
       discountPct: Number(discountPct) || 0,
-      taxType: "GST", // Default to GST, can be changed if needed
+      taxType: challanTaxType || "GST", // Use selected tax type (GST or NON_GST)
     });
 
     // Calculate total quantity
@@ -735,7 +735,7 @@ const ChallanGeneration = () => {
       roundOff: totals.roundOff,
       grandTotal: totals.grandTotal,
     };
-  }, [selectedRows, manualRowsComputed, packagingChargesOverall, discountPct]);
+  }, [challanTaxType, selectedRows, manualRowsComputed, packagingChargesOverall, discountPct]);
 
   const hasAnyRows = selectedRows.length > 0 || manualRowsComputed.length > 0;
   const showClientBatchPanel = hasAnyRows || clientBatches.length > 0;
@@ -1187,9 +1187,11 @@ const ChallanGeneration = () => {
               <p className="mt-1 text-2xl font-bold text-theme-text-primary">₹{summary.preDiscountSubtotal.toFixed(2)}</p>
             </div>
             <div className="rounded-lg border border-theme-border bg-theme-surface px-4 py-3 flex flex-col justify-between">
-              <p className="text-xs uppercase tracking-wide text-theme-text-secondary font-semibold">GST</p>
+              <p className="text-xs uppercase tracking-wide text-theme-text-secondary font-semibold">Tax</p>
               <div className="mt-2 flex items-center gap-3 text-sm text-theme-text-primary">
-                <span className="px-3 py-1 rounded-full bg-theme-accent/10 font-semibold text-theme-accent-dark">Fixed at 5%</span>
+                <span className="px-3 py-1 rounded-full bg-theme-accent/10 font-semibold text-theme-accent-dark">
+                  {challanTaxType === "NON_GST" ? "0% (Non-GST)" : "5% (GST)"}
+                </span>
               </div>
             </div>
           </div>
@@ -1678,7 +1680,9 @@ const ChallanGeneration = () => {
                   <span className="font-bold text-theme-text-primary">₹{summary.taxableSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-theme-text-secondary">GST (5%)</span>
+                  <span className="text-theme-text-secondary">
+                    {challanTaxType === "NON_GST" ? "GST (0% - Non-GST)" : "GST (5%)"}
+                  </span>
                   <span className="font-bold text-theme-primary">₹{summary.gstAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">

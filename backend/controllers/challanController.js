@@ -1323,8 +1323,9 @@ export const editChallan = async (req, res) => {
     updateData.discount_amount = Math.round(discountAmount * 100) / 100;
     updateData.taxable_subtotal = Math.round(taxableAmount * 100) / 100;
 
-    // Calculate GST if applicable
-    if (challan.challan_tax_type === "GST") {
+    // Calculate GST only for GST type challans (not for NON_GST)
+    const taxType = updateData.challan_tax_type || challan.challan_tax_type || "GST";
+    if (taxType === "GST") {
       const gstAmount = Math.round(taxableAmount * 0.05 * 100) / 100;
       updateData.gst_amount = gstAmount;
       const totalBeforeRound = taxableAmount + gstAmount;
