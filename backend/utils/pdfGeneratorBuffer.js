@@ -66,24 +66,26 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
 
       doc.moveDown(0.5);
 
-      // Table header - UPDATED: Show separate Product Rate and Assembly Rate columns
+      // Table header - include Colour between Item and Qty
       const tableTop = doc.y;
       const col1 = 50;    // Item
-      const col2 = 155;   // Qty
-      const col3 = 210;   // Product Rate
-      const col4 = 290;   // Assembly Rate
-      const col5 = 370;   // Amount
+      const col2 = 200;   // Colour
+      const col3 = 280;   // Qty
+      const col4 = 330;   // Product Rate
+      const col5 = 400;   // Assembly Rate
+      const col6 = 470;   // Amount
 
       doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Item', col1, tableTop);
-      doc.text('Qty', col2, tableTop);
-      doc.text('Prod Rate', col3, tableTop);
-      doc.text('Assy Rate', col4, tableTop);
-      doc.text('Amount', col5, tableTop);
+      doc.text('Item', col1, tableTop, { width: 145, lineBreak: false });
+      doc.text('Colour', col2, tableTop, { width: 70, lineBreak: false });
+      doc.text('Qty', col3, tableTop, { width: 40, lineBreak: false });
+      doc.text('Prod Rate', col4, tableTop, { width: 65, lineBreak: false });
+      doc.text('Assy Rate', col5, tableTop, { width: 65, lineBreak: false });
+      doc.text('Amount', col6, tableTop, { width: 75, align: 'right', lineBreak: false });
 
       doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).stroke();
 
-      // Table rows - UPDATED: Show separate product and assembly rates
+      // Table rows - show color inline between item and qty
       let yPosition = tableTop + 20;
       const items = challanData.items || [];
 
@@ -93,22 +95,39 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       } else {
         items.forEach((item) => {
           const itemName = item.item || item.box?.title || 'Unknown Item';
-          const qty = item.quantity || 0;
+          const qty = Number(item.quantity || 0);
           // Support both bifurcated and combined rate formats
           const productRate = Number(item.productRate || item.rate || 0);
           const assemblyRate = Number(item.assemblyRate || item.assemblyCharge || 0);
-          const lineProductAmount = qty * productRate;
-          const lineAssemblyAmount = qty * assemblyRate;
-          const lineTotal = lineProductAmount + lineAssemblyAmount;
 
-          doc.fontSize(8).font('Helvetica');
-          doc.text(itemName, col1, yPosition, { width: 100, height: 40 });
-          doc.text(String(qty), col2, yPosition);
-          doc.text(formatCurrency(productRate), col3, yPosition);
-          doc.text(formatCurrency(assemblyRate), col4, yPosition);
-          doc.text(formatCurrency(lineTotal), col5, yPosition);
+          const itemColorRows = Array.isArray(item.colorLines) && item.colorLines.length > 0
+            ? item.colorLines
+                .map((line) => ({
+                  color: String(line?.color || '').trim() || '-',
+                  qty: Number(line?.quantity || 0),
+                }))
+                .filter((line) => line.qty > 0)
+            : [{
+                color: String(item.color || '').trim() || '-',
+                qty,
+              }];
 
-          yPosition += 25;
+          const rowsToPrint = itemColorRows.length > 0 ? itemColorRows : [{ color: '-', qty }];
+
+          rowsToPrint.forEach((row, rowIndex) => {
+            const lineProductAmount = row.qty * productRate;
+            const lineAssemblyAmount = row.qty * assemblyRate;
+            const lineTotal = lineProductAmount + lineAssemblyAmount;
+
+            doc.fontSize(8).font('Helvetica');
+            doc.text(rowIndex === 0 ? itemName : '', col1, yPosition, { width: 145, lineBreak: false });
+            doc.text(row.color, col2, yPosition, { width: 70, lineBreak: false });
+            doc.text(String(row.qty), col3, yPosition, { width: 40, lineBreak: false });
+            doc.text(formatCurrency(productRate), col4, yPosition, { width: 65, lineBreak: false });
+            doc.text(formatCurrency(assemblyRate), col5, yPosition, { width: 65, lineBreak: false });
+            doc.text(formatCurrency(lineTotal), col6, yPosition, { width: 75, align: 'right', lineBreak: false });
+            yPosition += 16;
+          });
         });
       }
 

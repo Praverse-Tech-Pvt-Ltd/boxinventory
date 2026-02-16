@@ -76,6 +76,51 @@ async function generateStockReceiptNumberHelper(receiptDate) {
   return { number, fy, seq };
 }
 
+const addColorUsage = (usageByBox, boxId, rawColor, rawQty) => {
+  const normalizedColor = normalizeColor(rawColor);
+  const qty = Number(rawQty || 0);
+  if (!boxId || !normalizedColor || qty <= 0) return;
+
+  if (!usageByBox.has(boxId)) {
+    usageByBox.set(boxId, new Map());
+  }
+  const colorMap = usageByBox.get(boxId);
+  const prev = Number(colorMap.get(normalizedColor) || 0);
+  colorMap.set(normalizedColor, prev + qty);
+};
+
+const buildColorUsageByBox = (items = []) => {
+  const usageByBox = new Map(); // boxId -> Map<normalizedColor, qty>
+
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const boxId = String(item?.box?._id || item?.box || item?.boxId || "");
+    if (!boxId) return;
+
+    if (Array.isArray(item?.colorLines) && item.colorLines.length > 0) {
+      item.colorLines.forEach((line) => {
+        addColorUsage(usageByBox, boxId, line?.color, line?.quantity);
+      });
+      return;
+    }
+
+    const directColor = String(item?.color || "").trim();
+    if (directColor) {
+      addColorUsage(usageByBox, boxId, directColor, item?.quantity);
+      return;
+    }
+
+    const colourList = Array.isArray(item?.colours)
+      ? item.colours.map((c) => String(c || "").trim()).filter(Boolean)
+      : [];
+    const uniqueColours = Array.from(new Set(colourList));
+    if (uniqueColours.length === 1) {
+      addColorUsage(usageByBox, boxId, uniqueColours[0], item?.quantity);
+    }
+  });
+
+  return usageByBox;
+};
+
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
@@ -369,42 +414,28 @@ export const createChallan = async (req, res) => {
     // RECORD_ONLY mode: skip entirely
     if (invMode === "dispatch") {
       console.log(`[inventory-update] DISPATCH mode: applying inventory updates`);
-      
-      const usageByBox = new Map(); // boxId -> Map<normalizedColor, qty>
-      
-      // Collect usage from all items (normalized colors)
-      items.forEach((item) => {
-        const boxId = String(item.box._id);
-        
-        // If item has colorLines, use those; otherwise fall back to single color
-        if (Array.isArray(item.colorLines) && item.colorLines.length > 0) {
-          item.colorLines.forEach((line) => {
-            const normalizedColor = normalizeColor(line.color);
-            if (!normalizedColor) return;
-            
-            const qty = Number(line.quantity || 0);
-            if (!usageByBox.has(boxId)) {
-              usageByBox.set(boxId, new Map());
-            }
-            const colorMap = usageByBox.get(boxId);
-            const prev = colorMap.get(normalizedColor) || 0;
-            colorMap.set(normalizedColor, prev + qty);
-          });
-        } else {
-          // Fallback to single color field
-          const rawColor = item.color || "";
-          const normalizedColor = normalizeColor(rawColor);
-          if (!normalizedColor) return;
-          
-          const qty = Number(item.quantity || 0);
-          if (!usageByBox.has(boxId)) {
-            usageByBox.set(boxId, new Map());
-          }
-          const colorMap = usageByBox.get(boxId);
-          const prev = colorMap.get(normalizedColor) || 0;
-          colorMap.set(normalizedColor, prev + qty);
-        }
+      const usageByBox = buildColorUsageByBox(items);
+
+      // In dispatch mode we must know exact color for every quantity deduction.
+      const unresolvedColorItems = items.filter((item) => {
+        if (!item?.box?._id) return true;
+        const hasColorLines =
+          Array.isArray(item.colorLines) &&
+          item.colorLines.some((line) => normalizeColor(line?.color) && Number(line?.quantity || 0) > 0);
+        if (hasColorLines) return false;
+        if (normalizeColor(item.color)) return false;
+        const colourList = Array.isArray(item.colours)
+          ? item.colours.map((c) => String(c || "").trim()).filter(Boolean)
+          : [];
+        return Array.from(new Set(colourList)).length !== 1;
       });
+
+      if (unresolvedColorItems.length > 0) {
+        return res.status(400).json({
+          message:
+            "Color is required for dispatch rows. Please select a color (or color-wise quantities) for each manual item.",
+        });
+      }
 
       // Apply updates to database
       if (usageByBox.size > 0) {
@@ -419,13 +450,25 @@ export const createChallan = async (req, res) => {
           // Normalize existing inventory
           const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
 
+          // Validate availability first
+          for (const [normalizedColor, changeQty] of colorUsage.entries()) {
+            const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
+            const requiredQty = Number(changeQty || 0);
+
+            if (currentQty < requiredQty) {
+              return res.status(400).json({
+                message: `Insufficient stock for box "${box.code}" color "${normalizedColor}". Available: ${currentQty}, Required: ${requiredQty}`,
+              });
+            }
+          }
+
           for (const [normalizedColor, changeQty] of colorUsage.entries()) {
             const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
             const changeAmount = Number(changeQty || 0);
             
             // Subtract from inventory
-            normalizedQuantityMap.set(normalizedColor, Math.max(0, currentQty - changeAmount));
-            console.log(`[inventory-subtract] Box: ${box.code}, Color: ${normalizedColor}, Before: ${currentQty}, After: ${Math.max(0, currentQty - changeAmount)}`);
+            normalizedQuantityMap.set(normalizedColor, currentQty - changeAmount);
+            console.log(`[inventory-subtract] Box: ${box.code}, Color: ${normalizedColor}, Before: ${currentQty}, After: ${currentQty - changeAmount}`);
           }
 
           // Update box with new normalized map
@@ -1153,6 +1196,17 @@ export const editChallan = async (req, res) => {
           if (!item) return null;
           const productRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
           const assemblyRate = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));
+          const colourList = Array.isArray(item.colours)
+            ? item.colours.map((c) => String(c).trim()).filter(Boolean)
+            : [];
+          const colorLines = Array.isArray(item.colorLines)
+            ? item.colorLines
+                .map((line) => ({
+                  color: String(line?.color || "").trim(),
+                  quantity: Number(line?.quantity || 0),
+                }))
+                .filter((line) => line.color && line.quantity > 0)
+            : [];
           console.log("[editChallan] Processing item:", { box: item.box || item.boxId, qty: item.quantity, productRate, assemblyRate });
           return {
             box: {
@@ -1160,7 +1214,7 @@ export const editChallan = async (req, res) => {
               title: item.title || item.name || "",
               code: item.code || "",
               category: item.category || "",
-              colours: Array.isArray(item.colours) ? item.colours : [],
+              colours: colourList,
             },
             quantity: Number(item.quantity) || 0,
             // NEW: Bifurcated rates
@@ -1170,6 +1224,8 @@ export const editChallan = async (req, res) => {
             rate: productRate,
             assemblyCharge: assemblyRate,
             color: String(item.color || "").trim(),
+            colours: colourList,
+            colorLines,
             user: {
               _id: req.user._id,
               name: req.user.name || "",
@@ -1188,97 +1244,54 @@ export const editChallan = async (req, res) => {
 
         // If dispatch mode: handle inventory reversal/re-apply
         if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
-          console.log("[editChallan] Dispatch mode detected, reversing old and applying new inventory");
+          console.log("[editChallan] Dispatch mode detected, applying inventory delta by color");
           try {
-            // Step 1: Revert old quantities back to boxes
-            console.log("[editChallan] Step 1: Reverting old items");
-            for (const oldItem of (challan.items || [])) {
-              if (!oldItem) continue;
-              const boxId = oldItem.box?._id;
-              if (!boxId) {
-                console.log("[editChallan] Skipping old item with no boxId");
-                continue;
-              }
-              const qty = Number(oldItem.quantity) || 0;
-              const color = String(oldItem.color || "").trim();
-              if (qty > 0) {
-                console.log("[editChallan] Reverting boxId: " + boxId + ", qty: " + qty + ", color: " + color);
-                if (color) {
-                  await Box.updateOne(
-                    { _id: boxId },
-                    { $inc: { [`quantityByColor.${color}`]: qty, totalQuantity: qty } }
-                  );
-                } else {
-                  await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: qty } });
+            const oldUsageByBox = buildColorUsageByBox(challan.items || []);
+            const newUsageByBox = buildColorUsageByBox(newItems);
+            const allBoxIds = Array.from(
+              new Set([...oldUsageByBox.keys(), ...newUsageByBox.keys()])
+            );
+
+            if (allBoxIds.length > 0) {
+              const boxes = await Box.find({ _id: { $in: allBoxIds } });
+              const boxById = new Map(boxes.map((box) => [String(box._id), box]));
+              const updates = [];
+
+              for (const boxId of allBoxIds) {
+                const box = boxById.get(boxId);
+                if (!box) {
+                  return res.status(400).json({ message: "One or more selected products were not found" });
                 }
-              }
-            }
 
-            // Step 2: Check new quantities are available
-            console.log("[editChallan] Step 2: Checking new item availability");
-            for (const newItem of newItems) {
-              if (!newItem) continue;
-              const boxId = newItem.box?._id;
-              const qty = Number(newItem.quantity) || 0;
-              const color = String(newItem.color || "").trim();
-              if (!boxId || qty <= 0) continue;
+                const currentMap = normalizeQuantityMap(box.quantityByColor);
+                const oldColorMap = oldUsageByBox.get(boxId) || new Map();
+                const newColorMap = newUsageByBox.get(boxId) || new Map();
+                const colorKeys = new Set([...oldColorMap.keys(), ...newColorMap.keys()]);
+                const nextMap = new Map(currentMap);
 
-              console.log("[editChallan] Checking boxId: " + boxId + ", qty: " + qty);
-              const box = await Box.findById(boxId);
-              if (!box) {
-                console.log("[editChallan] Box not found: " + boxId);
-                return res.status(400).json({ message: `Product ${newItem.box?.code || 'unknown'} not found` });
-              }
+                for (const colorKey of colorKeys) {
+                  const oldQty = Number(oldColorMap.get(colorKey) || 0);
+                  const newQty = Number(newColorMap.get(colorKey) || 0);
+                  const deltaDispatch = newQty - oldQty; // >0 means extra dispatch needed
+                  if (deltaDispatch === 0) continue;
 
-              const available = color 
-                ? (box.quantityByColor?.[color] || 0)
-                : (box.totalQuantity || 0);
-
-              console.log("[editChallan] Box: " + box.code + ", color: " + color + ", available: " + available + ", required: " + qty);
-
-              if (available < qty) {
-                console.log("[editChallan] Insufficient stock, rolling back");
-                // Rollback: revert the revert we just did
-                for (const revertItem of (challan.items || [])) {
-                  if (!revertItem) continue;
-                  const rBoxId = revertItem.box?._id;
-                  if (!rBoxId) continue;
-                  const rQty = Number(revertItem.quantity) || 0;
-                  const rColor = String(revertItem.color || "").trim();
-                  if (rQty > 0) {
-                    if (rColor) {
-                      await Box.updateOne(
-                        { _id: rBoxId },
-                        { $inc: { [`quantityByColor.${rColor}`]: -rQty, totalQuantity: -rQty } }
-                      );
-                    } else {
-                      await Box.updateOne({ _id: rBoxId }, { $inc: { totalQuantity: -rQty } });
-                    }
+                  const currentQty = Number(nextMap.get(colorKey) || 0);
+                  if (deltaDispatch > 0 && currentQty < deltaDispatch) {
+                    return res.status(400).json({
+                      message: `Insufficient stock for ${box.code || "box"} color "${colorKey}". Available: ${currentQty}, Required: ${deltaDispatch}`,
+                    });
                   }
-                }
-                return res.status(400).json({ 
-                  message: `Insufficient stock for ${newItem.box?.code || 'unknown'} ${color || ""}. Available: ${available}, Required: ${qty}` 
-                });
-              }
-            }
 
-            // Step 3: Apply new quantities
-            console.log("[editChallan] Step 3: Applying new item quantities");
-            for (const newItem of newItems) {
-              if (!newItem) continue;
-              const boxId = newItem.box?._id;
-              const qty = Number(newItem.quantity) || 0;
-              const color = String(newItem.color || "").trim();
-              if (qty > 0) {
-                console.log("[editChallan] Applying boxId: " + boxId + ", qty: " + qty + ", color: " + color);
-                if (color) {
-                  await Box.updateOne(
-                    { _id: boxId },
-                    { $inc: { [`quantityByColor.${color}`]: -qty, totalQuantity: -qty } }
-                  );
-                } else {
-                  await Box.updateOne({ _id: boxId }, { $inc: { totalQuantity: -qty } });
+                  const afterQty = Math.max(0, currentQty - deltaDispatch);
+                  nextMap.set(colorKey, afterQty);
                 }
+
+                updates.push({ box, nextMap });
+              }
+
+              for (const { box, nextMap } of updates) {
+                box.quantityByColor = nextMap;
+                await box.save();
               }
             }
           } catch (error) {
@@ -1418,53 +1431,29 @@ export const cancelChallan = async (req, res) => {
     
     if (challan.inventory_mode === "dispatch" || challan.inventory_mode === "DISPATCH") {
       try {
-        const itemsToReverse = Array.isArray(challan.items) ? challan.items : [];
-        console.log("[cancelChallan] Starting inventory reversal for", itemsToReverse.length, 'items');
-        
-        // Reverse quantities for each item
-        for (const item of itemsToReverse) {
-          if (!item) continue; // Skip null/undefined items
-          
-          const boxId = item.box?._id;
-          if (!boxId) {
-            console.log("[cancelChallan] Skipping item with no boxId");
-            continue;
-          }
+        const usageByBox = buildColorUsageByBox(challan.items || []);
+        console.log("[cancelChallan] Starting inventory reversal for", usageByBox.size, "boxes");
 
-          const quantity = Number(item.quantity) || 0;
-          const color = String(item.color || "").trim();
+        const boxIds = Array.from(usageByBox.keys());
+        if (boxIds.length > 0) {
+          const boxes = await Box.find({ _id: { $in: boxIds } });
 
-          console.log("[cancelChallan] Reversing - boxId: " + boxId + ", qty: " + quantity + ", color: " + color);
+          for (const box of boxes) {
+            const boxIdStr = String(box._id);
+            const colorUsage = usageByBox.get(boxIdStr);
+            if (!colorUsage) continue;
 
-          if (quantity > 0) {
-            // Increment inventory back
-            try {
-              if (color) {
-                // Update color-specific quantity
-                const updateResult = await Box.updateOne(
-                  { _id: boxId },
-                  { 
-                    $inc: { 
-                      [`quantityByColor.${color}`]: quantity,
-                      totalQuantity: quantity
-                    }
-                  }
-                );
-                console.log("[cancelChallan] Color update result: " + updateResult.modifiedCount);
-              } else {
-                // Update total quantity only
-                const updateResult = await Box.updateOne(
-                  { _id: boxId },
-                  { $inc: { totalQuantity: quantity } }
-                );
-                console.log("[cancelChallan] Total quantity update result: " + updateResult.modifiedCount);
-              }
-            } catch (itemError) {
-              console.error("[cancelChallan] Error updating item:", itemError);
-              throw itemError;
+            const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
+            for (const [normalizedColor, usedQty] of colorUsage.entries()) {
+              const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
+              normalizedQuantityMap.set(normalizedColor, currentQty + Number(usedQty || 0));
             }
+
+            box.quantityByColor = normalizedQuantityMap;
+            await box.save();
           }
         }
+
         console.log("[cancelChallan] Inventory reversal completed");
         reversalApplied = true;
       } catch (reversalError) {
