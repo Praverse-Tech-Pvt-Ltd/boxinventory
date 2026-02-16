@@ -2643,7 +2643,7 @@ const ChallanGeneration = () => {
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
                     placeholder="Why are you cancelling this challan?"
-                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg text-sm bg-theme-surface text-theme-text-primary"
                     rows="3"
                   />
                 </div>
