@@ -21,15 +21,15 @@ const challanCounterSchema = new mongoose.Schema(
     gst_next_seq: {
       type: Number,
       required: true,
-      default: 1,
-      min: 1,
+      default: 0,
+      min: 0,
       max: 9999,
     },
     nongst_next_seq: {
       type: Number,
       required: true,
-      default: 1,
-      min: 1,
+      default: 0,
+      min: 0,
       max: 9999,
     },
   },
@@ -64,7 +64,7 @@ challanCounterSchema.statics.getNextSequence = async function (fy, type = "gst")
  * 
  * @param {string} fy - Year range
  * @param {string} type - Counter type: "gst" or "nongst"
- * @returns {Promise<number>} - Current sequence number
+ * @returns {Promise<number>} - Current raw sequence seed (first issued number is seed+1)
  */
 challanCounterSchema.statics.getCurrentSequence = async function (fy, type = "gst") {
   if (type !== "gst" && type !== "nongst") {
@@ -76,8 +76,8 @@ challanCounterSchema.statics.getCurrentSequence = async function (fy, type = "gs
   const counter = await this.findOne({ fy }).select(fieldName);
   
   if (!counter) {
-    // If counter doesn't exist, next sequence will be 1
-    return 1;
+    // If counter doesn't exist, next sequence seed is 0 (first increment returns 1)
+    return 0;
   }
 
   return counter[fieldName];
@@ -89,10 +89,10 @@ challanCounterSchema.statics.getCurrentSequence = async function (fy, type = "gs
  * 
  * @param {string} fy - Year range
  * @param {string} type - Counter type: "gst" or "nongst"
- * @param {number} newValue - New value to set (default: 1)
+ * @param {number} newValue - New value to set (default: 0)
  * @returns {Promise<object>} - Updated counter document
  */
-challanCounterSchema.statics.resetCounter = async function (fy, type = "gst", newValue = 1) {
+challanCounterSchema.statics.resetCounter = async function (fy, type = "gst", newValue = 0) {
   if (type !== "gst" && type !== "nongst") {
     throw new Error(`Invalid counter type: ${type}. Must be "gst" or "nongst"`);
   }

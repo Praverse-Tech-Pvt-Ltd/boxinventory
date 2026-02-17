@@ -2,8 +2,13 @@ import User from "../models/User.js";
 import Box from "../models/boxModel.js";
 import BoxAudit from "../models/boxAuditModel.js";
 import Challan from "../models/challanModel.js";
+import ChallanCounter from "../models/challanCounterModel.js";
 import Counter from "../models/counterModel.js";
 import ClientBatch from "../models/clientBatchModel.js";
+import mongoose from "mongoose";
+import os from "os";
+import path from "path";
+import fsPromises from "fs/promises";
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -253,5 +258,112 @@ export const resetToProduction = async (req, res) => {
   } catch (error) {
     console.error("[RESET] Error during reset:", error);
     res.status(500).json({ message: "Server error during reset", error: error.message });
+  }
+};
+
+// Admin maintenance: delete all challans and reset challan counters to restart at 001
+export const resetChallansMaintenance = async (req, res) => {
+  const REQUIRED_CONFIRM = "DELETE_ALL_CHALLANS_AND_RESET_001";
+
+  try {
+    const { confirm, backup = false } = req.body || {};
+    if (confirm !== REQUIRED_CONFIRM) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid confirmation token",
+      });
+    }
+
+    const runReset = async (session = null) => {
+      let backupPath = null;
+
+      if (backup) {
+        const snapshotQuery = Challan.find({}).lean();
+        if (session) snapshotQuery.session(session);
+        const challansSnapshot = await snapshotQuery;
+        backupPath = path.join(os.tmpdir(), `challans-backup-${Date.now()}.json`);
+        await fsPromises.writeFile(
+          backupPath,
+          JSON.stringify(
+            {
+              createdAt: new Date().toISOString(),
+              count: challansSnapshot.length,
+              data: challansSnapshot,
+            },
+            null,
+            2
+          ),
+          "utf8"
+        );
+      }
+
+      const challanDelete = await Challan.deleteMany({}, { session });
+
+      // Reset FY-based challan counters so next generated sequence becomes 1 => 001
+      await ChallanCounter.updateMany(
+        {},
+        {
+          $set: {
+            gst_next_seq: 0,
+            nongst_next_seq: 0,
+          },
+        },
+        { session }
+      );
+
+      // Keep legacy counter compatibility in case older code paths still read these keys
+      await Counter.updateOne(
+        { name: "gst_challan_counter" },
+        { $set: { value: 0 } },
+        { upsert: true, session }
+      );
+      await Counter.updateOne(
+        { name: "nongst_challan_counter" },
+        { $set: { value: 0 } },
+        { upsert: true, session }
+      );
+
+      return {
+        backupPath,
+        deletedChallans: challanDelete.deletedCount || 0,
+      };
+    };
+
+    let result;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        result = await runReset(session);
+      });
+    } catch (txError) {
+      const msg = String(txError?.message || "");
+      const unsupportedTransaction =
+        msg.includes("Transaction numbers are only allowed on a replica set member or mongos") ||
+        msg.includes("transactions are not supported");
+
+      if (!unsupportedTransaction) {
+        throw txError;
+      }
+
+      console.warn("[MAINTENANCE] Transaction unavailable, running without transaction:", msg);
+      result = await runReset(null);
+    } finally {
+      await session.endSession();
+    }
+
+    return res.status(200).json({
+      ok: true,
+      deleted_challans: result.deletedChallans,
+      reset: ["GST", "NON_GST"],
+      deleted_audits: null,
+      backup_path: result.backupPath,
+    });
+  } catch (error) {
+    console.error("[MAINTENANCE] resetChallansMaintenance error:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error during challan reset",
+      error: error.message,
+    });
   }
 };

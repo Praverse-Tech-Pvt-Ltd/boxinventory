@@ -92,22 +92,22 @@ export function isDateInFY(date, fy) {
 }
 
 /**
- * Format sequence number to 4 digits with leading zeros
+ * Format sequence number to 3 digits with leading zeros
  * 
  * @param {number} seq - Sequence number
- * @returns {string} Padded sequence (e.g., "0001", "1234")
+ * @returns {string} Padded sequence (e.g., "001", "123")
  * 
  * @example
- * formatChallanSequence(1) // "0001"
- * formatChallanSequence(12) // "0012"
- * formatChallanSequence(123) // "0123"
+ * formatChallanSequence(1) // "001"
+ * formatChallanSequence(12) // "012"
+ * formatChallanSequence(123) // "123"
  * formatChallanSequence(1234) // "1234"
  */
 export function formatChallanSequence(seq) {
   if (typeof seq !== 'number' || seq < 1 || seq > 9999) {
     throw new Error(`Invalid sequence number: ${seq}. Must be 1-9999`);
   }
-  return String(seq).padStart(4, '0');
+  return String(seq).padStart(3, '0');
 }
 
 /**
@@ -115,11 +115,11 @@ export function formatChallanSequence(seq) {
  * 
  * @param {string} fy - Year range (e.g., "26-27")
  * @param {number} seq - Sequence number for this year range
- * @returns {string} Challan number (e.g., "VPP/26-27/0001")
+ * @returns {string} Challan number (e.g., "VPP/26-27/001")
  * 
  * @example
- * generateGSTChallanNumber("26-27", 1) // "VPP/26-27/0001"
- * generateGSTChallanNumber("26-27", 123) // "VPP/26-27/0123"
+ * generateGSTChallanNumber("26-27", 1) // "VPP/26-27/001"
+ * generateGSTChallanNumber("26-27", 123) // "VPP/26-27/123"
  */
 export function generateGSTChallanNumber(fy, seq) {
   const paddedSeq = formatChallanSequence(seq);
@@ -131,7 +131,7 @@ export function generateGSTChallanNumber(fy, seq) {
  * 
  * @param {string} fy - Year range (e.g., "26-27")
  * @param {number} seq - Sequence number for this year range
- * @returns {string} Challan number (e.g., "VPP-NG/26-27/0001")
+ * @returns {string} Challan number (e.g., "VPP-NG/26-27/001")
  */
 export function generateNonGSTChallanNumber(fy, seq) {
   const paddedSeq = formatChallanSequence(seq);

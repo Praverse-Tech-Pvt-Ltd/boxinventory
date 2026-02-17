@@ -51,9 +51,9 @@ testCases.forEach(({ date, expectedFY, description }) => {
 console.log('\n🧪 Testing Sequence Formatting\n');
 
 const seqTests = [
-  { seq: 1, expected: '0001' },
-  { seq: 12, expected: '0012' },
-  { seq: 123, expected: '0123' },
+  { seq: 1, expected: '001' },
+  { seq: 12, expected: '012' },
+  { seq: 123, expected: '123' },
   { seq: 1234, expected: '1234' },
 ];
 
@@ -72,10 +72,10 @@ seqTests.forEach(({ seq, expected }) => {
 console.log('\n🧪 Testing Challan Number Generation\n');
 
 const genTests = [
-  { fy: '25-26', seq: 1, prefix: 'VPP', expected: 'VPP/25-26/0001' },
-  { fy: '25-26', seq: 123, prefix: 'VPP', expected: 'VPP/25-26/0123' },
-  { fy: '26-27', seq: 1, prefix: 'VPP', expected: 'VPP/26-27/0001' },
-  { fy: '25-26', seq: 1, prefix: 'NGST', expected: 'NGST/25-26/0001' },
+  { fy: '25-26', seq: 1, prefix: 'VPP', expected: 'VPP/25-26/001' },
+  { fy: '25-26', seq: 123, prefix: 'VPP', expected: 'VPP/25-26/123' },
+  { fy: '26-27', seq: 1, prefix: 'VPP', expected: 'VPP/26-27/001' },
+  { fy: '25-26', seq: 1, prefix: 'NGST', expected: 'VPP-NG/25-26/001' },
 ];
 
 genTests.forEach(({ fy, seq, prefix, expected }) => {

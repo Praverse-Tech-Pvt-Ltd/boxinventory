@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAllUsers, deleteUser as deleteUserAPI, updateUser as updateUserAPI, changeUserPassword } from "../../services/userService";
+import { resetChallansMaintenance } from "../../services/adminService";
 import { toast } from "react-hot-toast";
 import { FiTrash2, FiCheck, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 import { FaRegEdit, FaLock } from "react-icons/fa";
@@ -16,6 +17,7 @@ const Users = () => {
   const [passwordForm, setPasswordForm] = useState({ newPassword: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState({ new: false, confirm: false });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [runningMaintenance, setRunningMaintenance] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -130,6 +132,39 @@ const Users = () => {
 
   const skeletonRows = Array(3).fill(0);
 
+  const handleResetChallansMaintenance = async () => {
+    const token = window.prompt(
+      "Danger zone: type DELETE_ALL_CHALLANS_AND_RESET_001 to permanently delete all challans and reset numbering."
+    );
+
+    if (!token) return;
+    if (token !== "DELETE_ALL_CHALLANS_AND_RESET_001") {
+      toast.error("Confirmation token mismatch");
+      return;
+    }
+
+    const finalConfirm = window.confirm(
+      "This will permanently delete all challans. Do you want to continue?"
+    );
+    if (!finalConfirm) return;
+
+    try {
+      setRunningMaintenance(true);
+      const result = await resetChallansMaintenance({
+        confirm: token,
+        backup: true,
+      });
+
+      toast.success(
+        `Deleted ${result.deleted_challans} challans and reset ${Array.isArray(result.reset) ? result.reset.join(", ") : "counters"}`
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to reset challans");
+    } finally {
+      setRunningMaintenance(false);
+    }
+  };
+
   return (
     <div className="w-full section-spacing">
       {/* Section Header */}
@@ -137,6 +172,32 @@ const Users = () => {
         <h2 className="section-title">👥 Users Management</h2>
         <p className="section-subtitle">Manage system users and assign roles</p>
       </div>
+
+      <motion.div
+        className="dashboard-card border border-red-300/70"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+      >
+        <div className="card-header">
+          <h3 className="card-header-title text-red-700">Danger Zone: Challan Maintenance</h3>
+        </div>
+        <div className="card-body flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-theme-text-secondary">
+            Deletes all challans and resets GST and Non-GST numbering so the next challan starts at 001.
+          </p>
+          <motion.button
+            onClick={handleResetChallansMaintenance}
+            disabled={runningMaintenance}
+            className="btn btn-danger btn-sm"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            title="Admin-only destructive maintenance operation"
+          >
+            {runningMaintenance ? "Running..." : "Reset Challans"}
+          </motion.button>
+        </div>
+      </motion.div>
 
       {/* Main Card */}
       <motion.div

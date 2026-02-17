@@ -6,6 +6,7 @@ import {
   deleteUser,
   resetToProduction,
   cleanupAdditionChallans,
+  resetChallansMaintenance,
 } from "../controllers/adminController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { adminOnly } from "../middlewares/adminMiddleware.js";
@@ -19,6 +20,7 @@ router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
 router.post("/reset-to-production", resetToProduction);
+router.post("/maintenance/reset-challans", resetChallansMaintenance);
 
 // Cleanup routes
 router.delete("/cleanup/addition-challans", cleanupAdditionChallans);
