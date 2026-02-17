@@ -169,7 +169,7 @@ export const createChallan = async (req, res) => {
     if (auditIdsArray.length > 0) {
       audits = await BoxAudit.find({ _id: { $in: auditIdsArray }, used: false })
         .populate("user", "name email")
-        .populate("box", "title code category colours price");
+        .populate("box", "title code category colours price quantityByColor");
 
       if (audits.length !== auditIdsArray.length) {
         return res.status(400).json({ message: "Some audits are invalid or already used" });
@@ -230,7 +230,7 @@ export const createChallan = async (req, res) => {
       // Fetch boxes and validate availability using inventory helpers
       if (auditUsageByBox.size > 0) {
         const boxIds = Array.from(auditUsageByBox.keys());
-        const boxes = await Box.find({ _id: { $in: boxIds } });
+        const boxes = await Box.find({ _id: { $in: boxIds } }).select("_id code quantityByColor");
         
         for (const box of boxes) {
           const boxIdStr = String(box._id);
@@ -243,9 +243,11 @@ export const createChallan = async (req, res) => {
             qty
           }));
           
-          // Use inventory helper to validate dispatch
+          console.log(`[createChallan-dispatch-check] Box ${box.code}: dispatchList = ${JSON.stringify(dispatchList)}`);
+          
+          // Use inventory helper to validate dispatch (with debug enabled)
           try {
-            validateDispatch(box, dispatchList);
+            validateDispatch(box, dispatchList, { debug: true });
           } catch (validationError) {
             console.log(`[validation-FAILED] ${validationError.message}`);
             return res.status(400).json({ message: validationError.message });
@@ -307,7 +309,7 @@ export const createChallan = async (req, res) => {
     let manualBoxes = [];
     if (manualBoxIds.length > 0) {
       manualBoxes = await Box.find({ _id: { $in: manualBoxIds } }).select(
-        "_id title code category colours price boxInnerSize"
+        "_id title code category colours price boxInnerSize quantityByColor"
       );
     }
 
@@ -365,8 +367,9 @@ export const createChallan = async (req, res) => {
           color: line.color,
           qty: line.quantity
         }));
+        console.log(`[createChallan-manual-check] Manual item ${i + 1}, Box ${matchedBox.code}: dispatchList = ${JSON.stringify(dispatchList)}`);
         try {
-          validateDispatch(matchedBox, dispatchList);
+          validateDispatch(matchedBox, dispatchList, { debug: true });
         } catch (validationError) {
           return res.status(400).json({
             message: `Manual item ${i + 1}: ${validationError.message}`
@@ -443,7 +446,7 @@ export const createChallan = async (req, res) => {
       // Apply updates to database using inventory helpers
       if (usageByBox.size > 0) {
         const boxIds = Array.from(usageByBox.keys());
-        const boxes = await Box.find({ _id: { $in: boxIds } });
+        const boxes = await Box.find({ _id: { $in: boxIds } }).select("_id code quantityByColor totalQuantity");
 
         for (const box of boxes) {
           const boxIdStr = String(box._id);
@@ -456,9 +459,11 @@ export const createChallan = async (req, res) => {
             qty
           }));
           
+          console.log(`[createChallan-dispatch-apply] Box ${box.code}: dispatchList = ${JSON.stringify(dispatchList)}`);
+          
           // Validate availability using inventory helper
           try {
-            validateDispatch(box, dispatchList);
+            validateDispatch(box, dispatchList, { debug: true });
           } catch (validationError) {
             console.log(`[validation-FAILED-during-deduction] ${validationError.message}`);
             return res.status(400).json({ message: validationError.message });
@@ -466,7 +471,7 @@ export const createChallan = async (req, res) => {
           
           // Apply dispatch deductions using inventory helper
           const logFn = (msg) => console.log(msg);
-          applyDispatch(box, dispatchList, { logFn, updateTotal: true });
+          applyDispatch(box, dispatchList, { logFn, updateTotal: true, debug: true });
           
           // Save updated box
           await box.save();
