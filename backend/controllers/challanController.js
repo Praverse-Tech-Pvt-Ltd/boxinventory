@@ -11,6 +11,13 @@ import {
   formatChallanSequence 
 } from "../utils/financialYearUtils.js";
 import { normalizeColor, normalizeQuantityMap } from "../utils/colorNormalization.js";
+import { 
+  getStockMap, 
+  getTotalStock, 
+  validateDispatch, 
+  applyDispatch,
+  getColorStock 
+} from "../utils/inventory.js";
 import { calculateChallanTotals } from "../utils/calculateChallanTotals.js";
 import fsPromises from "fs/promises";
 
@@ -220,7 +227,7 @@ export const createChallan = async (req, res) => {
         }
       });
       
-      // Fetch boxes and validate availability
+      // Fetch boxes and validate availability using inventory helpers
       if (auditUsageByBox.size > 0) {
         const boxIds = Array.from(auditUsageByBox.keys());
         const boxes = await Box.find({ _id: { $in: boxIds } });
@@ -230,21 +237,18 @@ export const createChallan = async (req, res) => {
           const colorUsage = auditUsageByBox.get(boxIdStr);
           if (!colorUsage) continue;
           
-          // Normalize the box's quantity map
-          const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
+          // Build dispatch list from color usage
+          const dispatchList = Array.from(colorUsage.entries()).map(([color, qty]) => ({
+            color,
+            qty
+          }));
           
-          for (const [normalizedColor, requestedQty] of colorUsage.entries()) {
-            const availableQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
-            const reqQty = Number(requestedQty || 0);
-            
-            console.log(`[inventory-check] Box: ${box.code}, Color: ${normalizedColor}, Available: ${availableQty}, Requested: ${reqQty}`);
-            
-            if (availableQty < reqQty) {
-              console.log(`[validation-FAILED] Box: ${box.code}, Color: ${normalizedColor}, Available: ${availableQty}, Required: ${reqQty}`);
-              return res.status(400).json({
-                message: `Insufficient stock for box "${box.code}" color "${normalizedColor}". Available: ${availableQty}, Required: ${reqQty}`,
-              });
-            }
+          // Use inventory helper to validate dispatch
+          try {
+            validateDispatch(box, dispatchList);
+          } catch (validationError) {
+            console.log(`[validation-FAILED] ${validationError.message}`);
+            return res.status(400).json({ message: validationError.message });
           }
         }
       }
@@ -355,19 +359,18 @@ export const createChallan = async (req, res) => {
             }))
         : [];
       
-      // Validate color lines for dispatch mode
+      // Validate color lines for dispatch mode using inventory helpers
       if (invMode === "dispatch" && colorLines.length > 0) {
-        const normalizedQuantityMap = normalizeQuantityMap(matchedBox.quantityByColor);
-        for (const line of colorLines) {
-          const normalizedColor = normalizeColor(line.color);
-          const available = Number(normalizedQuantityMap.get(normalizedColor) || 0);
-          const required = Number(line.quantity);
-          
-          if (available < required) {
-            return res.status(400).json({
-              message: `Manual item ${i + 1}: Insufficient stock for color "${line.color}". Available: ${available}, Required: ${required}`
-            });
-          }
+        const dispatchList = colorLines.map(line => ({
+          color: line.color,
+          qty: line.quantity
+        }));
+        try {
+          validateDispatch(matchedBox, dispatchList);
+        } catch (validationError) {
+          return res.status(400).json({
+            message: `Manual item ${i + 1}: ${validationError.message}`
+          });
         }
       }
       
@@ -437,7 +440,7 @@ export const createChallan = async (req, res) => {
         });
       }
 
-      // Apply updates to database
+      // Apply updates to database using inventory helpers
       if (usageByBox.size > 0) {
         const boxIds = Array.from(usageByBox.keys());
         const boxes = await Box.find({ _id: { $in: boxIds } });
@@ -447,50 +450,41 @@ export const createChallan = async (req, res) => {
           const colorUsage = usageByBox.get(boxIdStr);
           if (!colorUsage) continue;
           
-          // Normalize existing inventory
-          const normalizedQuantityMap = normalizeQuantityMap(box.quantityByColor);
-
-          // Validate availability first
-          for (const [normalizedColor, changeQty] of colorUsage.entries()) {
-            const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
-            const requiredQty = Number(changeQty || 0);
-
-            if (currentQty < requiredQty) {
-              return res.status(400).json({
-                message: `Insufficient stock for box "${box.code}" color "${normalizedColor}". Available: ${currentQty}, Required: ${requiredQty}`,
-              });
-            }
+          // Build dispatch list from color usage
+          const dispatchList = Array.from(colorUsage.entries()).map(([color, qty]) => ({
+            color,
+            qty
+          }));
+          
+          // Validate availability using inventory helper
+          try {
+            validateDispatch(box, dispatchList);
+          } catch (validationError) {
+            console.log(`[validation-FAILED-during-deduction] ${validationError.message}`);
+            return res.status(400).json({ message: validationError.message });
           }
-
-          for (const [normalizedColor, changeQty] of colorUsage.entries()) {
-            const currentQty = Number(normalizedQuantityMap.get(normalizedColor) || 0);
-            const changeAmount = Number(changeQty || 0);
-            
-            // Subtract from inventory
-            normalizedQuantityMap.set(normalizedColor, currentQty - changeAmount);
-            console.log(`[inventory-subtract] Box: ${box.code}, Color: ${normalizedColor}, Before: ${currentQty}, After: ${currentQty - changeAmount}`);
-          }
-
-          // Update box with new normalized map
-          box.quantityByColor = normalizedQuantityMap;
+          
+          // Apply dispatch deductions using inventory helper
+          const logFn = (msg) => console.log(msg);
+          applyDispatch(box, dispatchList, { logFn, updateTotal: true });
+          
+          // Save updated box
           await box.save();
           
           // Create audit logs for each color dispatch
-          if (invMode === "dispatch") {
-            for (const [normalizedColor, changeQty] of colorUsage.entries()) {
-              try {
-                await BoxAudit.create({
-                  box: box._id,
-                  user: req.user._id,
-                  quantity: -changeQty,
-                  color: normalizedColor,
-                  note: `Dispatch via challan: ${challanNumber}`,
-                  action: 'subtract',
-                  challan: null, // Will be updated after challan creation
-                });
-              } catch (auditError) {
-                console.error('Audit log error for color dispatch:', auditError);
-              }
+          for (const [normalizedColor, changeQty] of colorUsage.entries()) {
+            try {
+              await BoxAudit.create({
+                box: box._id,
+                user: req.user._id,
+                quantity: -changeQty,
+                color: normalizedColor,
+                note: `Dispatch via challan: ${challanNumber}`,
+                action: 'subtract',
+                challan: null, // Will be updated after challan creation
+              });
+            } catch (auditError) {
+              console.error('Audit log error for color dispatch:', auditError);
             }
           }
         }

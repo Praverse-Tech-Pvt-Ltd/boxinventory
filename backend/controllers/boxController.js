@@ -1,6 +1,7 @@
 import Box from "../models/boxModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
 import BoxAudit from "../models/boxAuditModel.js";
+import { getColorAvailabilityArray, getTotalStock } from "../utils/inventory.js";
 
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
@@ -38,28 +39,16 @@ export const getBoxById = async (req, res) => {
 };
 
 // Get box availability by code (for challan color-wise qty)
+// Uses standardized inventory helpers for consistent color normalization
 export const getBoxAvailabilityByCode = async (req, res) => {
   try {
     const { code } = req.params;
     const box = await Box.findOne({ code: code.trim().toUpperCase() });
     if (!box) return res.status(404).json({ message: "Box not found" });
     
-    // Transform quantityByColor Map to array format
-    const colorAvailability = [];
-    if (box.quantityByColor) {
-      const qtyMap = box.quantityByColor instanceof Map 
-        ? box.quantityByColor 
-        : new Map(Object.entries(box.quantityByColor || {}));
-      
-      qtyMap.forEach((qty, color) => {
-        if (color && color.trim()) {
-          colorAvailability.push({
-            color: color.trim(),
-            available: Number(qty) || 0
-          });
-        }
-      });
-    }
+    // Use inventory helper to get normalized color availability
+    const colorAvailability = getColorAvailabilityArray(box);
+    const totalQuantity = getTotalStock(box);
     
     res.status(200).json({
       box_code: box.code,
@@ -68,7 +57,7 @@ export const getBoxAvailabilityByCode = async (req, res) => {
       category: box.category,
       price: box.price,
       colors: colorAvailability,
-      totalQuantity: box.totalQuantity || 0
+      totalQuantity: totalQuantity
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
