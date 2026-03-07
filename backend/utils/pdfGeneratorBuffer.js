@@ -108,7 +108,10 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
                 }))
                 .filter((line) => line.qty > 0)
             : [{
-                color: String(item.color || '').trim() || '-',
+                color: String(item.color || '').trim() || 
+                       (Array.isArray(item.colours) && item.colours.length > 0 ? String(item.colours[0]).trim() : '') ||
+                       (Array.isArray(item.box?.colours) && item.box.colours.length > 0 ? String(item.box.colours[0]).trim() : '') ||
+                       '-',
                 qty,
               }];
 

@@ -46,26 +46,32 @@ const createManualRow = () => ({
 });
 
 const DEFAULT_TERMS = `Terms & Conditions:
-• Parcel will be dispatched after payment confirmation.
-• Order once placed – No refund / No cancellation / No exchange.
-• Customised order – colour difference is possible in printing.
-• Order will be shipped within 24 hours of payment received.
-• Delivery timeline: 2–6 working days, depending on location.`;
+• MINIMUM QTY: 20 PCS (10 PC SINGLE COLOR PACKING)
+• ASSEMBLY CHARGES ₹10/- ADDITIONAL PER BOX. (If required we can fold the boxes.)
+• THE ABOVE MENTIONED PRICES ARE WITHOUT GST, GST is 5% ADDITIONAL ON TOTAL BILL.
+• SHIPPING & FORWARDING CHARGES ADDITIONAL APPLICABLE.
+• SHIPPING CHARGES ARE DYNAMIC AS IT IS NOT ONLY BASED ON WEIGHT BUT DIMENSIONS ALSO.
+• GOODS ONCE SOLD WILL NOT BE TAKEN BACK / EXCHANGED / REFUNDED.
+• ONCE ORDER PLACED WE WILL SHARE YOU THE FINAL AMOUNT INCLUDING OF SHIPPING & PACKAGING CHARGES.
+• ALWAYS SHARE A SCREENSHOT OF PAYMENT DONE.
+• ORDER WILL BE DISPATCH WITHIN 24-48 HOURS AFTER RECEIVED YOUR PAYMENT.
+• SHIPPING TIME IS USUALLY 1-2 DAYS WITHIN MUMBAI & 5-7 DAYS PAN INDIA, DURING FESTIVE SEASON IT MIGHT TAKE A LITTLE LONG.
+• VIDEO IS MUST OF OPENING OF PARCEL IN CASE IF YOU WANT TO CLAIM ANY DAMAGE.
+• WILL SHARE YOU THE TRACKING ID AS SOON AS THE PARCEL IS BEEN PICKED UP.`;
 
-const DEFAULT_NOTE = `Note:
-~ Prices are without GST. GST @ 5% applicable.
-~ Shipping & packaging charges are additional.
-~ Shipping charges depend on weight and dimensions.
-~ Goods once sold will not be taken back / exchanged / refunded.
-~ Final amount will be shared after order confirmation.
-~ Payment confirmation screenshot is mandatory.
-~ Dispatch within 24–48 hours after payment.
-~ Delivery:
-  • 1–2 days Mumbai
-  • 5–7 days PAN India
-  • May delay during festive season
-~ Opening video mandatory for damage claims.
-~ Tracking ID shared after pickup.`;
+const DEFAULT_NOTE = `NOTE:
+• MINIMUM QTY: 20 PCS (10 PC SINGLE COLOR PACKING)
+• ASSEMBLY CHARGES ₹10/- ADDITIONAL PER BOX. (If required we can fold the boxes.)
+• THE ABOVE MENTIONED PRICES ARE WITHOUT GST, GST is 5% ADDITIONAL ON TOTAL BILL.
+• SHIPPING & FORWARDING CHARGES ADDITIONAL APPLICABLE.
+• SHIPPING CHARGES ARE DYNAMIC AS IT IS NOT ONLY BASED ON WEIGHT BUT DIMENSIONS ALSO.
+• GOODS ONCE SOLD WILL NOT BE TAKEN BACK / EXCHANGED / REFUNDED.
+• ONCE ORDER PLACED WE WILL SHARE YOU THE FINAL AMOUNT INCLUDING OF SHIPPING & PACKAGING CHARGES.
+• ALWAYS SHARE A SCREENSHOT OF PAYMENT DONE.
+• ORDER WILL BE DISPATCH WITHIN 24-48 HOURS AFTER RECEIVED YOUR PAYMENT.
+• SHIPPING TIME IS USUALLY 1-2 DAYS WITHIN MUMBAI & 5-7 DAYS PAN INDIA, DURING FESTIVE SEASON IT MIGHT TAKE A LITTLE LONG.
+• VIDEO IS MUST OF OPENING OF PARCEL IN CASE IF YOU WANT TO CLAIM ANY DAMAGE.
+• WILL SHARE YOU THE TRACKING ID AS SOON AS THE PARCEL IS BEEN PICKED UP.`;
 
 const ChallanGeneration = () => {
   const [candidates, setCandidates] = useState([]);
@@ -275,24 +281,6 @@ const ChallanGeneration = () => {
       console.log("[addManualRow] Manual rows count:", updated.length);
       return updated;
     });
-    // Scroll to manual rows section after adding a new row
-    setTimeout(() => {
-      console.log("[addManualRow] Attempting to scroll to manual rows section");
-      if (manualRowsRef.current) {
-        const element = manualRowsRef.current;
-        const headerOffset = 100;
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-        
-        console.log("[addManualRow] Scroll position:", offsetPosition);
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth"
-        });
-      } else {
-        console.warn("[addManualRow] manualRowsRef.current is null");
-      }
-    }, 100);
   };
 
   const removeManualRow = (rowId) => {
