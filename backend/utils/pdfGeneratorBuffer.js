@@ -1,43 +1,99 @@
 import PDFDocument from 'pdfkit';
 
+const formatCurrency = (amount) => {
+  const num = typeof amount === 'number' ? amount : parseFloat(amount || 0);
+  return `INR ${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+};
+
+const cleanPdfText = (text) =>
+  String(text || '').replace(/₹/g, 'INR ').replace(/â‚¹/g, 'INR ').trim();
+
+const cleanTermsText = (text) =>
+  cleanPdfText(text).replace(/^\s*Terms\s*&\s*Conditions\s*:?\s*/i, '').trim();
+
 /**
  * Generate a challan PDF as a Buffer (in-memory) using PDFKit.
- * This is serverless-friendly and avoids filesystem writes.
- * 
- * @param {Object} challanData - Challan data with items, totals, client details
- * @param {boolean} includeGST - Whether to include GST (default: true)
- * @returns {Promise<Buffer>} PDF buffer
  */
 export const generateChallanPdfBuffer = async (challanData, includeGST = true) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-      });
-
+      const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
       const chunks = [];
+
       doc.on('data', (chunk) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // Helper function to format currency
-      const formatCurrency = (amount) => {
-        const num = typeof amount === 'number' ? amount : parseFloat(amount || 0);
-        return `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+      const pageBottom = () => doc.page.height - doc.page.margins.bottom;
+      const ensureSpace = (height) => {
+        if (doc.y + height > pageBottom()) {
+          doc.addPage();
+        }
       };
 
-      // Header - UPDATED: Use correct mobile number format with two numbers
-      doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
-      doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
-      doc.fontSize(9).text('Mob.: +918850893493, +919004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
-      doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
+      const drawHeader = () => {
+        doc.fontSize(16).font('Helvetica-Bold').text('VISHAL PAPER PRODUCT', { align: 'center' });
+        doc.fontSize(10).font('Helvetica').text('172, Khadilkar Road, Girgaon, Mumbai - 400 004', { align: 'center' });
+        doc.fontSize(9).text('Mob.: +918850893493, +919004433300 | E-mail: fancycards@yahoo.com', { align: 'center' });
+        doc.fontSize(9).text('GST NO.: 27BCZPS4667K1ZD', { align: 'center' });
+        doc.moveDown(0.5);
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.5);
+      };
 
-      doc.moveDown(0.5);
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-      doc.moveDown(0.5);
+      const columns = {
+        item: { x: 50, width: 145 },
+        colour: { x: 200, width: 70 },
+        qty: { x: 280, width: 40 },
+        productRate: { x: 330, width: 65 },
+        assemblyRate: { x: 400, width: 65 },
+        amount: { x: 470, width: 75 },
+      };
 
-      // Challan title and details
+      const drawTableHeader = () => {
+        ensureSpace(42);
+        const y = doc.y;
+        doc.fontSize(9).font('Helvetica-Bold');
+        doc.text('Item', columns.item.x, y, { width: columns.item.width });
+        doc.text('Colour', columns.colour.x, y, { width: columns.colour.width });
+        doc.text('Qty', columns.qty.x, y, { width: columns.qty.width });
+        doc.text('Prod Rate', columns.productRate.x, y, { width: columns.productRate.width });
+        doc.text('Assy Rate', columns.assemblyRate.x, y, { width: columns.assemblyRate.width });
+        doc.text('Amount', columns.amount.x, y, { width: columns.amount.width, align: 'right' });
+        doc.moveTo(50, y + 15).lineTo(545, y + 15).stroke();
+        doc.y = y + 20;
+      };
+
+      const drawCellRow = (values) => {
+        doc.fontSize(8).font('Helvetica');
+        const rowHeight = Math.max(
+          16,
+          ...Object.values(values).map((cell) =>
+            doc.heightOfString(cell.text || ' ', {
+              width: cell.width,
+              lineGap: 1,
+            }) + 6
+          )
+        );
+
+        if (doc.y + rowHeight > pageBottom()) {
+          doc.addPage();
+          drawTableHeader();
+        }
+
+        const y = doc.y;
+        Object.values(values).forEach((cell) => {
+          doc.text(cell.text, cell.x, y, {
+            width: cell.width,
+            align: cell.align || 'left',
+            lineGap: 1,
+          });
+        });
+        doc.y = y + rowHeight;
+      };
+
+      drawHeader();
+
       doc.fontSize(14).font('Helvetica-Bold').text('CHALLAN', { align: 'center' });
       doc.moveDown(0.3);
 
@@ -46,12 +102,11 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const dateStr = new Date(challanDate).toLocaleDateString('en-IN');
 
       doc.fontSize(10).font('Helvetica');
-      doc.text(`Challan No.: ${challanNumber}`, 50, doc.y);
-      doc.text(`Date: ${dateStr}`, 350, doc.y - 15);
-
+      const detailY = doc.y;
+      doc.text(`Challan No.: ${challanNumber}`, 50, detailY);
+      doc.text(`Date: ${dateStr}`, 350, detailY);
       doc.moveDown(1);
 
-      // Client details
       const clientName = challanData.clientDetails?.name || challanData.clientName || 'Unnamed Client';
       const clientAddress = challanData.clientDetails?.address || '';
       const clientMobile = challanData.clientDetails?.mobile || '';
@@ -63,44 +118,28 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       if (clientAddress) doc.text(`Address: ${clientAddress}`);
       if (clientMobile) doc.text(`Mobile: ${clientMobile}`);
       if (clientGST) doc.text(`GST: ${clientGST}`);
-
       doc.moveDown(0.5);
 
-      // Table header - include Colour between Item and Qty
-      const tableTop = doc.y;
-      const col1 = 50;    // Item
-      const col2 = 200;   // Colour
-      const col3 = 280;   // Qty
-      const col4 = 330;   // Product Rate
-      const col5 = 400;   // Assembly Rate
-      const col6 = 470;   // Amount
+      drawTableHeader();
 
-      doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Item', col1, tableTop, { width: 145, lineBreak: false });
-      doc.text('Colour', col2, tableTop, { width: 70, lineBreak: false });
-      doc.text('Qty', col3, tableTop, { width: 40, lineBreak: false });
-      doc.text('Prod Rate', col4, tableTop, { width: 65, lineBreak: false });
-      doc.text('Assy Rate', col5, tableTop, { width: 65, lineBreak: false });
-      doc.text('Amount', col6, tableTop, { width: 75, align: 'right', lineBreak: false });
-
-      doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).stroke();
-
-      // Table rows - show color inline between item and qty
-      let yPosition = tableTop + 20;
       const items = challanData.items || [];
-
       if (items.length === 0) {
-        doc.fontSize(9).font('Helvetica').text('(No items)', col1, yPosition);
-        yPosition += 20;
+        drawCellRow({
+          item: { ...columns.item, text: '(No items)' },
+          colour: { ...columns.colour, text: '' },
+          qty: { ...columns.qty, text: '' },
+          productRate: { ...columns.productRate, text: '' },
+          assemblyRate: { ...columns.assemblyRate, text: '' },
+          amount: { ...columns.amount, text: '' },
+        });
       } else {
         items.forEach((item) => {
           const itemName = item.item || item.box?.title || 'Unknown Item';
           const qty = Number(item.quantity || 0);
-          // Support both bifurcated and combined rate formats
           const productRate = Number(item.productRate || item.rate || 0);
           const assemblyRate = Number(item.assemblyRate || item.assemblyCharge || 0);
 
-          const itemColorRows = Array.isArray(item.colorLines) && item.colorLines.length > 0
+          const colorRows = Array.isArray(item.colorLines) && item.colorLines.length > 0
             ? item.colorLines
                 .map((line) => ({
                   color: String(line?.color || '').trim() || '-',
@@ -108,36 +147,30 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
                 }))
                 .filter((line) => line.qty > 0)
             : [{
-                color: String(item.color || '').trim() || 
-                       (Array.isArray(item.colours) && item.colours.length > 0 ? String(item.colours[0]).trim() : '') ||
-                       (Array.isArray(item.box?.colours) && item.box.colours.length > 0 ? String(item.box.colours[0]).trim() : '') ||
-                       '-',
+                color: String(item.color || '').trim() ||
+                  (Array.isArray(item.colours) && item.colours.length > 0 ? String(item.colours[0]).trim() : '') ||
+                  (Array.isArray(item.box?.colours) && item.box.colours.length > 0 ? String(item.box.colours[0]).trim() : '') ||
+                  '-',
                 qty,
               }];
 
-          const rowsToPrint = itemColorRows.length > 0 ? itemColorRows : [{ color: '-', qty }];
-
-          rowsToPrint.forEach((row, rowIndex) => {
-            const lineProductAmount = row.qty * productRate;
-            const lineAssemblyAmount = row.qty * assemblyRate;
-            const lineTotal = lineProductAmount + lineAssemblyAmount;
-
-            doc.fontSize(8).font('Helvetica');
-            doc.text(rowIndex === 0 ? itemName : '', col1, yPosition, { width: 145, lineBreak: false });
-            doc.text(row.color, col2, yPosition, { width: 70, lineBreak: false });
-            doc.text(String(row.qty), col3, yPosition, { width: 40, lineBreak: false });
-            doc.text(formatCurrency(productRate), col4, yPosition, { width: 65, lineBreak: false });
-            doc.text(formatCurrency(assemblyRate), col5, yPosition, { width: 65, lineBreak: false });
-            doc.text(formatCurrency(lineTotal), col6, yPosition, { width: 75, align: 'right', lineBreak: false });
-            yPosition += 16;
+          (colorRows.length ? colorRows : [{ color: '-', qty }]).forEach((row, rowIndex) => {
+            const lineTotal = row.qty * (productRate + assemblyRate);
+            drawCellRow({
+              item: { ...columns.item, text: rowIndex === 0 ? itemName : '' },
+              colour: { ...columns.colour, text: row.color },
+              qty: { ...columns.qty, text: String(row.qty) },
+              productRate: { ...columns.productRate, text: formatCurrency(productRate) },
+              assemblyRate: { ...columns.assemblyRate, text: formatCurrency(assemblyRate) },
+              amount: { ...columns.amount, text: formatCurrency(lineTotal), align: 'right' },
+            });
           });
         });
       }
 
-      doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
-      yPosition += 10;
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.y += 10;
 
-      // Totals section - Clean right-aligned format
       const itemsSubtotal = Number(challanData.items_subtotal) || 0;
       const assemblyTotal = Number(challanData.assembly_total) || 0;
       const packagingTotal = Number(challanData.packaging_charges_overall) || 0;
@@ -146,105 +179,72 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const taxableAmount = Number(challanData.taxable_subtotal || challanData.taxableAmount) || 0;
       const gstAmount = Number(challanData.gst_amount || challanData.gstAmount) || 0;
       const totalAmount = Number(challanData.grand_total || challanData.totalAmount) || 0;
-      const paymentMode = challanData.payment_mode || "Not Specified";
-
-      console.log('[PDF] Totals:', { itemsSubtotal, assemblyTotal, packagingTotal, discountAmount, discountPct, taxableAmount, gstAmount, totalAmount });
-      
-      // Right-align totals
-      const labelCol = 380;
-      const valueCol = 490;
+      const paymentMode = challanData.payment_mode || 'Not Specified';
+      const labelCol = 360;
+      const valueCol = 470;
       const lineHeight = 16;
 
-      doc.fontSize(9).font('Helvetica');
-      
-      // Items Subtotal
-      doc.text('Items Subtotal:', labelCol, yPosition);
-      doc.text(formatCurrency(itemsSubtotal), valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += lineHeight;
-      
-      // Assembly Total
-      doc.text('Assembly Total:', labelCol, yPosition);
-      doc.text(formatCurrency(assemblyTotal), valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += lineHeight;
-      
-      // Packaging Charges (always show)
-      doc.text('Packaging Charges:', labelCol, yPosition);
-      doc.text(formatCurrency(packagingTotal), valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += lineHeight;
-      
-      // Discount (always show with percentage)
-      const discountLabel = discountPct > 0 ? `Discount (${discountPct}%):` : 'Discount (0%):';
-      doc.text(discountLabel, labelCol, yPosition);
-      const discountDisplay = discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0);
-      doc.text(discountDisplay, valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += lineHeight + 3;
-      
-      // Separator line
+      ensureSpace(includeGST ? 158 : 142);
+      let yPosition = doc.y;
+      const totalLine = (label, value, options = {}) => {
+        doc.fontSize(options.size || 9).font(options.bold ? 'Helvetica-Bold' : 'Helvetica');
+        doc.text(label, labelCol, yPosition, { width: 105, align: 'right' });
+        doc.text(value, valueCol, yPosition, { width: 75, align: 'right' });
+        yPosition += options.gap || lineHeight;
+      };
+
+      totalLine('Items Subtotal:', formatCurrency(itemsSubtotal));
+      totalLine('Assembly Total:', formatCurrency(assemblyTotal));
+      totalLine('Packaging Charges:', formatCurrency(packagingTotal));
+      totalLine(`Discount (${discountPct || 0}%):`, discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0), { gap: lineHeight + 3 });
       doc.moveTo(labelCol, yPosition).lineTo(545, yPosition).stroke();
       yPosition += 8;
-      
-      // Taxable Subtotal (bold)
-      doc.font('Helvetica-Bold');
-      doc.text('Taxable Subtotal:', labelCol, yPosition);
-      doc.text(formatCurrency(taxableAmount), valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += lineHeight;
-      
-      // GST (if applicable)
+      totalLine('Taxable Subtotal:', formatCurrency(taxableAmount), { bold: true });
       if (includeGST) {
-        doc.font('Helvetica');
-        doc.text('GST (5%):', labelCol, yPosition);
-        doc.text(formatCurrency(gstAmount), valueCol, yPosition, { width: 55, align: 'right' });
-        yPosition += lineHeight + 3;
+        totalLine('GST (5%):', formatCurrency(gstAmount), { gap: lineHeight + 3 });
       }
-      
-      // Final separator
       doc.moveTo(labelCol, yPosition).lineTo(545, yPosition).stroke();
       yPosition += 8;
-      
-      // Grand Total (bold and larger)
-      doc.fontSize(11).font('Helvetica-Bold');
-      doc.text('Grand Total:', labelCol, yPosition);
-      doc.text(formatCurrency(totalAmount), valueCol, yPosition, { width: 55, align: 'right' });
-      yPosition += 20;
+      totalLine('Grand Total:', formatCurrency(totalAmount), { bold: true, size: 11, gap: 20 });
+      doc.y = yPosition;
 
-      // KEEP-TOGETHER BLOCK: Payment Mode + Remarks + Notes (move entire block if doesn't fit)
-      // Calculate required space for this block
-      const keepTogetherBlockSize = 50; // Approximate height needed
-      const pageHeight = 841.89; // A4 height in points
-      const footerMargin = 50;
-      
-      if (yPosition + keepTogetherBlockSize > pageHeight - footerMargin) {
-        // Block doesn't fit on current page, add new page
-        doc.addPage();
-        yPosition = 50;
-      }
+      const remarksText = cleanPdfText(challanData.remarks);
+      const termsText = cleanTermsText(challanData.notes);
+      const remarksContentHeight = remarksText
+        ? Math.max(28, doc.heightOfString(remarksText, { width: 495, lineGap: 2 }) + 8)
+        : 0;
+      const termsContentHeight = termsText
+        ? Math.max(42, doc.heightOfString(termsText, { width: 495, lineGap: 2 }) + 8)
+        : 0;
+      const detailsHeight =
+        17 +
+        (remarksText ? 10 + remarksContentHeight : 0) +
+        (termsText ? 10 + termsContentHeight : 0) +
+        8;
+      ensureSpace(detailsHeight);
 
-      // Payment Mode section (ONLY ONCE)
-      doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('Payment Mode: ', 50, yPosition, { continued: true });
+      yPosition = doc.y;
+      doc.fontSize(9).font('Helvetica-Bold').text('Payment Mode: ', 50, yPosition, { continued: true });
       doc.font('Helvetica').text(paymentMode);
       yPosition += 15;
 
-      // Remarks section (if present)
-      if (challanData.remarks && challanData.remarks.trim()) {
+      if (remarksText) {
         doc.fontSize(8).font('Helvetica-Bold').text('Remarks:', 50, yPosition);
         yPosition += 10;
-        doc.fontSize(8).font('Helvetica').text(challanData.remarks, 50, yPosition, { width: 495 });
-        yPosition += 15;
+        doc.fontSize(8).font('Helvetica').text(remarksText, 50, yPosition, { width: 495, lineGap: 2 });
+        yPosition += remarksContentHeight;
       }
 
-      // Notes/Terms & Conditions section
-      if (challanData.notes) {
+      if (termsText) {
         doc.fontSize(8).font('Helvetica-Bold').text('Terms & Conditions:', 50, yPosition);
         yPosition += 10;
-        doc.fontSize(8).font('Helvetica').text(challanData.notes, 50, yPosition, { width: 495 });
-        yPosition += 15;
+        doc.fontSize(8).font('Helvetica').text(termsText, 50, yPosition, { width: 495, lineGap: 2 });
+        yPosition += termsContentHeight;
       }
 
-      // Footer
-      doc.moveDown(1);
+      doc.y = yPosition + 5;
+      ensureSpace(18);
       doc.fontSize(7).text('Generated by: Vishal Paper Product | Challan Management System', { align: 'center' });
-      doc.fontSize(6).text('[PDF Generator v1.9 - Service Layer Fix Applied]', { align: 'center', color: '#999999' });
 
       doc.end();
     } catch (error) {

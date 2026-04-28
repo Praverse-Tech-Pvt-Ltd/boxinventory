@@ -49,8 +49,16 @@ const ensureDirectory = async (dirPath) => {
   }
 };
 
-const formatCurrency = (value) =>
-  typeof value === "number" ? value.toFixed(2) : Number(value || 0).toFixed(2);
+const formatCurrency = (value) => {
+  const num = typeof value === "number" ? value : Number(value || 0);
+  return `INR ${num.toFixed(2)}`;
+};
+
+const cleanPdfText = (value) =>
+  String(value || "").replace(/₹/g, "INR ").replace(/â‚¹/g, "INR ").trim();
+
+const cleanTermsText = (value) =>
+  cleanPdfText(value).replace(/^\s*Terms\s*&\s*Conditions\s*:?\s*/i, "").trim();
 
 // Relative width factors to fit within page content width dynamically
 const columnConfig = [
@@ -443,7 +451,7 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", pac
 
   doc.font("Helvetica-Bold").fontSize(9.5);
   doc.text("TOTAL (Rounded)", startX + 4, currentLineY + 6, { width: labelWidth - 8, align: "right" });
-  doc.text(`INR ${formatCurrency(roundedTotal)}`, startX + labelWidth, currentLineY + 6, {
+  doc.text(formatCurrency(roundedTotal), startX + labelWidth, currentLineY + 6, {
     width: valueWidth - 8,
     align: "right",
   });
@@ -492,7 +500,7 @@ const addFooter = (doc, startY, terms, paymentMode = null, remarks = null) => {
   }
 
   // Terms & Conditions - render header and content ONCE
-  const termsToUse = terms || DEFAULT_TERMS;
+  const termsToUse = cleanTermsText(terms || DEFAULT_TERMS);
   const termsHeight = doc.heightOfString(termsToUse, { width: doc.page.width - 100, lineGap: 1 });
   const termsRequiredHeight = 12 + termsHeight + sectionGap;
   
@@ -510,21 +518,6 @@ const addFooter = (doc, startY, terms, paymentMode = null, remarks = null) => {
   
   contentY += termsRequiredHeight;
 
-  // Note - render header and content ONCE
-  const noteHeight = doc.heightOfString(DEFAULT_NOTE, { width: doc.page.width - 100, lineGap: 1 });
-  const noteRequiredHeight = 12 + noteHeight + sectionGap;
-  
-  if (contentY + noteRequiredHeight > pageHeight - bottomMargin) {
-    doc.addPage();
-    contentY = 50;
-  }
-  
-  doc.font("Helvetica-Bold").fontSize(headerFontSize).text("Note:", 50, contentY);
-  doc.font("Helvetica").fontSize(contentFontSize).text(DEFAULT_NOTE, 50, contentY + 10, {
-    width: doc.page.width - 100,
-    align: "left",
-    lineGap: 1,
-  });
 };
 
 export const generateChallanPdf = async (challanData, includeGST = true, taxType = "GST") => {
@@ -629,5 +622,3 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
     throw error;
   }
 };
-
-

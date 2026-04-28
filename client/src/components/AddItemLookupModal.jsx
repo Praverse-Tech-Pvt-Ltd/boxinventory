@@ -17,7 +17,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState(null);
-  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedColorLines, setSelectedColorLines] = useState([]);
   const [searchError, setSearchError] = useState("");
   const searchInputRef = React.useRef(null);
 
@@ -70,18 +70,27 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
   // Handle selection of box
   const handleSelectBox = (box) => {
     setSelectedBoxId(box._id);
-    setSelectedColor(null); // Reset color selection
+    setSelectedColorLines([]);
   };
 
-  // Handle selection of color
-  const handleSelectColor = (color) => {
-    setSelectedColor(color);
+  const handleToggleColor = (color) => {
+    setSelectedColorLines((prev) => {
+      const exists = prev.some((line) => line.color === color);
+      if (exists) return prev.filter((line) => line.color !== color);
+      return [...prev, { color, quantity: 0 }];
+    });
+  };
+
+  const handleColorQtyChange = (color, quantity) => {
+    setSelectedColorLines((prev) =>
+      prev.map((line) => (line.color === color ? { ...line, quantity: Number(quantity) || 0 } : line))
+    );
   };
 
   // Handle confirm selection
   const handleConfirm = () => {
-    if (!selectedBoxId || !selectedColor) {
-      toast.error("Please select a box and color");
+    if (!selectedBoxId || selectedColorLines.length === 0) {
+      toast.error("Please select a box and at least one color");
       return;
     }
 
@@ -91,14 +100,24 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
       return;
     }
 
+    const colorLines = selectedColorLines
+      .map((line) => ({
+        id: `color_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        color: line.color,
+        quantity: Number(line.quantity) || 0,
+      }))
+      .filter((line) => line.color);
+    const totalQuantity = colorLines.reduce((sum, line) => sum + line.quantity, 0);
+
     // Create item data with boxId linked
     const newItem = {
       _id: Math.random().toString(),
       boxId: selectedBox._id,
       code: selectedBox.code,
       name: selectedBox.title,
-      color: selectedColor,
-      quantity: 0,
+      color: colorLines[0]?.color || "",
+      colorLines,
+      quantity: totalQuantity,
       rate: selectedBox.price || 0,
       assemblyCharge: 0,
       colors: selectedBox.colors, // Store available colors for dropdown
@@ -110,7 +129,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
     setSearchQuery("");
     setSearchResults([]);
     setSelectedBoxId(null);
-    setSelectedColor(null);
+    setSelectedColorLines([]);
     onClose();
   };
 
@@ -123,6 +142,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
 
   const selectedBox = searchResults.find((b) => b._id === selectedBoxId);
   const availableColors = selectedBox?.colors || [];
+  const selectedColorNames = selectedColorLines.map((line) => line.color);
 
   if (!isOpen) return null;
 
@@ -220,16 +240,16 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
             {/* Color Selection */}
             {selectedBox && (
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Select Color</h3>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Select Colors</h3>
                 <div className="border border-slate-300 rounded-lg overflow-y-auto max-h-64 bg-slate-50">
                   {availableColors.length > 0 ? (
                     <div className="divide-y divide-slate-200">
                       {availableColors.map((colorItem) => (
                         <button
                           key={colorItem.color}
-                          onClick={() => handleSelectColor(colorItem.color)}
+                          onClick={() => handleToggleColor(colorItem.color)}
                           className={`w-full text-left px-4 py-3 transition-colors ${
-                            selectedColor === colorItem.color
+                            selectedColorNames.includes(colorItem.color)
                               ? "bg-blue-100 border-l-4 border-blue-500"
                               : "hover:bg-slate-100"
                           }`}
@@ -252,14 +272,27 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
           </div>
 
           {/* Summary */}
-          {selectedBox && selectedColor && (
+          {selectedBox && selectedColorLines.length > 0 && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h3 className="text-sm font-semibold text-slate-900 mb-2">Selected Item</h3>
               <div className="text-sm text-slate-700">
                 <p><strong>Code:</strong> {selectedBox.code}</p>
                 <p><strong>Product:</strong> {selectedBox.title}</p>
-                <p><strong>Color:</strong> {selectedColor}</p>
                 <p><strong>Unit Price:</strong> ₹{selectedBox.price || 0}</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {selectedColorLines.map((line) => (
+                  <div key={line.color} className="flex items-center gap-2">
+                    <span className="flex-1 text-sm font-medium text-slate-700">{line.color}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={line.quantity}
+                      onChange={(e) => handleColorQtyChange(line.color, e.target.value)}
+                      className="w-24 px-3 py-1 border border-slate-300 rounded text-right"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -275,7 +308,7 @@ const AddItemLookupModal = ({ isOpen, onClose, onSelectBox }) => {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!selectedBoxId || !selectedColor}
+            disabled={!selectedBoxId || selectedColorLines.length === 0}
             className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Add Item

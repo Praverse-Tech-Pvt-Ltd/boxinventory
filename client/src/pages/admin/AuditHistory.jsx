@@ -38,6 +38,34 @@ const formatCurrencyUI = (amount) => {
   return isNaN(num) ? '₹0.00' : `₹${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 };
 
+const normalizeColorKey = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+
+const getColorValue = (colorObj) => String(colorObj?.color || colorObj || "").trim();
+
+const uniqueColors = (colors = []) => {
+  const seen = new Set();
+  return colors.map(getColorValue).filter((color) => {
+    const key = normalizeColorKey(color);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const buildEditableColorLines = (item) => {
+  if (Array.isArray(item.colorLines) && item.colorLines.length > 0) {
+    return item.colorLines
+      .map((line) => ({
+        id: `color_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        color: String(line?.color || "").trim(),
+        quantity: Number(line?.quantity || 0),
+      }))
+      .filter((line) => line.color);
+  }
+  const color = String(item.color || "").trim();
+  return [{ id: `color_${Date.now()}_${Math.random().toString(36).slice(2)}`, color, quantity: Number(item.quantity || 0) }];
+};
+
 // Function to generate PDF using jsPDF
 const generateSalesReportPDF = (salesData, fromDate, toDate, totals) => {
   try {
@@ -298,7 +326,11 @@ const AuditHistory = () => {
 
   const safeToISODate = (dateValue) => {
     const date = safeParseDate(dateValue);
-    return date ? date.toISOString().split('T')[0] : "";
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
   const [activeTab, setActiveTab] = useState("audits"); // "audits" or "sales"
   const [audits, setAudits] = useState([]);
@@ -378,18 +410,30 @@ const AuditHistory = () => {
       hsnCode: challan.hsnCode || "",
       packagingTotal: challan.packaging_charges_overall || 0,
       discountPercent: challan.discount_pct || 0,
-      challanDate: challan.challanDate ? new Date(challan.challanDate).toISOString().split("T")[0] : (challan.createdAt ? new Date(challan.createdAt).toISOString().split("T")[0] : ""),
+      challanDate: safeToISODate(challan.challanDate || challan.createdAt),
       // Items array for editing
-      items: challan.items?.map((item) => ({
-        _id: item._id || Math.random().toString(),
-        boxId: item.box?._id || item.box || "",
-        code: item.box?.code || item.code || "",
-        name: item.box?.title || item.name || "",
-        color: item.color || "",
-        quantity: item.quantity || 0,
-        rate: item.rate || 0,
-        assemblyCharge: item.assemblyCharge || 0,
-      })) || [],
+      items: challan.items?.map((item) => {
+        const colors = uniqueColors([
+          ...(Array.isArray(item.colorLines) ? item.colorLines.map((line) => line.color) : []),
+          item.color,
+          ...(Array.isArray(item.colours) ? item.colours : []),
+          ...(Array.isArray(item.box?.colours) ? item.box.colours : []),
+        ]);
+        const colorLines = buildEditableColorLines(item);
+        const selectedColor = colorLines[0]?.color || item.color || "";
+        return {
+          _id: item._id || Math.random().toString(),
+          boxId: item.box?._id || item.box || "",
+          code: item.box?.code || item.code || "",
+          name: item.box?.title || item.name || "",
+          color: selectedColor,
+          quantity: colorLines.length > 0 ? colorLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0) : (item.quantity || 0),
+          rate: item.productRate || item.rate || 0,
+          assemblyCharge: item.assemblyRate || item.assemblyCharge || 0,
+          colors,
+          colorLines,
+        };
+      }) || [],
     });
     setShowEditModal(true);
     // Disable background scroll
@@ -426,7 +470,10 @@ const AuditHistory = () => {
         toast.error("All items must have a product selected");
         return;
       }
-      if (item.quantity <= 0) {
+      const itemQty = Array.isArray(item.colorLines) && item.colorLines.length > 0
+        ? item.colorLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)
+        : Number(item.quantity || 0);
+      if (itemQty <= 0) {
         toast.error(`Item ${item.code} must have quantity > 0`);
         return;
       }
@@ -446,17 +493,32 @@ const AuditHistory = () => {
         hsnCode: editFormData.hsnCode,
         packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
         discountPercent: parseFloat(editFormData.discountPercent) || 0,
-        challanDate: editFormData.challanDate ? new Date(editFormData.challanDate).toISOString() : undefined,
+        challanDate: editFormData.challanDate || undefined,
         // Include items for full challan edit
-        items: editFormData.items.map((item) => ({
-          box: item.boxId,
-          code: item.code,
-          title: item.name,
-          color: item.color || "",
-          quantity: Number(item.quantity) || 0,
-          rate: Number(item.rate) || 0,
-          assemblyCharge: Number(item.assemblyCharge) || 0,
-        })),
+        items: editFormData.items.map((item) => {
+          const colorLines = Array.isArray(item.colorLines)
+            ? item.colorLines
+                .map((line) => ({
+                  color: String(line.color || "").trim(),
+                  quantity: Number(line.quantity) || 0,
+                }))
+                .filter((line) => line.color && line.quantity > 0)
+            : [];
+          const quantity = colorLines.length > 0
+            ? colorLines.reduce((sum, line) => sum + line.quantity, 0)
+            : Number(item.quantity) || 0;
+          return {
+            box: item.boxId,
+            code: item.code,
+            title: item.name,
+            color: colorLines[0]?.color || item.color || "",
+            colours: uniqueColors([...(item.colors || []), ...colorLines.map((line) => line.color), item.color]),
+            colorLines,
+            quantity,
+            rate: Number(item.rate) || 0,
+            assemblyCharge: Number(item.assemblyCharge) || 0,
+          };
+        }),
       };
 
       // Remove undefined fields
@@ -464,7 +526,8 @@ const AuditHistory = () => {
         (key) => payload[key] === undefined && delete payload[key]
       );
 
-      const updatedChallan = await editChallan(selectedChallan._id, payload);
+      const updatedResponse = await editChallan(selectedChallan._id, payload);
+      const updatedChallan = updatedResponse?.challan || updatedResponse;
       
       // Update challans list
       setChallans((prev) =>
@@ -491,6 +554,8 @@ const AuditHistory = () => {
     const itemWithId = {
       ...newItem,
       _id: newItem._id || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      colors: uniqueColors(newItem.colors || []),
+      colorLines: Array.isArray(newItem.colorLines) ? newItem.colorLines : buildEditableColorLines(newItem),
     };
     setEditFormData((prev) => ({
       ...prev,
@@ -515,6 +580,48 @@ const AuditHistory = () => {
       items: prev.items.map((item) =>
         item._id === itemId ? { ...item, [field]: value } : item
       ),
+    }));
+  };
+
+  const handleAddItemColorLine = (itemId) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (item._id !== itemId) return item;
+        const used = new Set((item.colorLines || []).map((line) => normalizeColorKey(line.color)));
+        const nextColor = uniqueColors(item.colors || []).find((color) => !used.has(normalizeColorKey(color))) || "";
+        const colorLines = [
+          ...(item.colorLines || []),
+          { id: `color_${Date.now()}_${Math.random().toString(36).slice(2)}`, color: nextColor, quantity: 0 },
+        ];
+        return { ...item, colorLines };
+      }),
+    }));
+  };
+
+  const handleUpdateItemColorLine = (itemId, lineId, field, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (item._id !== itemId) return item;
+        const colorLines = (item.colorLines || []).map((line) =>
+          line.id === lineId ? { ...line, [field]: value } : line
+        );
+        const quantity = colorLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+        return { ...item, colorLines, color: colorLines[0]?.color || "", quantity };
+      }),
+    }));
+  };
+
+  const handleRemoveItemColorLine = (itemId, lineId) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (item._id !== itemId) return item;
+        const colorLines = (item.colorLines || []).filter((line) => line.id !== lineId);
+        const quantity = colorLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0);
+        return { ...item, colorLines, color: colorLines[0]?.color || "", quantity };
+      }),
     }));
   };
 
@@ -634,9 +741,9 @@ const AuditHistory = () => {
       return;
     }
 
-    const from = new Date(fromDate);
+    const from = new Date(`${fromDate}T00:00:00`);
     from.setHours(0, 0, 0, 0); // Start of day
-    const to = new Date(toDate);
+    const to = new Date(`${toDate}T00:00:00`);
     to.setHours(23, 59, 59, 999); // End of day
 
     if (from > to) {
@@ -647,8 +754,9 @@ const AuditHistory = () => {
     // Filter challans by date range and status
     // ONLY ACTIVE CHALLANS count towards sales (CANCELLED are excluded)
     const filtered = challans.filter((challan) => {
-      const challanDate = new Date(challan.createdAt);
-      const isOutward = challan.inventory_mode !== "inward"; // Exclude stock inward (adds)
+      const dateSource = challan.challanDate || challan.createdAt;
+      const challanDate = new Date(dateSource);
+      const isOutward = challan.inventory_mode === "dispatch"; // Sales are dispatch challans only
       const isActive = challan.status !== "CANCELLED"; // Exclude cancelled
       return challanDate >= from && challanDate <= to && isOutward && isActive;
     });
@@ -673,7 +781,7 @@ const AuditHistory = () => {
 
       return {
         _id: challan._id,
-        date: safeFormatDate(challan.createdAt),
+        date: safeFormatDate(challan.challanDate || challan.createdAt),
         client: getClientDisplay(challan.clientName || challan.clientDetails?.name || "-"),
         challanNo: challan.challanNumber || challan.number || "-",
         taxableAmount: safeToNumber(taxableAmount),
@@ -1382,8 +1490,11 @@ const AuditHistory = () => {
                         <tbody>
                           {editFormData.items && editFormData.items.length > 0 ? (
                             editFormData.items.map((item, idx) => {
+                              const qtyForTotal = Array.isArray(item.colorLines) && item.colorLines.length > 0
+                                ? item.colorLines.reduce((sum, line) => sum + (Number(line.quantity) || 0), 0)
+                                : Number(item.quantity) || 0;
                               const lineTotal = 
-                                (Number(item.rate) || 0 + Number(item.assemblyCharge) || 0) * (Number(item.quantity) || 0);
+                                ((Number(item.rate) || 0) + (Number(item.assemblyCharge) || 0)) * qtyForTotal;
                               return (
                                 <tr key={item._id} className={`border-b border-slate-300 ${idx % 2 === 0 ? "bg-white" : "bg-slate-100"}`}>
                                   <td className="px-3 py-2">
@@ -1392,32 +1503,57 @@ const AuditHistory = () => {
                                   <td className="px-3 py-2">
                                     <div className="text-xs font-medium text-slate-900">{item.name}</div>
                                   </td>
-                                  <td className="px-3 py-2">
-                                    <select
-                                      value={item.color}
-                                      onChange={(e) => handleUpdateItem(item._id, "color", e.target.value)}
-                                      className="form-select w-full py-1 text-xs border border-slate-300 rounded bg-white"
-                                    >
-                                      <option value="">Select Color</option>
-                                      {item.colors && Array.isArray(item.colors) && item.colors.length > 0 ? (
-                                        item.colors.map((colorObj) => (
-                                          <option key={colorObj.color || colorObj} value={colorObj.color || colorObj}>
-                                            {colorObj.color || colorObj} {colorObj.available ? `(${colorObj.available})` : ""}
-                                          </option>
-                                        ))
-                                      ) : (
-                                        <option disabled>No colors available</option>
-                                      )}
-                                    </select>
+                                  <td className="px-3 py-2 min-w-[220px]">
+                                    <div className="space-y-2">
+                                      {(item.colorLines && item.colorLines.length > 0 ? item.colorLines : [{ id: "single", color: item.color || "", quantity: item.quantity || 0 }]).map((line) => (
+                                        <div key={line.id} className="flex gap-2 items-center">
+                                          <select
+                                            value={line.color || ""}
+                                            onChange={(e) => handleUpdateItemColorLine(item._id, line.id, "color", e.target.value)}
+                                            className="form-select flex-1 py-1 text-xs border border-slate-300 rounded bg-white"
+                                          >
+                                            <option value="">Select Color</option>
+                                            {uniqueColors([...(item.colors || []), line.color]).map((color) => (
+                                              <option key={color} value={color}>
+                                                {color}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={line.quantity}
+                                            onChange={(e) => handleUpdateItemColorLine(item._id, line.id, "quantity", e.target.value)}
+                                            className="form-input w-16 py-1 text-xs text-center border border-slate-300 rounded bg-white"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveItemColorLine(item._id, line.id)}
+                                            className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-semibold rounded hover:bg-slate-300"
+                                            disabled={(item.colorLines || []).length <= 1}
+                                          >
+                                            -
+                                          </button>
+                                        </div>
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddItemColorLine(item._id)}
+                                        className="text-xs font-semibold text-blue-700 hover:text-blue-900"
+                                      >
+                                        + Add color
+                                      </button>
+                                    </div>
                                   </td>
                                   <td className="px-3 py-2">
                                     <input
                                       type="number"
-                                      value={item.quantity}
+                                      value={qtyForTotal}
                                       onChange={(e) => handleUpdateItem(item._id, "quantity", e.target.value)}
                                       className="form-input w-full py-1 text-xs text-center border border-slate-300 rounded bg-white"
                                       placeholder="0"
                                       min="0"
+                                      disabled={Array.isArray(item.colorLines) && item.colorLines.length > 0}
                                     />
                                   </td>
                                   <td className="px-3 py-2 text-right">

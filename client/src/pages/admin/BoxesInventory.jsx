@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiPlus, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -32,25 +32,26 @@ const BoxesInventory = () => {
   const [showAddModal, setShowAddModal] = useState(null); // boxId or null
   const [addFormData, setAddFormData] = useState({ quantity: "", color: "", note: "" });
 
-  useEffect(() => {
-    const loadBoxes = async () => {
-      try {
-        setLoading(true);
-        const data = await getAllBoxes();
-        const enhanced = data.map((box) => ({
-          ...box,
-          quantityByColor: normalizeQuantityMap(box.quantityByColor),
-        }));
-        setBoxes(enhanced);
-        setFilteredBoxes(enhanced);
-      } catch (error) {
-        toast.error("Failed to load boxes");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadBoxes();
+  const loadBoxes = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getAllBoxes();
+      const enhanced = data.map((box) => ({
+        ...box,
+        quantityByColor: normalizeQuantityMap(box.quantityByColor),
+      }));
+      setBoxes(enhanced);
+      setFilteredBoxes(enhanced);
+    } catch (error) {
+      toast.error("Failed to load boxes");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadBoxes();
+  }, [loadBoxes]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -123,6 +124,7 @@ const BoxesInventory = () => {
           b._id === box._id ? { ...b, quantityByColor: updatedQtyByColor } : b
         )
       );
+      await loadBoxes();
       toast.success("Quantity subtracted");
       setQtyInputs((prev) => ({ ...prev, [box._id]: "" }));
       setColorInputs((prev) => ({ ...prev, [box._id]: "" }));
@@ -162,6 +164,7 @@ const BoxesInventory = () => {
           b._id === box._id ? { ...b, quantityByColor: updatedQtyByColor } : b
         )
       );
+      await loadBoxes();
       toast.success(`Added ${val} ${selectedColor} ${box.code} boxes`);
       setAddFormData({ quantity: "", color: "", note: "" });
       setShowAddModal(null);

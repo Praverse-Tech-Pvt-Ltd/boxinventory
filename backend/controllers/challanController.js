@@ -128,6 +128,24 @@ const buildColorUsageByBox = (items = []) => {
   return usageByBox;
 };
 
+const parseLocalDateInput = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 0, 0, 0, 0);
+    }
+  }
+  return new Date(value);
+};
+
+const getItemQuantityForTotals = (item) => {
+  if (Array.isArray(item?.colorLines) && item.colorLines.length > 0) {
+    return item.colorLines.reduce((sum, line) => sum + (Number(line?.quantity || 0) || 0), 0);
+  }
+  return Number(item?.quantity || 0) || 0;
+};
+
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
@@ -181,7 +199,7 @@ export const createChallan = async (req, res) => {
     let challanDateObj = new Date();
     if (challanDate) {
       try {
-        challanDateObj = new Date(challanDate);
+        challanDateObj = parseLocalDateInput(challanDate);
         if (isNaN(challanDateObj.getTime())) {
           return res.status(400).json({ message: "Invalid challan date format" });
         }
@@ -1174,7 +1192,7 @@ export const editChallan = async (req, res) => {
     // Handle challan date if provided (NEW: Use challanDate field)
     if (challanDate !== undefined && challanDate) {
       try {
-        const parsedDate = new Date(challanDate);
+        const parsedDate = parseLocalDateInput(challanDate);
         if (isNaN(parsedDate.getTime())) {
           return res.status(400).json({ message: "Invalid challan date format" });
         }
@@ -1312,7 +1330,7 @@ export const editChallan = async (req, res) => {
     if (Array.isArray(itemsForCalculation)) {
       itemsForCalculation.forEach((item) => {
         if (!item) return; // Skip null/undefined items
-        const itemQty = Number(item.quantity) || 0;
+        const itemQty = getItemQuantityForTotals(item);
         // Support both bifurcated (productRate + assemblyRate) and combined (rate + assemblyCharge) formats
         const itemRate = Number(item.productRate !== undefined ? item.productRate : (item.rate || 0));
         const itemAssembly = Number(item.assemblyRate !== undefined ? item.assemblyRate : (item.assemblyCharge || 0));

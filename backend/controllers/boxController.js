@@ -16,7 +16,10 @@ export const getAllBoxes = async (req, res) => {
 // Admin: get all audits (global list)
 export const getAllAudits = async (req, res) => {
   try {
-    const audits = await BoxAudit.find({})
+    const audits = await BoxAudit.find({
+      action: { $in: ["add", "create_stock_receipt"] },
+      $or: [{ quantity: { $gt: 0 } }, { action: "create_stock_receipt" }],
+    })
       .populate("user", "name email role")
       .populate("box", "title code category")
       .populate("challan", "challanNo number totalAmount")
@@ -204,14 +207,24 @@ export const createBox = async (req, res) => {
       colours: coloursArray,
     });
 
-    // Log audit event for box creation
+    // Log audit events for initial stock quantities so the Audit Logs tab shows inward stock only.
     try {
-      await BoxAudit.create({
-        box: box._id,
-        user: req.user._id,
-        note: `Box created: ${title} (${code?.toUpperCase()})`,
-        action: 'create_box',
+      const stockAudits = [];
+      quantityByColorMap.forEach((qty, color) => {
+        if (Number(qty) > 0) {
+          stockAudits.push({
+            box: box._id,
+            user: req.user._id,
+            quantity: Number(qty),
+            color,
+            note: `Initial stock added: ${title} (${code?.toUpperCase()})`,
+            action: 'add',
+          });
+        }
       });
+      if (stockAudits.length > 0) {
+        await BoxAudit.insertMany(stockAudits);
+      }
     } catch (auditError) {
       console.error('Audit log error for box creation:', auditError);
       // Continue even if audit logging fails
@@ -560,4 +573,3 @@ export const addColorToBox = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-

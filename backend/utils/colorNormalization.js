@@ -10,7 +10,7 @@
  */
 export const normalizeColor = (color) => {
   if (!color || typeof color !== "string") return "";
-  return color.trim().toLowerCase();
+  return color.trim().replace(/\s+/g, " ").toLowerCase();
 };
 
 /**

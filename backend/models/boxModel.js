@@ -80,6 +80,10 @@ boxSchema.set("toJSON", {
       return sum + (Number.isFinite(n) && n > 0 ? n : 0);
     }, 0);
     ret.totalQuantity = total;
+    ret.colorQuantityPairs = Object.entries(ret.quantityByColor || {}).map(([color, qty]) => ({
+      color,
+      qty: Number(qty) || 0,
+    }));
 
     return ret;
   },
