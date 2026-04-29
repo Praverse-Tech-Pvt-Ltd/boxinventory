@@ -7,6 +7,7 @@ import { logoutUser } from '../services/authService'
 import { useDispatch } from 'react-redux'
 import { logout } from '../redux/authSlice'
 import { useNavigate } from 'react-router-dom'
+import { getColorQty } from '../utils/getTotalQty'
 
 const ITEMS_PER_PAGE = 20
 
@@ -83,8 +84,7 @@ const Home = () => {
     }
 
     // Get quantity for the selected color
-    const quantityByColor = box.quantityByColor || {}
-    const availableQty = quantityByColor[selectedColor] || 0
+    const availableQty = getColorQty(box, selectedColor)
     
     if (val > availableQty) {
       toast.error(`Requested quantity exceeds available stock for ${selectedColor}. Available: ${availableQty}`)
@@ -271,7 +271,7 @@ const Home = () => {
                       <div className="ml-2 mt-1 space-y-1">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (
                           box.colours.map(color => {
-                            const qty = box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0
+                            const qty = getColorQty(box, color)
                             return (
                               <div key={color} className="text-xs">
                                 <span className="font-mono">{color}:</span> <span className="font-semibold">{qty}</span>
@@ -300,7 +300,7 @@ const Home = () => {
                         <option value="">Select Color</option>
                         {Array.isArray(box.colours) && box.colours.map(color => (
                           <option key={color} value={color}>
-                            {color} ({(box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0)})
+                            {color} ({getColorQty(box, color)})
                           </option>
                         ))}
                       </select>

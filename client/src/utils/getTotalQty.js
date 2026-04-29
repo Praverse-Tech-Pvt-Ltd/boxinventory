@@ -17,7 +17,11 @@ export const getTotalQty = (data) => {
 
   // If it's a box object with quantityByColor Map (converted to object in API response)
   if (data.quantityByColor && typeof data.quantityByColor === "object") {
-    return Object.values(data.quantityByColor).reduce((sum, qty) => {
+    const quantityValues = data.quantityByColor instanceof Map
+      ? Array.from(data.quantityByColor.values())
+      : Object.values(data.quantityByColor);
+
+    return quantityValues.reduce((sum, qty) => {
       const num = Number(qty || 0);
       return sum + (Number.isFinite(num) && num > 0 ? num : 0);
     }, 0);
@@ -42,6 +46,39 @@ export const getTotalQty = (data) => {
       }
       return sum;
     }, 0);
+  }
+
+  return 0;
+};
+
+export const normalizeColorKey = (color) => {
+  if (!color || typeof color !== "string") return "";
+  return color.trim().replace(/\s+/g, " ").toLowerCase();
+};
+
+export const getColorQty = (box, color) => {
+  const quantityByColor = box?.quantityByColor;
+  const requestedColor = normalizeColorKey(color);
+
+  if (!quantityByColor || !requestedColor) return 0;
+
+  if (quantityByColor instanceof Map) {
+    for (const [key, qty] of quantityByColor.entries()) {
+      if (normalizeColorKey(key) === requestedColor) {
+        const num = Number(qty || 0);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+      }
+    }
+    return 0;
+  }
+
+  if (typeof quantityByColor === "object") {
+    for (const [key, qty] of Object.entries(quantityByColor)) {
+      if (normalizeColorKey(key) === requestedColor) {
+        const num = Number(qty || 0);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+      }
+    }
   }
 
   return 0;

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiPlus, FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllBoxes, addBoxQuantity, subtractBoxQuantity } from "../../services/boxService";
+import { getColorQty, getTotalQty } from "../../utils/getTotalQty";
 import "../../styles/dashboard.css";
 
 const ITEMS_PER_PAGE = 18;
@@ -100,8 +101,7 @@ const BoxesInventory = () => {
       return;
     }
 
-    const quantityByColor = box.quantityByColor || {};
-    const availableQty = quantityByColor[selectedColor] || 0;
+    const availableQty = getColorQty(box, selectedColor);
 
     if (val > availableQty) {
       toast.error(
@@ -306,10 +306,7 @@ const BoxesInventory = () => {
                       <div className="space-y-1.5">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (
                           box.colours.map((color) => {
-                            const qty =
-                              box.quantityByColor?.[color] ||
-                              box.quantityByColor?.get?.(color) ||
-                              0;
+                            const qty = getColorQty(box, color);
                             const outOfStock = qty === 0;
                             return (
                               <div key={color} className="flex justify-between items-center text-xs">
@@ -327,10 +324,7 @@ const BoxesInventory = () => {
                     </div>
                     <div>
                       <span className="font-semibold">Total Available:</span>{" "}
-                      {Array.isArray(box.colours) && box.colours.length > 0 
-                        ? box.colours.reduce((sum, color) => sum + (box.quantityByColor?.[color] || 0), 0)
-                        : 0
-                      }
+                      {getTotalQty(box)}
                     </div>
                     <div>
                       <span className="font-semibold">Bag Size:</span> {box.bagSize}
@@ -357,7 +351,7 @@ const BoxesInventory = () => {
                           {Array.isArray(box.colours) &&
                             box.colours.map((color) => (
                               <option key={color} value={color}>
-                                {color} ({box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0})
+                                {color} ({getColorQty(box, color)})
                               </option>
                             ))}
                         </select>

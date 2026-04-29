@@ -11,6 +11,7 @@ import { FiTrash2, FiCheck, FiPlus, FiX, FiSearch } from "react-icons/fi";
 import { FaRegEdit } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import { getColorQty, getTotalQty } from "../../utils/getTotalQty";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -766,13 +767,13 @@ const BoxesManagement = () => {
                     <div><span className="font-semibold">Price:</span> ₹{box.price?.toFixed(2)}</div>
                     <div>
                       <span className="font-semibold">Total Quantity:</span>{" "}
-                      {typeof box.totalQuantity === "number" ? box.totalQuantity : 0}
+                      {getTotalQty(box)}
                     </div>
                     <div><span className="font-semibold">Quantity by Color:</span>
                       <div className="ml-2 mt-1 space-y-1">
                         {Array.isArray(box.colours) && box.colours.length > 0 ? (
                           box.colours.map(color => {
-                            const qty = box.quantityByColor?.[color] || box.quantityByColor?.get?.(color) || 0
+                            const qty = getColorQty(box, color)
                             return (
                               <div key={color} className="text-xs">
                                 <span className="font-mono font-semibold">{color}:</span> <span className="font-semibold">{qty}</span>

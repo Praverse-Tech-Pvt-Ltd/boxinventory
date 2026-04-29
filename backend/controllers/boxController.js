@@ -2,12 +2,44 @@ import Box from "../models/boxModel.js";
 import cloudinary from "../config/cloudinaryConfig.js";
 import BoxAudit from "../models/boxAuditModel.js";
 import { getColorAvailabilityArray, getTotalStock } from "../utils/inventory.js";
+import { normalizeColor } from "../utils/colorNormalization.js";
+
+const serializeBoxWithComputedStock = (box) => {
+  const boxObject = box.toObject({ flattenMaps: true });
+  boxObject.quantityByColor = boxObject.quantityByColor || {};
+  boxObject.totalQuantity = getTotalStock(boxObject);
+  boxObject.colorQuantityPairs = Object.entries(boxObject.quantityByColor).map(([color, qty]) => ({
+    color,
+    qty: Number(qty) || 0,
+  }));
+  return boxObject;
+};
+
+const resolveQuantityColorKey = (quantityByColor, color) => {
+  const trimmedColor = String(color || "").trim();
+  const normalizedColor = normalizeColor(trimmedColor);
+
+  if (!quantityByColor || !normalizedColor) return trimmedColor;
+
+  if (quantityByColor instanceof Map) {
+    for (const key of quantityByColor.keys()) {
+      if (normalizeColor(key) === normalizedColor) return key;
+    }
+  } else if (typeof quantityByColor === "object") {
+    const matchedKey = Object.keys(quantityByColor).find(
+      (key) => normalizeColor(key) === normalizedColor
+    );
+    if (matchedKey) return matchedKey;
+  }
+
+  return trimmedColor;
+};
 
 // Get all boxes
 export const getAllBoxes = async (req, res) => {
   try {
     const boxes = await Box.find().sort({ createdAt: -1 });
-    res.status(200).json(boxes);
+    res.status(200).json(boxes.map(serializeBoxWithComputedStock));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -35,7 +67,7 @@ export const getBoxById = async (req, res) => {
   try {
     const box = await Box.findById(req.params.id);
     if (!box) return res.status(404).json({ message: "Box not found" });
-    res.status(200).json(box);
+    res.status(200).json(serializeBoxWithComputedStock(box));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -111,7 +143,7 @@ export const searchBoxes = async (req, res) => {
         category: box.category,
         price: box.price,
         // NEW: Calculate actual total from color quantities (source of truth)
-        totalQuantity: colors.reduce((sum, colorItem) => sum + (colorItem.available || 0), 0) || box.totalQuantity || 0,
+        totalQuantity: colors.reduce((sum, colorItem) => sum + (colorItem.available || 0), 0),
         colors: colors
       };
     });
@@ -405,7 +437,7 @@ export const addBoxQuantity = async (req, res) => {
 
     // Get current quantity by color map
     const quantityByColor = box.quantityByColor || new Map();
-    const colorKey = color.trim();
+    const colorKey = resolveQuantityColorKey(quantityByColor, color);
     const currentQty = quantityByColor.get(colorKey) || 0;
 
     // Add quantity for the specific color
@@ -449,7 +481,7 @@ export const subtractBoxQuantity = async (req, res) => {
 
     // Get current quantity by color map
     const quantityByColor = box.quantityByColor || new Map();
-    const colorKey = color.trim();
+    const colorKey = resolveQuantityColorKey(quantityByColor, color);
     const currentQty = quantityByColor.get(colorKey) || 0;
 
     if (currentQty < parsedQty) {
