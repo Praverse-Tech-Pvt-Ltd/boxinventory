@@ -635,11 +635,17 @@ export const listChallans = async (req, res) => {
     // Also exclude cancelled challans by default
     const includeArchived = req.query.includeArchived === 'true';
     const includeCancelled = req.query.includeCancelled === 'true';
-    
+    const conditions = [];
+    if (!includeArchived) {
+      conditions.push({ $or: [{ archived: false }, { archived: { $exists: false } }] });
+    }
+    if (!includeCancelled) {
+      conditions.push({ $or: [{ status: { $ne: 'CANCELLED' } }, { status: { $exists: false } }] });
+    }
+
     const query = {
       inventory_mode: { $ne: 'inward' }, // Exclude stock inward/addition challans
-      ...(includeArchived ? {} : { $or: [{ archived: false }, { archived: { $exists: false } }] }),
-      ...(includeCancelled ? {} : { $or: [{ status: { $ne: 'CANCELLED' } }, { status: { $exists: false } }] })
+      ...(conditions.length > 0 ? { $and: conditions } : {}),
     };
     
     const documents = await Challan.find(query)
@@ -673,6 +679,75 @@ export const listChallans = async (req, res) => {
 
     res.status(200).json(mapped);
   } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Admin: calculate sales report for an exact date range from database values
+export const getSalesReport = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+
+    if (!from || !to || Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+      return res.status(400).json({ message: "Valid from and to dates are required" });
+    }
+
+    if (fromDate > toDate) {
+      return res.status(400).json({ message: "From date must be before To date" });
+    }
+
+    const documents = await Challan.find({
+      inventory_mode: "dispatch",
+      $or: [{ status: { $ne: "CANCELLED" } }, { status: { $exists: false } }],
+      $and: [
+        { $or: [{ archived: false }, { archived: { $exists: false } }] },
+        {
+          $or: [
+            { challanDate: { $gte: fromDate, $lte: toDate } },
+            {
+              challanDate: { $exists: false },
+              createdAt: { $gte: fromDate, $lte: toDate },
+            },
+          ],
+        },
+      ],
+    })
+      .lean()
+      .sort({ challanDate: 1, createdAt: 1 });
+
+    const rows = documents.map((doc) => {
+      const taxable = Number(doc.taxable_subtotal) || 0;
+      const gst = Number(doc.gst_amount) || 0;
+      const total = Number(doc.grand_total) || 0;
+
+      return {
+        _id: doc._id,
+        date: doc.challanDate || doc.createdAt,
+        challanDate: doc.challanDate || doc.createdAt,
+        client: doc.clientDetails?.name || "Unnamed Client",
+        clientName: doc.clientDetails?.name || null,
+        challanNo: doc.number || "N/A",
+        challanNumber: doc.number || "N/A",
+        taxableAmount: taxable,
+        gstAmount: gst,
+        totalAmount: total,
+      };
+    });
+
+    const totals = rows.reduce(
+      (acc, row) => ({
+        totalTaxable: acc.totalTaxable + row.taxableAmount,
+        totalGst: acc.totalGst + row.gstAmount,
+        totalAmount: acc.totalAmount + row.totalAmount,
+      }),
+      { totalTaxable: 0, totalGst: 0, totalAmount: 0 }
+    );
+
+    res.status(200).json({ rows, totals });
+  } catch (error) {
+    console.error("[getSalesReport] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

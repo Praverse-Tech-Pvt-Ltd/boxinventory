@@ -82,6 +82,13 @@ export const listChallans = async () => {
   return res.data;
 };
 
+export const getSalesReport = async ({ from, to }) => {
+  const res = await axiosInstance.get('/api/challans/summary/sales-report', {
+    params: { from, to },
+  });
+  return res.data;
+};
+
 export const getChallanById = async (id) => {
   const res = await axiosInstance.get(`/api/challans/${id}`);
   return res.data;
@@ -117,4 +124,3 @@ export const searchBoxes = async (query) => {
   });
   return res.data;
 };
-

@@ -15,6 +15,7 @@ import {
   getRecentChallans,
   getClientWiseSummary,
   getTotalSalesSummary,
+  getSalesReport,
 } from "../controllers/challanController.js";
 
 const router = express.Router();
@@ -32,6 +33,7 @@ router.get("/search/clients", searchClients);
 router.get("/summary/recent", getRecentChallans);
 router.get("/summary/client-wise", getClientWiseSummary);
 router.get("/summary/totals", getTotalSalesSummary);
+router.get("/summary/sales-report", getSalesReport);
 
 // List unused audits as candidates
 router.get("/candidates", getChallanCandidates);

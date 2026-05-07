@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { FiSearch, FiDownload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAllAudits } from "../../services/boxService";
-import { downloadChallanPdf, listChallans, editChallan, cancelChallan } from "../../services/challanService";
+import { downloadChallanPdf, listChallans, editChallan, cancelChallan, getSalesReport } from "../../services/challanService";
 import { getProfile } from "../../services/authService";
 import jsPDF from "jspdf";
 import AddItemLookupModal from "../../components/AddItemLookupModal";
@@ -650,7 +650,8 @@ const AuditHistory = () => {
 
     setIsCancellingChallan(true);
     try {
-      const updatedChallan = await cancelChallan(selectedChallan._id, cancelReason);
+      const updatedResponse = await cancelChallan(selectedChallan._id, cancelReason);
+      const updatedChallan = updatedResponse?.challan || updatedResponse;
       
       // Update challans list
       setChallans((prev) =>
@@ -735,7 +736,7 @@ const AuditHistory = () => {
   }, [audits, searchQuery, selectedClient, challanToClientMap]);
 
   // Calculate sales data based on date range
-  const calculateSalesData = () => {
+  const calculateSalesData = async () => {
     if (!fromDate || !toDate) {
       toast.error("Please select both From Date and To Date");
       return;
@@ -751,58 +752,31 @@ const AuditHistory = () => {
       return;
     }
 
-    // Filter challans by date range and status
-    // ONLY ACTIVE CHALLANS count towards sales (CANCELLED are excluded)
-    const filtered = challans.filter((challan) => {
-      const dateSource = challan.challanDate || challan.createdAt;
-      const challanDate = new Date(dateSource);
-      const isOutward = challan.inventory_mode === "dispatch"; // Sales are dispatch challans only
-      const isActive = challan.status !== "CANCELLED"; // Exclude cancelled
-      return challanDate >= from && challanDate <= to && isOutward && isActive;
-    });
+    try {
+      const report = await getSalesReport({
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
 
-    console.log(`Found ${filtered.length} active challans in date range`);
-
-    // Calculate totals from filtered challans using server-side values
-    let runningTotalTaxable = 0;
-    let runningTotalGst = 0;
-    let runningTotalAmount = 0;
-
-    const data = filtered.map((challan) => {
-      // Use server-side calculated totals (mapped fields from backend)
-      const taxableAmount = challan.taxableAmount || challan.taxable_subtotal || 0;
-      const gstAmount = challan.gstAmount || challan.gst_amount || 0;
-      const totalAmount = challan.totalAmount || challan.grand_total || 0;
-
-      // Update running totals
-      runningTotalTaxable += safeToNumber(taxableAmount);
-      runningTotalGst += safeToNumber(gstAmount);
-      runningTotalAmount += safeToNumber(totalAmount);
-
-      return {
+      const data = (report.rows || []).map((challan) => ({
         _id: challan._id,
-        date: safeFormatDate(challan.challanDate || challan.createdAt),
-        client: getClientDisplay(challan.clientName || challan.clientDetails?.name || "-"),
-        challanNo: challan.challanNumber || challan.number || "-",
-        taxableAmount: safeToNumber(taxableAmount),
-        gstAmount: safeToNumber(gstAmount),
-        totalAmount: safeToNumber(totalAmount),
-      };
-    });
+        date: safeFormatDate(challan.challanDate || challan.date),
+        client: getClientDisplay(challan.client || challan.clientName || "-"),
+        challanNo: challan.challanNo || challan.challanNumber || "-",
+        taxableAmount: safeToNumber(challan.taxableAmount),
+        gstAmount: safeToNumber(challan.gstAmount),
+        totalAmount: safeToNumber(challan.totalAmount),
+      }));
 
-    setSalesData(data);
+      setSalesData(data);
 
-    // Log totals for debugging
-    console.log("Calculated totals (ACTIVE CHALLANS ONLY):", {
-      totalTaxable: runningTotalTaxable,
-      totalGst: runningTotalGst,
-      totalAmount: runningTotalAmount,
-    });
-
-    if (data.length === 0) {
-      toast.info("No sales found for the selected date range");
-    } else {
-      toast.success(`Found ${data.length} challan(s) in the selected date range`);
+      if (data.length === 0) {
+        toast.info("No sales found for the selected date range");
+      } else {
+        toast.success(`Found ${data.length} challan(s) in the selected date range`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to calculate sales");
     }
   };
 

@@ -20,6 +20,32 @@ const normalizeQuantityMap = (quantityByColor) => {
   return { ...quantityByColor };
 };
 
+const normalizeColorKey = (color) =>
+  String(color || "").trim().replace(/\s+/g, " ").toLowerCase();
+
+const getInventoryColors = (box) => {
+  const seen = new Set();
+  const colors = [];
+
+  const addColor = (color) => {
+    const label = String(color || "").trim();
+    const key = normalizeColorKey(label);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    colors.push(label);
+  };
+
+  if (Array.isArray(box?.colours)) {
+    box.colours.forEach(addColor);
+  }
+
+  Object.entries(normalizeQuantityMap(box?.quantityByColor)).forEach(([color, qty]) => {
+    if (Number(qty) > 0) addColor(color);
+  });
+
+  return colors;
+};
+
 const BoxesInventory = () => {
   const [boxes, setBoxes] = useState([]);
   const [filteredBoxes, setFilteredBoxes] = useState([]);
@@ -304,8 +330,8 @@ const BoxesInventory = () => {
                     <div className="pt-2 border-t border-theme-border">
                       <span className="font-medium text-theme-text-secondary block mb-2">Stock by Color:</span>
                       <div className="space-y-1.5">
-                        {Array.isArray(box.colours) && box.colours.length > 0 ? (
-                          box.colours.map((color) => {
+                        {getInventoryColors(box).length > 0 ? (
+                          getInventoryColors(box).map((color) => {
                             const qty = getColorQty(box, color);
                             const outOfStock = qty === 0;
                             return (
@@ -348,8 +374,7 @@ const BoxesInventory = () => {
                           className="flex-1 px-3 py-2 border border-theme-input-border rounded-lg bg-theme-input-bg text-theme-text-primary text-xs font-medium focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent"
                         >
                           <option value="">Select color</option>
-                          {Array.isArray(box.colours) &&
-                            box.colours.map((color) => (
+                          {getInventoryColors(box).map((color) => (
                               <option key={color} value={color}>
                                 {color} ({getColorQty(box, color)})
                               </option>
@@ -493,10 +518,7 @@ const BoxesInventory = () => {
                       className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                     >
                       <option value="">Select a color</option>
-                      {Array.isArray(boxes.find((b) => b._id === showAddModal)?.colours) &&
-                        boxes
-                          .find((b) => b._id === showAddModal)
-                          .colours.map((color) => (
+                      {getInventoryColors(boxes.find((b) => b._id === showAddModal)).map((color) => (
                             <option key={color} value={color}>
                               {color}
                             </option>
