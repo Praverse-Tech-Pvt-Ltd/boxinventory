@@ -1206,6 +1206,9 @@ export const editChallan = async (req, res) => {
 
     const { 
       clientName, 
+      clientMobile,
+      clientAddress,
+      clientGstNumber,
       paymentMode, 
       remarks, 
       termsAndConditions, 
@@ -1216,7 +1219,7 @@ export const editChallan = async (req, res) => {
       items // NEW: items array from edit modal
     } = req.body;
 
-    console.log("[editChallan] Received body:", { clientName, paymentMode, remarks, items: items?.length || 0 });
+    console.log("[editChallan] Received body:", { clientName, clientMobile, paymentMode, remarks, items: items?.length || 0 });
 
     // Verify user is authenticated
     if (!req.user || !req.user._id) {
@@ -1244,6 +1247,15 @@ export const editChallan = async (req, res) => {
     
     if (clientName !== undefined) {
       updateData["clientDetails.name"] = String(clientName).trim();
+    }
+    if (clientMobile !== undefined) {
+      updateData["clientDetails.mobile"] = String(clientMobile).trim();
+    }
+    if (clientAddress !== undefined) {
+      updateData["clientDetails.address"] = String(clientAddress).trim();
+    }
+    if (clientGstNumber !== undefined) {
+      updateData["clientDetails.gstNumber"] = String(clientGstNumber).trim();
     }
     if (paymentMode !== undefined && ["Cash", "GPay", "Bank Account", "Credit"].includes(paymentMode)) {
       updateData.payment_mode = paymentMode;

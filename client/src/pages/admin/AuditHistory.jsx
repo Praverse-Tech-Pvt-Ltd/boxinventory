@@ -404,6 +404,9 @@ const AuditHistory = () => {
     setSelectedChallan(challan);
     setEditFormData({
       clientName: challan.clientDetails?.name || challan.clientName || "",
+      clientMobile: challan.clientDetails?.mobile || "",
+      clientAddress: challan.clientDetails?.address || "",
+      clientGstNumber: challan.clientDetails?.gstNumber || "",
       paymentMode: challan.payment_mode || "",
       remarks: challan.remarks || "",
       termsAndConditions: challan.notes || challan.terms || "",
@@ -487,6 +490,9 @@ const AuditHistory = () => {
     try {
       const payload = {
         clientName: editFormData.clientName,
+        clientMobile: editFormData.clientMobile,
+        clientAddress: editFormData.clientAddress,
+        clientGstNumber: editFormData.clientGstNumber,
         paymentMode: editFormData.paymentMode,
         remarks: editFormData.remarks,
         termsAndConditions: editFormData.termsAndConditions,
@@ -1343,6 +1349,30 @@ const AuditHistory = () => {
                         />
                       </div>
 
+                      {/* Client Mobile (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Client Contact No.</label>
+                        <input
+                          type="text"
+                          value={editFormData.clientMobile}
+                          onChange={(e) => handleEditFormChange("clientMobile", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="Mobile / Contact Number"
+                        />
+                      </div>
+
+                      {/* Client GST Number (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Client GST No.</label>
+                        <input
+                          type="text"
+                          value={editFormData.clientGstNumber}
+                          onChange={(e) => handleEditFormChange("clientGstNumber", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="GST Number"
+                        />
+                      </div>
+
                       {/* Payment Mode (editable) */}
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Mode</label>
@@ -1409,6 +1439,17 @@ const AuditHistory = () => {
                           placeholder="0.00"
                         />
                       </div>
+                    </div>
+
+                    {/* Client Address (full width) */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Client Address</label>
+                      <textarea
+                        value={editFormData.clientAddress}
+                        onChange={(e) => handleEditFormChange("clientAddress", e.target.value)}
+                        className="form-input w-full min-h-[60px] resize-none"
+                        placeholder="Client Address"
+                      />
                     </div>
 
                     {/* Remarks (full width) */}
