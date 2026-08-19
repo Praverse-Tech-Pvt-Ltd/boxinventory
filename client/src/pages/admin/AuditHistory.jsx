@@ -363,7 +363,7 @@ const AuditHistory = () => {
         setLoadingAudits(true);
         const [auditData, challanData, userProfile] = await Promise.all([
           getAllAudits(),
-          listChallans(),
+          listChallans({ includeCancelled: true }),
           getProfile().catch(() => null),
         ]);
         setAudits(auditData);

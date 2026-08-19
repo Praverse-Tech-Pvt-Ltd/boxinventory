@@ -77,8 +77,8 @@ export const createChallan = async ({
   return res.data;
 };
 
-export const listChallans = async () => {
-  const res = await axiosInstance.get('/api/challans');
+export const listChallans = async (params = {}) => {
+  const res = await axiosInstance.get('/api/challans', { params });
   return res.data;
 };
 

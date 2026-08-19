@@ -625,26 +625,33 @@ export const createChallan = async (req, res) => {
   }
 };
 
-// Admin: list challans AND stock receipts (all documents)
+// Admin: list generated challans
 // Returns documents with mapped fields for frontend compatibility
 export const listChallans = async (req, res) => {
   try {
-    // Exclude archived challans by default (non-dispatch cleanup)
+    // Exclude stock inward/addition documents from challan editing lists.
+    // Record-only challans are still customer bills, so keep them visible even
+    // if an older cleanup run marked them as archived.
     // To include archived challans, pass ?includeArchived=true
-    // Also exclude "inward" mode challans (stock additions are not shown in challan list)
     // Also exclude cancelled challans by default
     const includeArchived = req.query.includeArchived === 'true';
     const includeCancelled = req.query.includeCancelled === 'true';
     const conditions = [];
     if (!includeArchived) {
-      conditions.push({ $or: [{ archived: false }, { archived: { $exists: false } }] });
+      conditions.push({
+        $or: [
+          { inventory_mode: 'record_only' },
+          { archived: false },
+          { archived: { $exists: false } },
+        ],
+      });
     }
     if (!includeCancelled) {
       conditions.push({ $or: [{ status: { $ne: 'CANCELLED' } }, { status: { $exists: false } }] });
     }
 
     const query = {
-      inventory_mode: { $ne: 'inward' }, // Exclude stock inward/addition challans
+      inventory_mode: { $ne: 'inward' }, // Exclude stock inward/addition documents
       ...(conditions.length > 0 ? { $and: conditions } : {}),
     };
     
@@ -1626,32 +1633,33 @@ export const cancelChallan = async (req, res) => {
 };
 
 /**
- * Admin: Archive non-dispatch challans (cleanup ADD mode challans)
- * Archives challans with inventory_mode != "dispatch" (inward, record_only, ADD mode)
+ * Admin: Archive stock inward/addition documents
+ * Archives only inventory_mode === "inward" documents.
+ * Record-only challans are customer bills and must remain editable.
  * Does NOT delete them, just adds archived: true flag
  * Returns count of archived challans
  */
 export const archiveNonDispatchChallans = async (req, res) => {
   try {
-    console.log("[archiveNonDispatch] Starting cleanup of non-dispatch challans");
+    console.log("[archiveNonDispatch] Starting cleanup of inward/addition documents");
     
-    // Find all challans that are NOT in dispatch mode
-    const nonDispatchChallans = await Challan.find({
-      inventory_mode: { $ne: "dispatch" }
+    // Only stock inward/addition documents should be hidden from challan lists.
+    const inwardChallans = await Challan.find({
+      inventory_mode: "inward"
     });
     
-    console.log(`[archiveNonDispatch] Found ${nonDispatchChallans.length} non-dispatch challans to archive`);
+    console.log(`[archiveNonDispatch] Found ${inwardChallans.length} inward/addition documents to archive`);
     
-    if (nonDispatchChallans.length === 0) {
+    if (inwardChallans.length === 0) {
       return res.status(200).json({
-        message: "No non-dispatch challans found to archive",
+        message: "No inward/addition documents found to archive",
         archivedCount: 0,
       });
     }
     
     // Mark them as archived
     const result = await Challan.updateMany(
-      { inventory_mode: { $ne: "dispatch" } },
+      { inventory_mode: "inward" },
       { 
         $set: { 
           archived: true,
@@ -1664,9 +1672,9 @@ export const archiveNonDispatchChallans = async (req, res) => {
     console.log(`[archiveNonDispatch] Archived ${result.modifiedCount} challans`);
     
     res.status(200).json({
-      message: `Successfully archived ${result.modifiedCount} non-dispatch challans`,
+      message: `Successfully archived ${result.modifiedCount} inward/addition documents`,
       archivedCount: result.modifiedCount,
-      details: `Archived challans with inventory_mode in [inward, record_only, ADD]`
+      details: `Archived documents with inventory_mode "inward"; record_only challans remain editable`
     });
   } catch (error) {
     console.error("[archiveNonDispatch] Error:", error.message);
