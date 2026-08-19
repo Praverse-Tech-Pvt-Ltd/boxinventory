@@ -42,6 +42,16 @@ const normalizeColorKey = (value) => String(value || "").trim().replace(/\s+/g, 
 
 const getColorValue = (colorObj) => String(colorObj?.color || colorObj || "").trim();
 
+const getChallanClientName = (challan) => challan?.clientDetails?.name || challan?.clientName || "";
+
+const getAuditChallanId = (audit) => {
+  const challan = audit?.challan;
+  if (!challan) return "";
+  return String(challan?._id || challan);
+};
+
+const getAuditChallanNumber = (audit) => audit?.challan?.number || audit?.challanNumber || audit?.number || "Download";
+
 const uniqueColors = (colors = []) => {
   const seen = new Set();
   return colors.map(getColorValue).filter((color) => {
@@ -688,8 +698,9 @@ const AuditHistory = () => {
   const clientsList = useMemo(() => {
     const clients = new Set();
     challans.forEach((c) => {
-      if (c.clientDetails?.name) {
-        clients.add(c.clientDetails.name);
+      const clientName = getChallanClientName(c);
+      if (clientName) {
+        clients.add(clientName);
       }
     });
     return Array.from(clients).sort();
@@ -700,11 +711,68 @@ const AuditHistory = () => {
     const map = new Map();
     challans.forEach((c) => {
       if (c._id) {
-        map.set(String(c._id), c.clientDetails?.name || null);
+        map.set(String(c._id), getChallanClientName(c) || null);
       }
     });
     return map;
   }, [challans]);
+
+  const purchaseHistoryRows = useMemo(() => {
+    const rows = [];
+
+    challans.forEach((challan) => {
+      const clientName = getChallanClientName(challan);
+      if (selectedClient && clientName !== selectedClient) return;
+
+      (challan.items || []).forEach((item, itemIndex) => {
+        const colorLines = Array.isArray(item.colorLines) && item.colorLines.length > 0
+          ? item.colorLines
+          : [{ color: item.color || "", quantity: item.quantity || 0 }];
+
+        colorLines.forEach((line, lineIndex) => {
+          rows.push({
+            _id: `${challan._id}-${itemIndex}-${lineIndex}`,
+            createdAt: challan.challanDate || challan.createdAt,
+            user: challan.createdBy,
+            quantity: Number(line.quantity || item.quantity || 0),
+            color: line.color || item.color || "",
+            box: {
+              title: item.box?.title || item.title || item.name || "-",
+              category: item.box?.category || item.category || "-",
+              code: item.box?.code || item.code || "-",
+            },
+            clientName,
+            challan: {
+              _id: challan._id,
+              number: challan.number || challan.challanNumber || "Download",
+            },
+            inventoryMode: challan.inventory_mode,
+          });
+        });
+      });
+    });
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return rows.filter((row) => {
+        const haystack = [
+          row.user?.name,
+          row.user?.email,
+          row.quantity,
+          row.color,
+          row.box?.title,
+          row.box?.category,
+          row.box?.code,
+          row.clientName,
+          row.challan?.number,
+          row.inventoryMode,
+        ].map((value) => String(value || "").toLowerCase());
+        return haystack.some((value) => value.includes(q));
+      });
+    }
+
+    return rows;
+  }, [challans, selectedClient, searchQuery]);
 
   const filteredAudits = useMemo(() => {
     let result = audits;
@@ -712,7 +780,7 @@ const AuditHistory = () => {
     // Filter by client if selected
     if (selectedClient) {
       result = result.filter((a) => {
-        const clientName = challanToClientMap.get(String(a.challan));
+        const clientName = challanToClientMap.get(getAuditChallanId(a));
         return clientName === selectedClient;
       });
     }
@@ -740,6 +808,9 @@ const AuditHistory = () => {
 
     return result;
   }, [audits, searchQuery, selectedClient, challanToClientMap]);
+
+  const historyRows = selectedClient ? purchaseHistoryRows : filteredAudits;
+  const isShowingClientPurchaseHistory = Boolean(selectedClient);
 
   // Calculate sales data based on date range
   const calculateSalesData = async () => {
@@ -891,8 +962,10 @@ const AuditHistory = () => {
           <>
             {/* Card Header */}
             <div className="card-header">
-              <h3 className="card-header-title">Audit Records</h3>
-              <span className="text-sm text-gray-500">{filteredAudits.length} records found</span>
+              <h3 className="card-header-title">
+                {isShowingClientPurchaseHistory ? "Client Purchase History" : "Audit Records"}
+              </h3>
+              <span className="text-sm text-gray-500">{historyRows.length} records found</span>
             </div>
 
             {/* Filters */}
@@ -933,8 +1006,10 @@ const AuditHistory = () => {
             <div className="card-body">
               {loadingAudits ? (
                 <div className="text-center py-12 text-gray-500 font-medium">Loading audits...</div>
-              ) : filteredAudits.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 font-medium">No audits found.</div>
+              ) : historyRows.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 font-medium">
+                  {isShowingClientPurchaseHistory ? "No purchase history found." : "No audits found."}
+                </div>
               ) : (
                 <div className="table-container">
                   <table className="dashboard-table">
@@ -952,7 +1027,7 @@ const AuditHistory = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredAudits.map((a, idx) => (
+                      {historyRows.map((a, idx) => (
                         <tr
                           key={a._id}
                           className={`border-b border-slate-200 transition-colors hover:bg-slate-50 ${
@@ -977,17 +1052,15 @@ const AuditHistory = () => {
                             {a.box?.code || "-"}
                           </td>
                           <td className="px-4 py-3 text-slate-700 text-sm">
-                            {a.challan && a.challan._id
-                              ? challanToClientMap.get(String(a.challan._id)) || "-"
-                              : "-"}
+                            {a.clientName || challanToClientMap.get(getAuditChallanId(a)) || "-"}
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            {a.challan ? (
+                            {getAuditChallanId(a) ? (
                               <button
-                                onClick={() => handleDownload(a.challan._id)}
+                                onClick={() => handleDownload(getAuditChallanId(a))}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold shadow-sm hover:bg-red-700 transition-colors"
                               >
-                                <FiDownload /> {a.challan.number || "Download"}
+                                <FiDownload /> {getAuditChallanNumber(a)}
                               </button>
                             ) : (
                               <span className="text-xs text-slate-500">No challan</span>
