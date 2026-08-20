@@ -964,6 +964,7 @@ const ChallanGeneration = () => {
       packagingTotal: Number(challan.packaging_charges_overall || 0),
       discountPercent: Number(challan.discount_pct || 0),
       challanDate: new Date(challan.challanDate || new Date()).toISOString().split('T')[0],
+      inventoryMode: challan.inventory_mode || "record_only",
       items: challan.items || [],
     });
     setEditChallanItems((challan.items || []).map(item => ({ ...item })));
@@ -983,6 +984,7 @@ const ChallanGeneration = () => {
       packagingTotal: 0,
       discountPercent: 0,
       challanDate: "",
+      inventoryMode: "record_only",
       items: [],
     });
     setEditChallanItems([]);
@@ -1048,6 +1050,7 @@ const ChallanGeneration = () => {
         packagingTotal: editChallanFormData.packagingTotal,
         discountPercent: editChallanFormData.discountPercent,
         challanDate: editChallanFormData.challanDate,
+        inventoryMode: editChallanFormData.inventoryMode,
         items: editChallanItems,
       };
       
@@ -2478,6 +2481,19 @@ const ChallanGeneration = () => {
                     onChange={(e) => setEditChallanFormData(prev => ({ ...prev, challanDate: e.target.value }))}
                     className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
                   />
+                </div>
+
+                {/* Inventory Action */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Inventory Action</label>
+                  <select
+                    value={editChallanFormData.inventoryMode || "record_only"}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, inventoryMode: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                  >
+                    <option value="record_only">Record Only (No Inventory Change)</option>
+                    <option value="dispatch">Dispatch / Subtract from Inventory</option>
+                  </select>
                 </div>
 
                 {/* Packaging & Discount */}

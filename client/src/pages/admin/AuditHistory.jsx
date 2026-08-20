@@ -424,6 +424,7 @@ const AuditHistory = () => {
       packagingTotal: challan.packaging_charges_overall || 0,
       discountPercent: challan.discount_pct || 0,
       challanDate: safeToISODate(challan.challanDate || challan.createdAt),
+      inventoryMode: challan.inventory_mode || "record_only",
       // Items array for editing
       items: challan.items?.map((item) => {
         const colors = uniqueColors([
@@ -510,6 +511,7 @@ const AuditHistory = () => {
         packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
         discountPercent: parseFloat(editFormData.discountPercent) || 0,
         challanDate: editFormData.challanDate || undefined,
+        inventoryMode: editFormData.inventoryMode || undefined,
         // Include items for full challan edit
         items: editFormData.items.map((item) => {
           const colorLines = Array.isArray(item.colorLines)
@@ -1459,6 +1461,19 @@ const AuditHistory = () => {
                           <option value="GPay">GPay</option>
                           <option value="Bank Account">Bank Account</option>
                           <option value="Credit">Credit</option>
+                        </select>
+                      </div>
+
+                      {/* Inventory Mode (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Inventory Action</label>
+                        <select
+                          value={editFormData.inventoryMode || "record_only"}
+                          onChange={(e) => handleEditFormChange("inventoryMode", e.target.value)}
+                          className="form-input w-full"
+                        >
+                          <option value="record_only">Record Only (No Inventory Change)</option>
+                          <option value="dispatch">Dispatch / Subtract from Inventory</option>
                         </select>
                       </div>
 
