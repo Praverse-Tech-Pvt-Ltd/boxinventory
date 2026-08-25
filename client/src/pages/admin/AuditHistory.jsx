@@ -424,6 +424,7 @@ const AuditHistory = () => {
       packagingTotal: challan.packaging_charges_overall || 0,
       discountPercent: challan.discount_pct || 0,
       challanDate: safeToISODate(challan.challanDate || challan.createdAt),
+      challanTaxType: challan.challan_tax_type || "GST",
       inventoryMode: challan.inventory_mode || "record_only",
       // Items array for editing
       items: challan.items?.map((item) => {
@@ -495,6 +496,16 @@ const AuditHistory = () => {
         toast.error(`Item ${item.code} must have rate >= 0`);
         return;
       }
+      if (editFormData.inventoryMode === "dispatch") {
+        const hasColorLine = Array.isArray(item.colorLines)
+          && item.colorLines.some((line) => String(line.color || "").trim() && Number(line.quantity || 0) > 0);
+        const hasSingleColor = String(item.color || "").trim()
+          || uniqueColors(item.colors || []).length === 1;
+        if (!hasColorLine && !hasSingleColor) {
+          toast.error(`Select a color for item ${item.code} before saving as Dispatch`);
+          return;
+        }
+      }
     }
 
     setIsEditingChallan(true);
@@ -511,6 +522,7 @@ const AuditHistory = () => {
         packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
         discountPercent: parseFloat(editFormData.discountPercent) || 0,
         challanDate: editFormData.challanDate || undefined,
+        challanTaxType: editFormData.challanTaxType || "GST",
         inventoryMode: editFormData.inventoryMode || undefined,
         // Include items for full challan edit
         items: editFormData.items.map((item) => {
@@ -1404,12 +1416,30 @@ const AuditHistory = () => {
                         <div className="px-3 py-2 bg-slate-200 rounded text-slate-800 font-mono">{selectedChallan.number}</div>
                       </div>
 
-                      {/* Challan Type (read-only) */}
+                      {/* Challan Type */}
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Type</label>
-                        <div className="px-3 py-2 bg-slate-200 rounded text-slate-800 font-semibold">
-                          {selectedChallan.challan_tax_type === "GST" ? "GST Challan" : "Non-GST Challan"}
-                        </div>
+                        <select
+                          value={editFormData.challanTaxType || "GST"}
+                          onChange={(e) => handleEditFormChange("challanTaxType", e.target.value)}
+                          className="form-input w-full font-semibold"
+                        >
+                          <option value="GST">GST Challan</option>
+                          <option value="NON_GST">Non-GST Challan</option>
+                        </select>
+                      </div>
+
+                      {/* Inventory Mode */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Inventory Mode</label>
+                        <select
+                          value={editFormData.inventoryMode || "record_only"}
+                          onChange={(e) => handleEditFormChange("inventoryMode", e.target.value)}
+                          className="form-input w-full font-semibold"
+                        >
+                          <option value="record_only">Record Only</option>
+                          <option value="dispatch">Dispatch</option>
+                        </select>
                       </div>
 
                       {/* Client Name (editable) */}
@@ -1464,19 +1494,6 @@ const AuditHistory = () => {
                         </select>
                       </div>
 
-                      {/* Inventory Mode (editable) */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Inventory Action</label>
-                        <select
-                          value={editFormData.inventoryMode || "record_only"}
-                          onChange={(e) => handleEditFormChange("inventoryMode", e.target.value)}
-                          className="form-input w-full"
-                        >
-                          <option value="record_only">Record Only (No Inventory Change)</option>
-                          <option value="dispatch">Dispatch / Subtract from Inventory</option>
-                        </select>
-                      </div>
-
                       {/* HSN Code (editable) */}
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">HSN Code</label>
@@ -1528,6 +1545,12 @@ const AuditHistory = () => {
                         />
                       </div>
                     </div>
+
+                    {editFormData.inventoryMode === "dispatch" && (
+                      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Saving as Dispatch will validate available stock and deduct inventory for these item quantities.
+                      </div>
+                    )}
 
                     {/* Client Address (full width) */}
                     <div className="mt-4">

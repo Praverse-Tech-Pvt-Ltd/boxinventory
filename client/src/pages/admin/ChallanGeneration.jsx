@@ -115,6 +115,8 @@ const ChallanGeneration = () => {
     packagingTotal: 0,
     discountPercent: 0,
     challanDate: "",
+    challanTaxType: "GST",
+    inventoryMode: "record_only",
     items: [],
   });
   const [editChallanItems, setEditChallanItems] = useState([]); // Items being edited in modal
@@ -964,6 +966,7 @@ const ChallanGeneration = () => {
       packagingTotal: Number(challan.packaging_charges_overall || 0),
       discountPercent: Number(challan.discount_pct || 0),
       challanDate: new Date(challan.challanDate || new Date()).toISOString().split('T')[0],
+      challanTaxType: challan.challan_tax_type || "GST",
       inventoryMode: challan.inventory_mode || "record_only",
       items: challan.items || [],
     });
@@ -984,6 +987,7 @@ const ChallanGeneration = () => {
       packagingTotal: 0,
       discountPercent: 0,
       challanDate: "",
+      challanTaxType: "GST",
       inventoryMode: "record_only",
       items: [],
     });
@@ -1050,11 +1054,12 @@ const ChallanGeneration = () => {
         packagingTotal: editChallanFormData.packagingTotal,
         discountPercent: editChallanFormData.discountPercent,
         challanDate: editChallanFormData.challanDate,
+        challanTaxType: editChallanFormData.challanTaxType || "GST",
         inventoryMode: editChallanFormData.inventoryMode,
         items: editChallanItems,
       };
       
-      const result = await editChallan(editingChallan._id, updatePayload);
+      await editChallan(editingChallan._id, updatePayload);
       toast.success("Challan updated successfully");
       closeEditChallanModal();
       // Refresh the challans list
@@ -2481,6 +2486,19 @@ const ChallanGeneration = () => {
                     onChange={(e) => setEditChallanFormData(prev => ({ ...prev, challanDate: e.target.value }))}
                     className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
                   />
+                </div>
+
+                {/* Challan Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">Challan Type</label>
+                  <select
+                    value={editChallanFormData.challanTaxType || "GST"}
+                    onChange={(e) => setEditChallanFormData(prev => ({ ...prev, challanTaxType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                  >
+                    <option value="GST">GST Challan</option>
+                    <option value="NON_GST">Non-GST Challan</option>
+                  </select>
                 </div>
 
                 {/* Inventory Action */}

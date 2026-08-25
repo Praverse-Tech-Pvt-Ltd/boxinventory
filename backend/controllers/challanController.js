@@ -146,6 +146,80 @@ const getItemQuantityForTotals = (item) => {
   return Number(item?.quantity || 0) || 0;
 };
 
+const itemHasDispatchColor = (item) => {
+  if (Array.isArray(item?.colorLines) && item.colorLines.some((line) => line?.color && Number(line?.quantity || 0) > 0)) {
+    return true;
+  }
+  if (String(item?.color || "").trim()) return true;
+  const colourList = Array.isArray(item?.colours)
+    ? item.colours.map((color) => String(color || "").trim()).filter(Boolean)
+    : [];
+  return Array.from(new Set(colourList)).length === 1;
+};
+
+const reconcileDispatchInventory = async (oldItems = [], newItems = [], oldMode, newMode) => {
+  if (newMode === "dispatch") {
+    const invalidItem = (Array.isArray(newItems) ? newItems : []).find((item) => !itemHasDispatchColor(item));
+    if (invalidItem) {
+      const error = new Error(
+        `Color is required before saving ${invalidItem?.box?.code || "an item"} as Dispatch`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  const oldUsageByBox = oldMode === "dispatch" ? buildColorUsageByBox(oldItems) : new Map();
+  const newUsageByBox = newMode === "dispatch" ? buildColorUsageByBox(newItems) : new Map();
+  const allBoxIds = Array.from(new Set([...oldUsageByBox.keys(), ...newUsageByBox.keys()]));
+
+  if (allBoxIds.length === 0) return;
+
+  const boxes = await Box.find({ _id: { $in: allBoxIds } });
+  const boxById = new Map(boxes.map((box) => [String(box._id), box]));
+  const updates = [];
+
+  for (const boxId of allBoxIds) {
+    const box = boxById.get(boxId);
+    if (!box) {
+      const error = new Error("One or more selected products were not found");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const currentMap = normalizeQuantityMap(box.quantityByColor);
+    const oldColorMap = oldUsageByBox.get(boxId) || new Map();
+    const newColorMap = newUsageByBox.get(boxId) || new Map();
+    const colorKeys = new Set([...oldColorMap.keys(), ...newColorMap.keys()]);
+    const nextMap = new Map(currentMap);
+
+    for (const colorKey of colorKeys) {
+      const oldQty = Number(oldColorMap.get(colorKey) || 0);
+      const newQty = Number(newColorMap.get(colorKey) || 0);
+      const deltaDispatch = newQty - oldQty; // >0 deducts more stock, <0 restores stock.
+      if (deltaDispatch === 0) continue;
+
+      const currentQty = Number(nextMap.get(colorKey) || 0);
+      if (deltaDispatch > 0 && currentQty < deltaDispatch) {
+        const error = new Error(
+          `Insufficient stock for ${box.code || "box"} color "${colorKey}". Available: ${currentQty}, Required: ${deltaDispatch}`
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      nextMap.set(colorKey, Math.max(0, currentQty - deltaDispatch));
+    }
+
+    updates.push({ box, nextMap });
+  }
+
+  for (const { box, nextMap } of updates) {
+    box.quantityByColor = nextMap;
+    await box.save();
+  }
+};
+
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
@@ -1224,11 +1298,21 @@ export const editChallan = async (req, res) => {
       discountPercent,
       challanDate,
       inventoryMode,
+      challanTaxType,
       inventory_mode,
       items // NEW: items array from edit modal
     } = req.body;
 
-    console.log("[editChallan] Received body:", { clientName, clientMobile, paymentMode, remarks, items: items?.length || 0 });
+    console.log("[editChallan] Received body:", {
+      clientName,
+      clientMobile,
+      paymentMode,
+      remarks,
+      challanTaxType,
+      inventoryMode,
+      inventory_mode,
+      items: items?.length || 0,
+    });
 
     // Verify user is authenticated
     if (!req.user || !req.user._id) {
@@ -1284,7 +1368,14 @@ export const editChallan = async (req, res) => {
     if (discountPercent !== undefined) {
       updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
     }
-
+    if (challanTaxType !== undefined) {
+      const normalizedTaxType = String(challanTaxType).toUpperCase().trim();
+      if (!["GST", "NON_GST", "NONGST"].includes(normalizedTaxType)) {
+        return res.status(400).json({ message: "Invalid challan type" });
+      }
+      updateData.challan_tax_type = normalizedTaxType === "NONGST" ? "NON_GST" : normalizedTaxType;
+      updateData.includeGST = updateData.challan_tax_type === "GST";
+    }
     const requestedInventoryMode = inventoryMode !== undefined ? inventoryMode : inventory_mode;
     const currentInventoryMode = String(challan.inventory_mode || "record_only").toLowerCase();
     let nextInventoryMode = currentInventoryMode;
@@ -1313,6 +1404,7 @@ export const editChallan = async (req, res) => {
 
     // NEW: Handle items array if provided
     let itemsForCalculation = challan.items || [];
+    let nextItemsForInventory = challan.items || [];
     if (Array.isArray(items) && items.length > 0) {
       console.log("[editChallan] Processing", items.length, "items");
       try {
@@ -1366,89 +1458,46 @@ export const editChallan = async (req, res) => {
         
         updateData.items = newItems;
         itemsForCalculation = newItems;
-
+        nextItemsForInventory = newItems;
       } catch (itemError) {
         console.error("[editChallan] Error processing items:", itemError);
         return res.status(400).json({ message: "Invalid items array format", error: itemError.message });
       }
     }
 
-    // Inventory mode changes and dispatch edits need stock adjustments:
-    // - record_only -> dispatch: subtract the edited/current items
-    // - dispatch -> record_only: add the old dispatched items back
-    // - dispatch -> dispatch: apply only the quantity/color delta
-    try {
-      const oldUsageByBox = currentInventoryMode === "dispatch"
-        ? buildColorUsageByBox(challan.items || [])
-        : new Map();
-      const newUsageByBox = nextInventoryMode === "dispatch"
-        ? buildColorUsageByBox(itemsForCalculation)
-        : new Map();
-      const allBoxIds = Array.from(
-        new Set([...oldUsageByBox.keys(), ...newUsageByBox.keys()])
-      );
-
-      if (nextInventoryMode === "dispatch") {
-        const usageQty = Array.from(newUsageByBox.values()).reduce(
-          (sum, colorMap) => sum + Array.from(colorMap.values()).reduce((innerSum, qty) => innerSum + (Number(qty) || 0), 0),
-          0
+    const oldInventoryMode = String(challan.inventory_mode || "record_only").toLowerCase();
+    const newInventoryMode = updateData.inventory_mode || oldInventoryMode;
+    if (oldInventoryMode !== newInventoryMode || updateData.items) {
+      console.log("[editChallan] Reconciling inventory", { oldInventoryMode, newInventoryMode });
+      try {
+        await reconcileDispatchInventory(
+          challan.items || [],
+          nextItemsForInventory || [],
+          oldInventoryMode,
+          newInventoryMode
         );
-        const requiredQty = (Array.isArray(itemsForCalculation) ? itemsForCalculation : []).reduce(
-          (sum, item) => sum + getItemQuantityForTotals(item),
-          0
-        );
-
-        if (requiredQty > 0 && usageQty < requiredQty) {
-          return res.status(400).json({
-            message: "Color is required to change this challan to Dispatch. Please select color-wise quantities for every item.",
-          });
-        }
+      } catch (error) {
+        console.error("Inventory update error:", error);
+        return res.status(error.statusCode || 500).json({
+          message: error.statusCode ? error.message : "Failed to update inventory",
+          error: error.message,
+        });
       }
+    }
 
-      if (allBoxIds.length > 0) {
-        const boxes = await Box.find({ _id: { $in: allBoxIds } });
-        const boxById = new Map(boxes.map((box) => [String(box._id), box]));
-        const updates = [];
+    if (
+      updateData.challan_tax_type &&
+      updateData.challan_tax_type !== (challan.challan_tax_type || "GST")
+    ) {
+      const numberDate = updateData.challanDate || challan.challanDate || challan.createdAt || new Date();
+      const nextNumber =
+        updateData.challan_tax_type === "GST"
+          ? await getGSTChallanDetails(numberDate)
+          : await getNonGSTChallanDetails(numberDate);
 
-        for (const boxId of allBoxIds) {
-          const box = boxById.get(boxId);
-          if (!box) {
-            return res.status(400).json({ message: "One or more selected products were not found" });
-          }
-
-          const currentMap = normalizeQuantityMap(box.quantityByColor);
-          const oldColorMap = oldUsageByBox.get(boxId) || new Map();
-          const newColorMap = newUsageByBox.get(boxId) || new Map();
-          const colorKeys = new Set([...oldColorMap.keys(), ...newColorMap.keys()]);
-          const nextMap = new Map(currentMap);
-
-          for (const colorKey of colorKeys) {
-            const oldQty = Number(oldColorMap.get(colorKey) || 0);
-            const newQty = Number(newColorMap.get(colorKey) || 0);
-            const deltaDispatch = newQty - oldQty; // >0 subtracts more, <0 restores stock
-            if (deltaDispatch === 0) continue;
-
-            const currentQty = Number(nextMap.get(colorKey) || 0);
-            if (deltaDispatch > 0 && currentQty < deltaDispatch) {
-              return res.status(400).json({
-                message: `Insufficient stock for ${box.code || "box"} color "${colorKey}". Available: ${currentQty}, Required: ${deltaDispatch}`,
-              });
-            }
-
-            nextMap.set(colorKey, Math.max(0, currentQty - deltaDispatch));
-          }
-
-          updates.push({ box, nextMap });
-        }
-
-        for (const { box, nextMap } of updates) {
-          box.quantityByColor = nextMap;
-          await box.save();
-        }
-      }
-    } catch (error) {
-      console.error("Inventory update error:", error);
-      return res.status(500).json({ message: "Failed to update inventory", error: error.message });
+      updateData.number = nextNumber.number;
+      updateData.challan_fy = nextNumber.fy;
+      updateData.challan_seq = nextNumber.seq;
     }
 
     // Recompute totals based on items + updated packaging/discount
