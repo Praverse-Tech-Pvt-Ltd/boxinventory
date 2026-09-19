@@ -174,6 +174,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const itemsSubtotal = Number(challanData.items_subtotal) || 0;
       const assemblyTotal = Number(challanData.assembly_total) || 0;
       const packagingTotal = Number(challanData.packaging_charges_overall) || 0;
+      const shippingTotal = Number(challanData.shipping_charges) || 0;
       const discountAmount = Number(challanData.discount_amount) || 0;
       const discountPct = Number(challanData.discount_pct) || 0;
       const taxableAmount = Number(challanData.taxable_subtotal || challanData.taxableAmount) || 0;
@@ -184,7 +185,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       const valueCol = 470;
       const lineHeight = 16;
 
-      ensureSpace(includeGST ? 158 : 142);
+      ensureSpace(includeGST ? 174 : 158);
       let yPosition = doc.y;
       const totalLine = (label, value, options = {}) => {
         doc.fontSize(options.size || 9).font(options.bold ? 'Helvetica-Bold' : 'Helvetica');
@@ -196,6 +197,7 @@ export const generateChallanPdfBuffer = async (challanData, includeGST = true) =
       totalLine('Items Subtotal:', formatCurrency(itemsSubtotal));
       totalLine('Assembly Total:', formatCurrency(assemblyTotal));
       totalLine('Packaging Charges:', formatCurrency(packagingTotal));
+      totalLine('Shipping Charges:', formatCurrency(shippingTotal));
       totalLine(`Discount (${discountPct || 0}%):`, discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0), { gap: lineHeight + 3 });
       doc.moveTo(labelCol, yPosition).lineTo(545, yPosition).stroke();
       yPosition += 8;

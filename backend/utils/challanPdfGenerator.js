@@ -338,7 +338,7 @@ const addTable = (doc, items, startY) => {
   };
 };
 
-const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0, discountPct = 0, discountAmount = 0, taxableSubtotal = 0, gstAmount = 0, assemblyTotal = 0) => {
+const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", packagingChargesOverall = 0, discountPct = 0, discountAmount = 0, taxableSubtotal = 0, gstAmount = 0, assemblyTotal = 0, shippingCharges = 0) => {
   const { subtotal, startX, tableWidth } = summary;
   const baseY = typeof yTopOverride === "number" ? yTopOverride : summary.endY;
   const labelWidth = tableWidth * 0.65;
@@ -356,10 +356,11 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", pac
   } else {
     // Fallback to old calculation (for backwards compatibility)
     const packagingCharges = Number(packagingChargesOverall) || 0;
-    const subtotalWithPackaging = subtotal + packagingCharges;
-    finalTaxableSubtotal = subtotalWithPackaging;
+    const shippingChargeAmount = Number(shippingCharges) || 0;
+    const subtotalWithCharges = subtotal + packagingCharges + shippingChargeAmount;
+    finalTaxableSubtotal = subtotalWithCharges;
     const gstRate = taxType === "NON_GST" ? 0 : 0.05;
-    finalGstAmount = subtotalWithPackaging * gstRate;
+    finalGstAmount = subtotalWithCharges * gstRate;
   }
   
   const totalBeforeRound = finalTaxableSubtotal + finalGstAmount;
@@ -403,6 +404,17 @@ const addSummary = (doc, summary, includeGST, yTopOverride, taxType = "GST", pac
     doc.font("Helvetica-Bold").fontSize(8.5);
     doc.text("Packaging Charges", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
     doc.text(formatCurrency(packagingChargesOverall), startX + labelWidth, currentLineY, {
+      width: valueWidth - 8,
+      align: "right",
+    });
+    currentLineY += 11;
+  }
+
+  // Show shipping charges if present
+  if (shippingCharges > 0) {
+    doc.font("Helvetica-Bold").fontSize(8.5);
+    doc.text("Shipping Charges", startX + 4, currentLineY, { width: labelWidth - 8, align: "right" });
+    doc.text(formatCurrency(shippingCharges), startX + labelWidth, currentLineY, {
       width: valueWidth - 8,
       align: "right",
     });
@@ -589,7 +601,8 @@ export const generateChallanPdf = async (challanData, includeGST = true, taxType
       challanData.discount_amount || 0,
       challanData.taxable_subtotal || 0,
       challanData.gst_amount || 0,
-      challanData.assembly_total || 0
+      challanData.assembly_total || 0,
+      challanData.shipping_charges || 0
     );
 
     // Footer starts right after summary (let PDFKit track position)

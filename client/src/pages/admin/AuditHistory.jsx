@@ -422,6 +422,7 @@ const AuditHistory = () => {
       termsAndConditions: challan.notes || challan.terms || "",
       hsnCode: challan.hsnCode || "",
       packagingTotal: challan.packaging_charges_overall || 0,
+      shippingCharges: challan.shipping_charges || 0,
       discountPercent: challan.discount_pct || 0,
       challanDate: safeToISODate(challan.challanDate || challan.createdAt),
       challanTaxType: challan.challan_tax_type || "GST",
@@ -520,6 +521,7 @@ const AuditHistory = () => {
         termsAndConditions: editFormData.termsAndConditions,
         hsnCode: editFormData.hsnCode,
         packagingTotal: parseFloat(editFormData.packagingTotal) || 0,
+        shippingCharges: parseFloat(editFormData.shippingCharges) || 0,
         discountPercent: parseFloat(editFormData.discountPercent) || 0,
         challanDate: editFormData.challanDate || undefined,
         challanTaxType: editFormData.challanTaxType || "GST",
@@ -1525,6 +1527,19 @@ const AuditHistory = () => {
                           step="0.01"
                           value={editFormData.packagingTotal}
                           onChange={(e) => handleEditFormChange("packagingTotal", e.target.value)}
+                          className="form-input w-full"
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      {/* Shipping Charges (editable) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Shipping Charges (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.shippingCharges}
+                          onChange={(e) => handleEditFormChange("shippingCharges", e.target.value)}
                           className="form-input w-full"
                           placeholder="0.00"
                         />

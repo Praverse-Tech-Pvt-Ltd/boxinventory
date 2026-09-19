@@ -119,11 +119,12 @@ const generateChallanHTML = (challanData, taxType = "GST") => {
   });
 
   const packagingCharges = Number(challanData.packaging_charges_overall) || 0;
-  const subtotalWithPackaging = subtotal + packagingCharges;
+  const shippingCharges = Number(challanData.shipping_charges) || 0;
+  const subtotalWithCharges = subtotal + packagingCharges + shippingCharges;
   
   const gstRate = taxType === "NON_GST" ? 0 : 0.05;
-  const gstAmount = subtotalWithPackaging * gstRate;
-  const totalBeforeRound = subtotalWithPackaging + gstAmount;
+  const gstAmount = subtotalWithCharges * gstRate;
+  const totalBeforeRound = subtotalWithCharges + gstAmount;
   const roundedTotal = Math.round(totalBeforeRound);
   const roundOff = roundedTotal - totalBeforeRound;
 
@@ -384,6 +385,12 @@ const generateChallanHTML = (challanData, taxType = "GST") => {
           <div class="summary-row">
             <div class="summary-label">Packaging Charges:</div>
             <div class="summary-value">₹${formatCurrency(packagingCharges)}</div>
+          </div>
+          ` : ''}
+          ${shippingCharges > 0 ? `
+          <div class="summary-row">
+            <div class="summary-label">Shipping Charges:</div>
+            <div class="summary-value">₹${formatCurrency(shippingCharges)}</div>
           </div>
           ` : ''}
           <div class="summary-row">

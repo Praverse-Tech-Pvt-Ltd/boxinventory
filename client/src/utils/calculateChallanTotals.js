@@ -11,6 +11,7 @@ export const round2 = (num) => Math.round(num * 100) / 100;
  * @param {Array} items - Array of challan items with: { rate, assemblyCharge, quantity }
  * @param {Object} options - Options object:
  *   - packagingChargesOverall: number (default 0)
+ *   - shippingCharges: number (default 0)
  *   - discountPct: number 0-100 (default 0)
  *   - taxType: "GST" or "NON_GST" (default "GST")
  * @returns {Object} Complete totals breakdown
@@ -18,6 +19,7 @@ export const round2 = (num) => Math.round(num * 100) / 100;
 export const calculateChallanTotals = (items = [], options = {}) => {
   const {
     packagingChargesOverall = 0,
+    shippingCharges = 0,
     discountPct = 0,
     taxType = "GST",
   } = options;
@@ -46,9 +48,10 @@ export const calculateChallanTotals = (items = [], options = {}) => {
   itemsSubtotal = round2(itemsSubtotal);
   assemblyTotal = round2(assemblyTotal);
   const packagingCharges = round2(Number(packagingChargesOverall) || 0);
+  const shippingChargesTotal = round2(Number(shippingCharges) || 0);
 
-  // Pre-discount subtotal: items + assembly + packaging
-  const preDiscountSubtotal = round2(itemsSubtotal + assemblyTotal + packagingCharges);
+  // Pre-discount subtotal: items + assembly + packaging + shipping
+  const preDiscountSubtotal = round2(itemsSubtotal + assemblyTotal + packagingCharges + shippingChargesTotal);
 
   // Calculate discount on pre-discount subtotal
   const discountAmount = round2(
@@ -72,6 +75,7 @@ export const calculateChallanTotals = (items = [], options = {}) => {
     itemsSubtotal,
     assemblyTotal,
     packagingCharges,
+    shippingCharges: shippingChargesTotal,
     
     // Discount
     discountPct: Number(discountPct) || 0,
@@ -117,6 +121,15 @@ export const formatTotalsForDisplay = (totals) => {
     lines.push({
       label: "Packaging Charges",
       value: totals.packagingCharges,
+      isBold: false,
+    });
+  }
+
+  // Show shipping if > 0
+  if (totals.shippingCharges > 0) {
+    lines.push({
+      label: "Shipping Charges",
+      value: totals.shippingCharges,
       isBold: false,
     });
   }

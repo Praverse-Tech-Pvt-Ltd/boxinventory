@@ -18,6 +18,7 @@ export const createChallan = async ({
   payment_mode,
   remarks,
   packaging_charges_overall,
+  shipping_charges,
   discount_pct,
   challanDate,
   inventory_mode,
@@ -62,6 +63,9 @@ export const createChallan = async ({
   // Include packaging and discount (CRITICAL FIX)
   if (typeof packaging_charges_overall === 'number') {
     payload.packaging_charges_overall = packaging_charges_overall;
+  }
+  if (typeof shipping_charges === 'number') {
+    payload.shipping_charges = shipping_charges;
   }
   if (typeof discount_pct === 'number') {
     payload.discount_pct = discount_pct;

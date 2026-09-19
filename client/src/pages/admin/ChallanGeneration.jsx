@@ -100,6 +100,7 @@ const ChallanGeneration = () => {
   const [paymentMode, setPaymentMode] = useState(""); // Cash, GPay, Bank Account, Credit
   const [remarks, setRemarks] = useState("");
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
+  const [shippingCharges, setShippingCharges] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
   const [challanDate, setChallanDate] = useState(() => new Date().toISOString().split('T')[0]); // NEW: Date picker (YYYY-MM-DD format)
   
@@ -113,6 +114,7 @@ const ChallanGeneration = () => {
     termsAndConditions: "",
     hsnCode: "",
     packagingTotal: 0,
+    shippingCharges: 0,
     discountPercent: 0,
     challanDate: "",
     challanTaxType: "GST",
@@ -485,6 +487,7 @@ const ChallanGeneration = () => {
     setPaymentMode("");
     setRemarks("");
     setPackagingChargesOverall(0);
+    setShippingCharges(0);
     setDiscountPct(0);
   };
 
@@ -702,6 +705,7 @@ const ChallanGeneration = () => {
     // Use shared utility to calculate totals
     const totals = calculateChallanTotals(allItems, {
       packagingChargesOverall: Number(packagingChargesOverall) || 0,
+      shippingCharges: Number(shippingCharges) || 0,
       discountPct: Number(discountPct) || 0,
       taxType: challanTaxType || "GST", // Use selected tax type (GST or NON_GST)
     });
@@ -715,6 +719,7 @@ const ChallanGeneration = () => {
       itemsSubtotal: totals.itemsSubtotal,
       assemblyTotal: totals.assemblyTotal,
       packagingCharges: totals.packagingCharges,
+      shippingCharges: totals.shippingCharges,
       preDiscountSubtotal: totals.preDiscountSubtotal,
       discountPct: totals.discountPct,
       discountAmount: totals.discountAmount,
@@ -725,7 +730,7 @@ const ChallanGeneration = () => {
       roundOff: totals.roundOff,
       grandTotal: totals.grandTotal,
     };
-  }, [challanTaxType, selectedRows, manualRowsComputed, packagingChargesOverall, discountPct]);
+  }, [challanTaxType, selectedRows, manualRowsComputed, packagingChargesOverall, shippingCharges, discountPct]);
 
   const hasAnyRows = selectedRows.length > 0 || manualRowsComputed.length > 0;
   const showClientBatchPanel = hasAnyRows || clientBatches.length > 0;
@@ -899,6 +904,7 @@ const ChallanGeneration = () => {
       payment_mode: paymentMode || null,
       remarks: remarks.trim() || null,
       packaging_charges_overall: Number(packagingChargesOverall) || 0,
+      shipping_charges: Number(shippingCharges) || 0,
       discount_pct: Number(discountPct) || 0,
       challanDate: challanDate ? new Date(challanDate).toISOString() : undefined, // NEW: Pass challan date
     };
@@ -964,6 +970,7 @@ const ChallanGeneration = () => {
       termsAndConditions: challan.notes || "",
       hsnCode: challan.hsnCode || "",
       packagingTotal: Number(challan.packaging_charges_overall || 0),
+      shippingCharges: Number(challan.shipping_charges || 0),
       discountPercent: Number(challan.discount_pct || 0),
       challanDate: new Date(challan.challanDate || new Date()).toISOString().split('T')[0],
       challanTaxType: challan.challan_tax_type || "GST",
@@ -985,6 +992,7 @@ const ChallanGeneration = () => {
       termsAndConditions: "",
       hsnCode: "",
       packagingTotal: 0,
+      shippingCharges: 0,
       discountPercent: 0,
       challanDate: "",
       challanTaxType: "GST",
@@ -1052,6 +1060,7 @@ const ChallanGeneration = () => {
         termsAndConditions: editChallanFormData.termsAndConditions,
         hsnCode: editChallanFormData.hsnCode,
         packagingTotal: editChallanFormData.packagingTotal,
+        shippingCharges: editChallanFormData.shippingCharges,
         discountPercent: editChallanFormData.discountPercent,
         challanDate: editChallanFormData.challanDate,
         challanTaxType: editChallanFormData.challanTaxType || "GST",
@@ -1645,6 +1654,17 @@ const ChallanGeneration = () => {
                   />
                 </div>
                 <div className="flex items-center justify-between">
+                  <label className="text-theme-text-secondary font-semibold">Shipping Charges</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={shippingCharges}
+                    onChange={(e) => setShippingCharges(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-28 px-3 py-1.5 border border-theme-input-border rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/30 bg-theme-surface text-right text-sm font-semibold"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
                   <label className="text-theme-text-secondary font-semibold">Discount (%)</label>
                   <div className="flex gap-2">
                     <input
@@ -1672,6 +1692,10 @@ const ChallanGeneration = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-theme-text-secondary">Packaging Charges</span>
                   <span className="font-bold text-theme-text-primary">₹{summary.packagingCharges.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-theme-text-secondary">Shipping Charges</span>
+                  <span className="font-bold text-theme-text-primary">₹{summary.shippingCharges.toFixed(2)}</span>
                 </div>
                 {summary.discountAmount > 0 && (
                   <div className="flex items-center justify-between">
@@ -2514,7 +2538,7 @@ const ChallanGeneration = () => {
                   </select>
                 </div>
 
-                {/* Packaging & Discount */}
+                {/* Packaging, Shipping & Discount */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-theme-text-primary mb-2">Packaging Total (₹)</label>
@@ -2522,6 +2546,16 @@ const ChallanGeneration = () => {
                       type="number"
                       value={editChallanFormData.packagingTotal}
                       onChange={(e) => setEditChallanFormData(prev => ({ ...prev, packagingTotal: Number(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-theme-text-primary mb-2">Shipping Charges (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editChallanFormData.shippingCharges}
+                      onChange={(e) => setEditChallanFormData(prev => ({ ...prev, shippingCharges: Number(e.target.value) || 0 }))}
                       className="w-full px-3 py-2 border border-theme-input-border rounded-lg"
                     />
                   </div>

@@ -223,7 +223,7 @@ const reconcileDispatchInventory = async (oldItems = [], newItems = [], oldMode,
 // Admin: create challan from selected audit IDs and/or manual items
 export const createChallan = async (req, res) => {
   try {
-    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall, discount_pct, challanDate } = req.body;
+    const { auditIds, notes, terms, note, clientDetails, manualItems, hsnCode, inventory_mode, challanTaxType, payment_mode, remarks, packaging_charges_overall, shipping_charges, discount_pct, challanDate } = req.body;
     const auditIdsArray = Array.isArray(auditIds) ? auditIds.filter(Boolean) : [];
     const manualItemsInput = Array.isArray(manualItems) ? manualItems.filter(Boolean) : [];
     
@@ -607,6 +607,7 @@ export const createChallan = async (req, res) => {
     // Log received packaging and discount values for debugging
     console.log('[createChallan] Received from frontend:', { 
       packaging_charges_overall, 
+      shipping_charges,
       discount_pct, 
       payment_mode 
     });
@@ -615,12 +616,14 @@ export const createChallan = async (req, res) => {
     // Use shared utility for consistency across frontend and backend
     const totals = calculateChallanTotals(items, {
       packagingChargesOverall: Number(packaging_charges_overall) || 0,
+      shippingCharges: Number(shipping_charges) || 0,
       discountPct: Number(discount_pct) || 0,
       taxType: taxType,
     });
 
     console.log('[createChallan] Calculated totals:', {
       packagingCharges: totals.packagingCharges,
+      shippingCharges: totals.shippingCharges,
       discountPct: totals.discountPct,
       discountAmount: totals.discountAmount,
       grandTotal: totals.grandTotal
@@ -641,6 +644,7 @@ export const createChallan = async (req, res) => {
       items_subtotal: totals.itemsSubtotal,
       assembly_total: totals.assemblyTotal,
       packaging_charges_overall: totals.packagingCharges,
+      shipping_charges: totals.shippingCharges,
       discount_pct: totals.discountPct,
       discount_amount: totals.discountAmount,
       taxable_subtotal: totals.taxableSubtotal,
@@ -665,6 +669,7 @@ export const createChallan = async (req, res) => {
     console.log('[createChallan] Saved to DB:', {
       number: challan.number,
       packaging_charges_overall: challan.packaging_charges_overall,
+      shipping_charges: challan.shipping_charges,
       discount_pct: challan.discount_pct,
       discount_amount: challan.discount_amount,
       grand_total: challan.grand_total
@@ -916,6 +921,7 @@ export const downloadChallanPdf = async (req, res) => {
           payment_mode: document.payment_mode || null,
           remarks: document.remarks || null,
           packaging_charges_overall: document.packaging_charges_overall || 0,
+          shipping_charges: document.shipping_charges || 0,
           discount_pct: document.discount_pct || 0,
           discount_amount: document.discount_amount || 0,
           items_subtotal: document.items_subtotal || 0,
@@ -927,6 +933,7 @@ export const downloadChallanPdf = async (req, res) => {
         console.log('[Download] Challan data for PDF:', {
           number: challanData.number,
           packaging_charges_overall: challanData.packaging_charges_overall,
+          shipping_charges: challanData.shipping_charges,
           discount_pct: challanData.discount_pct,
           discount_amount: challanData.discount_amount
         });
@@ -1295,6 +1302,7 @@ export const editChallan = async (req, res) => {
       termsAndConditions, 
       hsnCode, 
       packagingTotal, 
+      shippingCharges,
       discountPercent,
       challanDate,
       inventoryMode,
@@ -1364,6 +1372,9 @@ export const editChallan = async (req, res) => {
     }
     if (packagingTotal !== undefined) {
       updateData.packaging_charges_overall = Number(packagingTotal) || 0;
+    }
+    if (shippingCharges !== undefined) {
+      updateData.shipping_charges = Number(shippingCharges) || 0;
     }
     if (discountPercent !== undefined) {
       updateData.discount_pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
@@ -1522,9 +1533,10 @@ export const editChallan = async (req, res) => {
     updateData.assembly_total = Math.round(assemblyTotal * 100) / 100;
     
     const packaging = updateData.packaging_charges_overall !== undefined ? updateData.packaging_charges_overall : (challan.packaging_charges_overall || 0);
+    const shipping = updateData.shipping_charges !== undefined ? updateData.shipping_charges : (challan.shipping_charges || 0);
     const discountPct = updateData.discount_pct !== undefined ? updateData.discount_pct : (challan.discount_pct || 0);
     
-    const preDiscountSubtotal = itemsSubtotal + assemblyTotal + packaging;
+    const preDiscountSubtotal = itemsSubtotal + assemblyTotal + packaging + shipping;
     const discountAmount = preDiscountSubtotal * (discountPct / 100);
     const taxableAmount = preDiscountSubtotal - discountAmount;
     
