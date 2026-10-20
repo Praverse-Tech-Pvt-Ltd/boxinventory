@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
   getAllBoxes,
+  getBoxById,
   createBox,
   updateBox,
   deleteBox,
@@ -24,6 +25,7 @@ const BoxesManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [stockConflict, setStockConflict] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState(null);
@@ -141,12 +143,21 @@ const BoxesManagement = () => {
   });
 
   const resetForm = () => {
+    setStockConflict(false);
     setFormData(getInitialFormData());
     setEditingId(null);
     setShowForm(false);
   };
 
-  const startEdit = (box) => {
+  const startEdit = async (selectedBox) => {
+    let box;
+    try {
+      box = await getBoxById(selectedBox._id);
+    } catch {
+      toast.error("Could not load current stock. Please try opening Edit again.");
+      return;
+    }
+    setStockConflict(false);
     // Convert quantityByColor Map/Object to array of pairs
     let colorQuantityPairs = [];
     
@@ -199,6 +210,7 @@ const BoxesManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (stockConflict) return;
     try {
       // Validate: no empty colors with quantity > 0, no duplicate colors
       const duplicateCheck = new Set();
@@ -289,6 +301,9 @@ const BoxesManagement = () => {
       resetForm();
       loadBoxes();
     } catch (error) {
+      if ([409, 428].includes(error.response?.status)) {
+        setStockConflict(true);
+      }
       toast.error(
         error.response?.data?.message || "Failed to save box"
       );
@@ -381,6 +396,14 @@ const BoxesManagement = () => {
         )}
 
       {/* Add/Edit Form */}
+      {showForm && stockConflict && (
+        <div role="alert" className="mx-6 mb-4 border border-red-300 bg-red-50 p-4 text-red-900">
+          <p className="font-semibold">Stock changed. Your edits have not been saved.</p>
+          <button type="button" className="btn btn-sm mt-3" onClick={() => startEdit({ _id: editingId })}>
+            Discard edits and reload current product
+          </button>
+        </div>
+      )}
       <AnimatePresence>
         {showForm && (
           <motion.div

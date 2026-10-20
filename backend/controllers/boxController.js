@@ -313,7 +313,7 @@ export const updateBox = async (req, res) => {
     if (req.body.quantityByColor !== undefined || quantity !== undefined) {
       const expected = new Date(req.body.expectedUpdatedAt).getTime();
       if (!Number.isFinite(expected)) {
-        return res.status(428).json({ message: "Reload the product before saving stock quantities." });
+        return res.status(428).json({ message: "This edit form is out of date. Cancel the edit, refresh the page (Ctrl+Shift+R), then reopen Edit before saving." });
       }
       if (expected !== box.updatedAt.getTime()) {
         return res.status(409).json({ message: "Stock changed since this form was opened. Reopen Edit to load current quantities before saving." });
