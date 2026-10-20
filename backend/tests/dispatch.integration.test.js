@@ -8,7 +8,7 @@ import User from "../models/User.js";
 import ClientBatch from "../models/clientBatchModel.js";
 import { createClientBatch, listClientBatches } from "../controllers/clientBatchController.js";
 import { createChallan, editChallan, cancelChallan, downloadChallanPdf } from "../controllers/challanController.js";
-import { getBoxAvailabilityByCode } from "../controllers/boxController.js";
+import { getBoxAvailabilityByCode, updateBox } from "../controllers/boxController.js";
 
 test("bill 805 quantities persist through batch, dispatch, PDF, edit and cancellation", async () => {
   const mongo = await MongoMemoryServer.create();
@@ -26,6 +26,7 @@ test("bill 805 quantities persist through batch, dispatch, PDF, edit and cancell
     app.post("/challans/:id/cancel", cancelChallan);
     app.get("/challans/:id/pdf", downloadChallanPdf);
     app.get("/availability/:code", getBoxAvailabilityByCode);
+    app.put("/boxes/:id", updateBox);
     server = app.listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -55,6 +56,24 @@ test("bill 805 quantities persist through batch, dispatch, PDF, edit and cancell
     assert.deepEqual(await readStock(), expected);
     assert.equal(Object.values(await readStock()).reduce((sum, qty) => sum + qty, 0), 1380);
     console.log("VERIFIED: persisted V01 stock 2580 -> 1380; pink 60 -> 0; dark green 200 -> 0");
+
+    const staleSave = await fetch(base + `/boxes/${box._id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Single peda box", quantityByColor: before,
+        expectedUpdatedAt: box.updatedAt.toISOString() }),
+    });
+    assert.equal(staleSave.status, 409, "An outdated product form must not restore dispatched stock");
+    assert.deepEqual(await readStock(), expected);
+    const currentBox = await Box.findById(box._id);
+    await request(`/boxes/${box._id}`, { quantityByColor: expected,
+      expectedUpdatedAt: currentBox.updatedAt.toISOString() }, "PUT");
+    assert.deepEqual(await readStock(), expected);
+    const unversionedSave = await fetch(base + `/boxes/${box._id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantityByColor: before }),
+    });
+    assert.equal(unversionedSave.status, 428);
+    assert.deepEqual(await readStock(), expected);
 
     const pdfResponse = await fetch(base + `/challans/${challan._id}/pdf`);
     assert.equal(pdfResponse.status, 200);

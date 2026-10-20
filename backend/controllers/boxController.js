@@ -310,6 +310,18 @@ export const updateBox = async (req, res) => {
     const box = await Box.findById(req.params.id);
     if (!box) return res.status(404).json({ message: "Box not found" });
 
+    if (req.body.quantityByColor !== undefined || quantity !== undefined) {
+      const expected = new Date(req.body.expectedUpdatedAt).getTime();
+      if (!Number.isFinite(expected)) {
+        return res.status(428).json({ message: "Reload the product before saving stock quantities." });
+      }
+      if (expected !== box.updatedAt.getTime()) {
+        return res.status(409).json({ message: "Stock changed since this form was opened. Reopen Edit to load current quantities before saving." });
+      }
+      // Include the revision in the write so a dispatch during this request also wins.
+      box.$where = { updatedAt: box.updatedAt };
+    }
+
     // Handle image update - if new image is uploaded, delete old one from Cloudinary
     if (req.file?.path) {
       // Delete old image from Cloudinary if it exists
@@ -405,6 +417,9 @@ export const updateBox = async (req, res) => {
 
     res.status(200).json(updatedBox);
   } catch (error) {
+    if (error.name === "DocumentNotFoundError") {
+      return res.status(409).json({ message: "Stock changed while saving. Reopen Edit and try again." });
+    }
     // If new image was uploaded but update fails, delete it
     if (req.file?.public_id) {
       try {

@@ -180,6 +180,7 @@ const BoxesManagement = () => {
     
     setEditingId(box._id);
     setFormData({
+      expectedUpdatedAt: box.updatedAt,
       image: null,
       imagePreview: box.image || "",
       title: box.title || "",
@@ -258,12 +259,14 @@ const BoxesManagement = () => {
       formDataToSend.append("quantityByColor", JSON.stringify(quantityByColor));
 
       if (editingId) {
+        formDataToSend.append("expectedUpdatedAt", formData.expectedUpdatedAt);
         // Update existing box
         if (formData.image) {
           await updateBox(editingId, formDataToSend);
         } else {
           // Update without image - send as JSON
           const jsonData = {
+            expectedUpdatedAt: formData.expectedUpdatedAt,
             title: formData.title,
             code: formData.code,
             category: formData.category,
