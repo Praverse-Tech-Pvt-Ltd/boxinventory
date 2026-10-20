@@ -49,6 +49,8 @@ app.use("/api/challans", challanRoutes);
 app.use("/api/client-batches", clientBatchRoutes);
 
 app.get("/health", (req, res) => {
+  const release = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA;
+  if (release) res.setHeader("X-Release-Commit", release);
   console.log("🩺 Health check at:", new Date().toLocaleString());
   res.status(200).send("OK");
 });

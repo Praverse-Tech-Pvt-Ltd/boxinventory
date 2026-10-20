@@ -216,6 +216,7 @@ const reconcileDispatchInventory = async (oldItems = [], newItems = [], oldMode,
 
   for (const { box, nextMap } of updates) {
     box.quantityByColor = nextMap;
+    box.markModified("quantityByColor");
     await box.save();
   }
 };
@@ -564,6 +565,7 @@ export const createChallan = async (req, res) => {
           // Apply dispatch deductions using inventory helper
           const logFn = (msg) => console.log(msg);
           applyDispatch(box, dispatchList, { logFn, updateTotal: true, debug: true });
+          box.markModified("quantityByColor");
           
           // Save updated box
           await box.save();
@@ -1216,6 +1218,7 @@ async function createStockInwardReceipt(req, res, auditIdsArray, manualItemsInpu
           quantityByColor.set(colorKey, currentQty + usedQty);
         }
         box.quantityByColor = quantityByColor;
+        box.markModified("quantityByColor");
         await box.save();
       }
     }
@@ -1657,6 +1660,7 @@ export const cancelChallan = async (req, res) => {
             }
 
             box.quantityByColor = normalizedQuantityMap;
+            box.markModified("quantityByColor");
             await box.save();
           }
         }

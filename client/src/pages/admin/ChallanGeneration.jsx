@@ -23,6 +23,14 @@ const createEmptyClientDetails = () => ({
   gstNumber: "",
 });
 
+const getLocalDateInputValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const generateManualRowId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -102,7 +110,7 @@ const ChallanGeneration = () => {
   const [packagingChargesOverall, setPackagingChargesOverall] = useState(0);
   const [shippingCharges, setShippingCharges] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
-  const [challanDate, setChallanDate] = useState(() => new Date().toISOString().split('T')[0]); // NEW: Date picker (YYYY-MM-DD format)
+  const [challanDate, setChallanDate] = useState(() => getLocalDateInputValue()); // Date picker (YYYY-MM-DD format)
   
   // Edit Challan Modal state (NEW)
   const [showEditChallanModal, setShowEditChallanModal] = useState(false);
@@ -136,6 +144,27 @@ const ChallanGeneration = () => {
   const [clientSearchResults, setClientSearchResults] = useState([]);
   const [searchingClients, setSearchingClients] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  useEffect(() => {
+    let previousToday = getLocalDateInputValue();
+    const refreshDateIfNeeded = () => {
+      const today = getLocalDateInputValue();
+      if (today !== previousToday) {
+        const oldToday = previousToday;
+        previousToday = today;
+        setChallanDate((current) => current === oldToday ? today : current);
+      }
+    };
+
+    refreshDateIfNeeded();
+    const intervalId = window.setInterval(refreshDateIfNeeded, 60 * 1000);
+    window.addEventListener("focus", refreshDateIfNeeded);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshDateIfNeeded);
+    };
+  }, []);
 
   const loadData = async () => {
     try {
@@ -331,6 +360,11 @@ const ChallanGeneration = () => {
       });
       return;
     }
+    if (boxes.filter((box) => String(box.code || "").trim().toUpperCase() === cleaned).length > 1) {
+      updateManualRow(rowId, { boxId: "", colorLines: [] });
+      toast.error("Multiple products share this code. Select the product by name.");
+      return;
+    }
     const matched = boxLookupByTitle.get(cleaned);
     if (!matched) {
       toast.error(`Invalid product code: "${rawCode}". Product not found.`);
@@ -347,7 +381,7 @@ const ChallanGeneration = () => {
     
     // Fetch color availability
     try {
-      const availability = await getBoxAvailability(matched.code);
+      const availability = await getBoxAvailability(matched.code, matched._id);
       const colorLines = (availability.colors || []).map((c) => ({
         id: `${rowId}-${c.color}-${Date.now()}`,
         color: c.color,
@@ -412,7 +446,7 @@ const ChallanGeneration = () => {
     
     // Fetch color availability
     try {
-      const availability = await getBoxAvailability(matched.code);
+      const availability = await getBoxAvailability(matched.code, matched._id);
       const colorLines = (availability.colors || []).map((c) => ({
         id: `${rowId}-${c.color}-${Date.now()}`,
         color: c.color,
@@ -474,6 +508,23 @@ const ChallanGeneration = () => {
 
   const getBatchId = (batch) => (batch?._id ? String(batch._id) : batch?.id ? String(batch.id) : null);
 
+  const buildBatchChallanPayload = (batch) => {
+    if (!["dispatch", "record_only"].includes(batch.inventory_mode)) {
+      throw new Error(`Recreate saved batch ${batch.label || ""}: its inventory mode was not saved.`);
+    }
+    return {
+      ...batch,
+      inventory_mode: batch.inventory_mode,
+      challanTaxType: batch.challanTaxType || challanTaxType || "GST",
+      challanDate: batch.challanDate || getLocalDateInputValue(),
+      payment_mode: batch.payment_mode || null,
+      remarks: batch.remarks || null,
+      packaging_charges_overall: Number(batch.packaging_charges_overall) || 0,
+      shipping_charges: Number(batch.shipping_charges) || 0,
+      discount_pct: Number(batch.discount_pct) || 0,
+    };
+  };
+
   const resetCurrentClientDraft = () => {
     setSelected({});
     setTerms(DEFAULT_TERMS);
@@ -489,6 +540,7 @@ const ChallanGeneration = () => {
     setPackagingChargesOverall(0);
     setShippingCharges(0);
     setDiscountPct(0);
+    setChallanDate(getLocalDateInputValue());
   };
 
   const upsertBatch = (nextBatch) => {
@@ -906,7 +958,7 @@ const ChallanGeneration = () => {
       packaging_charges_overall: Number(packagingChargesOverall) || 0,
       shipping_charges: Number(shippingCharges) || 0,
       discount_pct: Number(discountPct) || 0,
-      challanDate: challanDate ? new Date(challanDate).toISOString() : undefined, // NEW: Pass challan date
+      challanDate: challanDate || undefined,
     };
   };
 
@@ -950,8 +1002,8 @@ const ChallanGeneration = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success(`Downloaded: ${number}.pdf`);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+      toast.success(`Download started: ${number}.pdf`);
     } catch (error) {
       const msg = error?.response?.data?.message || error.message || "Failed to download challan PDF";
       console.error("PDF download error:", error);
@@ -2030,6 +2082,10 @@ const ChallanGeneration = () => {
                               ? batch.manualItems.length
                               : 0}
                           </span>
+                          {" "}• Mode:{" "}
+                          <span className="font-semibold">
+                            {(batch.inventory_mode || "not saved").replace("_", " ").toUpperCase()}
+                          </span>
                         </div>
                         <div className="text-xs text-theme-text-muted">
                           HSN: {batch.hsnCode || "N/A"} • Terms:{" "}
@@ -2198,7 +2254,7 @@ const ChallanGeneration = () => {
                   for (const batch of clientBatches) {
                     const batchId = getBatchId(batch);
                     try {
-                      const challan = await createChallan(batch);
+                      const challan = await createChallan(buildBatchChallanPayload(batch));
                       created.push(challan);
                       if (batchId) {
                         try {

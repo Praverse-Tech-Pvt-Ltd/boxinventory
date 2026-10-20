@@ -21,8 +21,19 @@ const filterLineItemsByAudit = (lineItems = [], allowedIds = []) => {
       ...item,
       auditId: String(item.auditId),
       colours: Array.isArray(item.colours) ? item.colours : [],
+      colorLines: sanitizeColorLines(item.colorLines),
     }));
 };
+
+const sanitizeColorLines = (colorLines = []) =>
+  Array.isArray(colorLines)
+    ? colorLines
+        .map((line) => ({
+          color: String(line?.color || "").trim(),
+          quantity: Number(line?.quantity || 0),
+        }))
+        .filter((line) => line.color && line.quantity > 0)
+    : [];
 
 const sanitizeManualItems = (manualItems = []) =>
   manualItems
@@ -31,7 +42,18 @@ const sanitizeManualItems = (manualItems = []) =>
       ...item,
       boxId: item.boxId ? String(item.boxId) : undefined,
       colours: Array.isArray(item.colours) ? item.colours : [],
+      colorLines: sanitizeColorLines(item.colorLines),
     }));
+
+const normalizeInventoryMode = (value) => {
+  const mode = String(value || "record_only").toLowerCase().trim();
+  return mode === "dispatch" ? "dispatch" : "record_only";
+};
+
+const normalizeTaxType = (value) => {
+  const taxType = String(value || "GST").toUpperCase().trim();
+  return taxType === "NON_GST" || taxType === "NONGST" ? "NON_GST" : "GST";
+};
 
 export const listClientBatches = async (_req, res) => {
   try {
@@ -44,7 +66,23 @@ export const listClientBatches = async (_req, res) => {
 
 export const createClientBatch = async (req, res) => {
   try {
-    const { label, auditIds, lineItems, manualItems, hsnCode, terms, clientDetails } = req.body;
+    const {
+      label,
+      auditIds,
+      lineItems,
+      manualItems,
+      hsnCode,
+      terms,
+      clientDetails,
+      challanTaxType,
+      challanDate,
+      inventory_mode,
+      payment_mode,
+      remarks,
+      packaging_charges_overall,
+      shipping_charges,
+      discount_pct,
+    } = req.body;
     const auditIdList = Array.isArray(auditIds)
       ? Array.from(new Set(auditIds.map((id) => String(id))))
       : [];
@@ -70,6 +108,14 @@ export const createClientBatch = async (req, res) => {
       manualItems: safeManualItems,
       hsnCode: typeof hsnCode === "string" ? hsnCode.trim() : "",
       terms: typeof terms === "string" ? terms : "",
+      challanTaxType: normalizeTaxType(challanTaxType),
+      challanDate: typeof challanDate === "string" ? challanDate.trim() : "",
+      inventory_mode: normalizeInventoryMode(inventory_mode),
+      payment_mode: payment_mode && String(payment_mode).trim() ? String(payment_mode).trim() : null,
+      remarks: remarks && String(remarks).trim() ? String(remarks).trim() : "",
+      packaging_charges_overall: Number(packaging_charges_overall) || 0,
+      shipping_charges: Number(shipping_charges) || 0,
+      discount_pct: Math.max(0, Math.min(100, Number(discount_pct) || 0)),
       clientDetails: normalizeClientDetails(clientDetails),
       createdBy: req.user?._id,
     };
@@ -105,6 +151,14 @@ export const appendToClientBatch = async (req, res) => {
 
     const safeLineItems = filterLineItemsByAudit(lineItems, newAuditIds);
     const safeManualItems = sanitizeManualItems(manualItems);
+    const nextInventoryMode = normalizeInventoryMode(req.body.inventory_mode);
+    const existingInventoryMode = normalizeInventoryMode(batch.inventory_mode);
+
+    if (req.body.inventory_mode !== undefined && existingInventoryMode !== nextInventoryMode) {
+      return res.status(400).json({
+        message: "Cannot mix Dispatch and Record Only items in the same client batch",
+      });
+    }
 
     batch.auditIds = Array.from(existingSet);
     batch.lineItems = [...batch.lineItems, ...safeLineItems];
@@ -115,6 +169,32 @@ export const appendToClientBatch = async (req, res) => {
     }
     if (typeof req.body.hsnCode === "string") {
       batch.hsnCode = req.body.hsnCode.trim();
+    }
+    if (typeof req.body.challanTaxType === "string") {
+      batch.challanTaxType = normalizeTaxType(req.body.challanTaxType);
+    }
+    if (typeof req.body.challanDate === "string") {
+      batch.challanDate = req.body.challanDate.trim();
+    }
+    if (req.body.inventory_mode !== undefined) {
+      batch.inventory_mode = nextInventoryMode;
+    }
+    if (req.body.payment_mode !== undefined) {
+      batch.payment_mode = req.body.payment_mode && String(req.body.payment_mode).trim()
+        ? String(req.body.payment_mode).trim()
+        : null;
+    }
+    if (req.body.remarks !== undefined) {
+      batch.remarks = String(req.body.remarks || "").trim();
+    }
+    if (req.body.packaging_charges_overall !== undefined) {
+      batch.packaging_charges_overall = Number(req.body.packaging_charges_overall) || 0;
+    }
+    if (req.body.shipping_charges !== undefined) {
+      batch.shipping_charges = Number(req.body.shipping_charges) || 0;
+    }
+    if (req.body.discount_pct !== undefined) {
+      batch.discount_pct = Math.max(0, Math.min(100, Number(req.body.discount_pct) || 0));
     }
     if (req.body.clientDetails) {
       const normalized = normalizeClientDetails(req.body.clientDetails);

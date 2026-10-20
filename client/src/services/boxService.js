@@ -13,8 +13,10 @@ export const getBoxById = async (boxId) => {
 };
 
 // Get box color availability by code (for challan generation)
-export const getBoxAvailability = async (boxCode) => {
-  const res = await axiosInstance.get(`/api/boxes/availability/${boxCode}`);
+export const getBoxAvailability = async (boxCode, boxId) => {
+  const res = await axiosInstance.get(`/api/boxes/availability/${encodeURIComponent(boxCode)}`, {
+    params: { boxId },
+  });
   return res.data;
 };
 

@@ -19,6 +19,14 @@ const boxSnapshotSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const colorLineSchema = new mongoose.Schema(
+  {
+    color: { type: String, trim: true },
+    quantity: { type: Number, min: 0 },
+  },
+  { _id: false }
+);
+
 const lineItemSchema = new mongoose.Schema(
   {
     auditId: { type: String, required: true, trim: true },
@@ -29,6 +37,7 @@ const lineItemSchema = new mongoose.Schema(
     packagingCharge: { type: Number, min: 0 },
     color: { type: String, trim: true },
     colours: { type: [String], default: [] },
+    colorLines: { type: [colorLineSchema], default: [] },
     boxSnapshot: boxSnapshotSchema,
   },
   { _id: false }
@@ -44,6 +53,7 @@ const manualItemSchema = new mongoose.Schema(
     packagingCharge: { type: Number, min: 0 },
     color: { type: String, trim: true },
     colours: { type: [String], default: [] },
+    colorLines: { type: [colorLineSchema], default: [] },
     boxSnapshot: boxSnapshotSchema,
   },
   { _id: false }
@@ -57,6 +67,25 @@ const clientBatchSchema = new mongoose.Schema(
     manualItems: { type: [manualItemSchema], default: [] },
     hsnCode: { type: String, trim: true },
     terms: { type: String, trim: true },
+    challanTaxType: {
+      type: String,
+      enum: ["GST", "NON_GST"],
+      default: "GST",
+    },
+    challanDate: { type: String, trim: true },
+    inventory_mode: {
+      type: String,
+      enum: ["dispatch", "record_only"],
+    },
+    payment_mode: {
+      type: String,
+      enum: ["Cash", "GPay", "Bank Account", "Credit", null],
+      default: null,
+    },
+    remarks: { type: String, trim: true },
+    packaging_charges_overall: { type: Number, default: 0 },
+    shipping_charges: { type: Number, default: 0 },
+    discount_pct: { type: Number, default: 0, min: 0, max: 100 },
     clientDetails: clientDetailsSchema,
     status: {
       type: String,

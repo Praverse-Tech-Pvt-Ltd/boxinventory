@@ -78,7 +78,13 @@ export const getBoxById = async (req, res) => {
 export const getBoxAvailabilityByCode = async (req, res) => {
   try {
     const { code } = req.params;
-    const box = await Box.findOne({ code: code.trim().toUpperCase() });
+    const query = { code: code.trim().toUpperCase() };
+    if (req.query.boxId) query._id = req.query.boxId;
+    const matches = await Box.find(query).limit(2);
+    if (matches.length > 1) {
+      return res.status(409).json({ message: "Multiple products share this code. Select the product by name." });
+    }
+    const box = matches[0];
     if (!box) return res.status(404).json({ message: "Box not found" });
     
     // Use inventory helper to get normalized color availability
